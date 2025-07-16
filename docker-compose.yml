@@ -1,0 +1,39 @@
+services:
+  watch-tower:
+    container_name: watch-tower-v3
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - DB_SECRET_NAME=${DB_SECRET_NAME}
+      - ENCRYPTION_KEY_SECRET_NAME=${ENCRYPTION_KEY_SECRET_NAME}
+      - EVENT_RECORDINGS_BUCKET=${EVENT_RECORDINGS_BUCKET}
+      - REKOGNITION_COLLECTION_ID=${REKOGNITION_COLLECTION_ID}
+      - REKOGNITION_S3_KNOWN_FACES_BUCKET=${REKOGNITION_S3_KNOWN_FACES_BUCKET}
+      - SNS_REKOGNITION_VIDEO_ANALYSIS_TOPIC_ARN=${SNS_REKOGNITION_VIDEO_ANALYSIS_TOPIC_ARN}
+      - REKOGNITION_VIDEO_SERVICE_ROLE_ARN=${REKOGNITION_VIDEO_SERVICE_ROLE_ARN}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FILE=${LOG_FILE:-/app/logs/watch_tower.log}
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "watch-tower", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - watch-tower-network
+
+networks:
+  watch-tower-network:
+    driver: bridge

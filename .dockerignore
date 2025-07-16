@@ -1,0 +1,136 @@
+# =========================
+# VERSION CONTROL
+# =========================
+.git
+.gitignore
+.dockerignore
+
+# =========================
+# PYTHON
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# =========================
+# VIRTUAL ENVIRONMENTS
+# =========================
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# =========================
+# ENVIRONMENT & CONFIG
+# =========================
+.env
+.env.*
+*.ini
+pytest.ini
+mypy.ini
+
+# =========================
+# TESTING & DEVELOPMENT
+# =========================
+tests/
+examples/
+.coverage
+.coverage.*
+.cache
+.tox/
+.nox/
+.hypothesis/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+
+# =========================
+# BUILD & PACKAGING
+# =========================
+build/
+dist/
+*.egg-info/
+.eggs/
+develop-eggs/
+sdist/
+var/
+parts/
+lib/
+lib64/
+wheels/
+share/python-wheels/
+*.egg
+MANIFEST
+.installed.cfg
+
+# =========================
+# DATA & LOGS
+# =========================
+*.db
+test.db
+*.log
+logs/
+data/
+downloads/
+downloaded_videos/
+
+# =========================
+# MEDIA FILES
+# =========================
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.tmp
+*.temp
+
+# =========================
+# IDE & EDITOR
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =========================
+# OPERATING SYSTEM
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =========================
+# DOCUMENTATION
+# =========================
+docs/
+*.md
+!README.md
+
+# =========================
+# DOCKER & DEPLOYMENT
+# =========================
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# =========================
+# MISC
+# =========================
+pip-log.txt
+pip-delete-this-directory.txt
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover 
