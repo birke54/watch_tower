@@ -1,10 +1,21 @@
+"""AWS Rekognition service for face recognition and video analysis.
+
+This module provides functionality for face indexing, face search in videos,
+and collection management using AWS Rekognition service.
+"""
+
+import asyncio
 from typing import Dict, Any, Tuple, List
+from urllib.parse import urlparse
+
 import boto3
 from botocore.exceptions import ClientError
-from urllib.parse import urlparse
-import asyncio
 
-from aws.exceptions import ClientInitializationError, RekognitionError, RekognitionResourceNotFoundException
+from aws.exceptions import (
+    ClientInitializationError,
+    RekognitionError,
+    RekognitionResourceNotFoundException
+)
 from aws.s3.s3_service import s3_service
 from watch_tower.config import config
 from utils.logging_config import get_logger
@@ -19,16 +30,25 @@ JOB_STATUS_FAILED = 'FAILED'
 # Module-level tracking of running face search jobs to prevent duplicates
 _running_face_search_jobs = set()
 
+
 class RekognitionService:
+    """Service class for AWS Rekognition operations.
+
+    This class provides methods for face indexing, face search in videos,
+    and collection management. It handles AWS client initialization,
+    environment validation, and provides a clean interface for Rekognition
+    operations.
+    """
+
     def __init__(self):
         """Initialize the Rekognition service with AWS credentials."""
         self._validate_environment_variables()
         self.client = self._initialize_rekognition_client()
-        
+
     def _validate_environment_variables(self) -> None:
         """
         Validate that all required environment variables are present.
-        
+
         Raises:
             ValueError: If any required environment variables are missing.
         """
@@ -42,7 +62,7 @@ class RekognitionService:
             "sns_rekognition_video_analysis_topic_arn",
             "rekognition_video_service_role_arn"
         ])
-        
+
         self.region = config.aws_region
         self.access_key = config.aws_access_key_id
         self.secret_key = config.aws_secret_access_key
@@ -54,10 +74,10 @@ class RekognitionService:
     def _initialize_rekognition_client(self) -> boto3.client:
         """
         Initialize the Rekognition client with AWS credentials.
-        
+
         Returns:
             boto3.client: Initialized Rekognition client.
-            
+
         Raises:
             ValueError: If client initialization fails.
         """
@@ -91,7 +111,7 @@ class RekognitionService:
         Index faces of one or more images for a specific person.
 
         Args:
-            person_id (str): The ID of the person to index faces for. 
+            person_id (str): The ID of the person to index faces for.
                 This id needs to match the file name prefix of the images in the S3 bucket.
 
         Returns:
@@ -105,9 +125,9 @@ class RekognitionService:
 
         if not matching_s3_files:
             raise ValueError(f"No matching files found for person ID: {person_id}")
-        
+
         self.check_collection_exists(self.collection_id)
-        
+
         try:
             returned_job_ids = []
             for file_path in matching_s3_files:
@@ -126,7 +146,7 @@ class RekognitionService:
         except ClientError as e:
             logger.error(f"Error indexing faces: {e}")
             raise RekognitionError(f"Error indexing faces: {e}")
-        
+
         return response['JobId']
 
     async def start_face_search(self, source_video_path: str) -> Tuple[List[Dict[str, Any]], bool]:
@@ -154,11 +174,11 @@ class RekognitionService:
         if source_video_path in _running_face_search_jobs:
             logger.warning(f"Face search job already running for video: {source_video_path}")
             return [], True  # Return empty list and flag indicating job was skipped
-        
+
         try:
             # Add to running jobs set
             _running_face_search_jobs.add(source_video_path)
-            
+
             # Parse the S3 URL to extract bucket and object key
             if source_video_path.startswith('s3://'):
                 # Extract bucket and key from s3:// URL
@@ -201,7 +221,7 @@ class RekognitionService:
             )
             logger.info(f"Started face search job {response['JobId']} for video {source_video_path}")
             face_search_results = await self.get_face_search_results(response['JobId'])
-            
+
             return face_search_results, False  # Return results and flag indicating job was executed
         except ClientError as e:
             logger.error(f"Error starting face search: {e}")
@@ -233,13 +253,13 @@ class RekognitionService:
             try:
                 result = self.client.get_face_search(JobId=job_id)
                 logger.info(f"Job {job_id} status: {result['JobStatus']}")
-                
+
                 if result['JobStatus'] in [JOB_STATUS_SUCCEEDED, JOB_STATUS_FAILED]:
                     break
-                    
-                logger.info("Waiting for job {job_id} to complete...")
+
+                logger.info(f"Waiting for job {job_id} to complete...")
                 await asyncio.sleep(polling_interval)
-                
+
             except ClientError as e:
                 logger.error(f"Error getting face search results for job {job_id}: {e}")
                 raise RekognitionError(f"Error getting face search results for job {job_id}: {e}")
@@ -247,7 +267,7 @@ class RekognitionService:
         matches: List[Dict[str, Any]] = []
         if result['JobStatus'] == JOB_STATUS_SUCCEEDED:
             logger.info(f"Face search job {job_id} succeeded")
-            
+
             for person in result.get('Persons', []):
                 timestamp = person.get('Timestamp', 0)
                 if 'FaceMatches' in person:
@@ -256,7 +276,7 @@ class RekognitionService:
                         external_image_id = face.get('ExternalImageId', 'Unknown')
                         face_id = face.get('FaceId', 'Unknown')
                         confidence = match.get('Similarity', 0.0) / 100.0  # Convert percentage to decimal
-                        
+
                         matches.append({
                             'external_image_id': external_image_id,
                             'face_id': face_id,
