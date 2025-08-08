@@ -110,13 +110,13 @@ class TestRingConnectionManager:
         token_bytes = json.dumps(token).encode('utf-8')
         mock_vendor.token = memoryview(token_bytes)
         ring_connection_manager._vendor_repository.get_by_field = Mock(return_value=mock_vendor)
-        
+
         with patch('connection_managers.ring_connection_manager.Auth', return_value=mock_auth), \
              patch('connection_managers.ring_connection_manager.Ring', return_value=mock_ring):
-            
+
             # Execute
             await ring_connection_manager.login()
-            
+
             # Verify
             assert ring_connection_manager._is_authenticated
             assert ring_connection_manager._ring == mock_ring
@@ -138,14 +138,14 @@ class TestRingConnectionManager:
         # Setup
         mock_vendor.token = None
         ring_connection_manager._vendor_repository.get_by_field = Mock(return_value=mock_vendor)
-        
+
         with patch('connection_managers.ring_connection_manager.Auth', return_value=mock_auth), \
              patch('connection_managers.ring_connection_manager.Ring', return_value=mock_ring), \
              patch('connection_managers.ring_connection_manager.decrypt', return_value="decrypted_password"):
-            
+
             # Execute
             await ring_connection_manager.login()
-            
+
             # Verify
             assert ring_connection_manager._is_authenticated
             assert ring_connection_manager._ring == mock_ring
@@ -168,15 +168,15 @@ class TestRingConnectionManager:
         mock_vendor.token = None
         ring_connection_manager._vendor_repository.get_by_field = Mock(return_value=mock_vendor)
         mock_auth.fetch_token.side_effect = [Requires2FAError(), None]
-        
+
         with patch('connection_managers.ring_connection_manager.Auth', return_value=mock_auth), \
              patch('connection_managers.ring_connection_manager.Ring', return_value=mock_ring), \
              patch('connection_managers.ring_connection_manager.decrypt', return_value="decrypted_password"), \
              patch('builtins.input', return_value="123456"):
-            
+
             # Execute
             await ring_connection_manager.login()
-            
+
             # Verify
             assert mock_auth.fetch_token.call_count == 2
             mock_auth.fetch_token.assert_called_with("test_user", "decrypted_password", "123456")
@@ -194,10 +194,10 @@ class TestRingConnectionManager:
         mock_vendor.token = None
         ring_connection_manager._vendor_repository.get_by_field = Mock(return_value=mock_vendor)
         mock_auth.fetch_token.side_effect = AuthenticationError("Invalid credentials")
-        
+
         with patch('connection_managers.ring_connection_manager.Auth', return_value=mock_auth), \
              patch('connection_managers.ring_connection_manager.decrypt', return_value="decrypted_password"):
-            
+
             # Execute and Verify
             with pytest.raises(Exception):
                 await ring_connection_manager.login()
@@ -213,10 +213,10 @@ class TestRingConnectionManager:
         ring_connection_manager._ring = mock_ring
         ring_connection_manager._auth = Mock()
         ring_connection_manager._is_authenticated = True
-        
+
         # Execute
         result = await ring_connection_manager.logout()
-        
+
         # Verify
         assert result
         assert ring_connection_manager._ring is None
@@ -232,10 +232,10 @@ class TestRingConnectionManager:
         # Setup
         ring_connection_manager._ring = mock_ring
         ring_connection_manager._is_authenticated = True
-        
+
         # Execute
         result = ring_connection_manager.is_healthy()
-        
+
         # Verify
         assert result
         mock_ring.update_data.assert_called_once()
@@ -252,10 +252,10 @@ class TestRingConnectionManager:
         mock_ring.video_devices.return_value = mock_cameras
         ring_connection_manager._ring = mock_ring
         ring_connection_manager._is_authenticated = True
-        
+
         # Execute
         result = await ring_connection_manager.get_cameras()
-        
+
         # Verify
         assert result == mock_cameras
         mock_ring.update_data.assert_called_once()
@@ -270,10 +270,10 @@ class TestRingConnectionManager:
         """Test camera retrieval when not authenticated."""
         # Setup
         ring_connection_manager._is_authenticated = False
-        
+
         # Execute
         result = await ring_connection_manager.get_cameras()
-        
+
         # Verify
         assert result is None
 
@@ -291,10 +291,10 @@ class TestRingConnectionManager:
         }
         vendor_id = 1
         mock_session = Mock()
-        
+
         # Execute
         ring_connection_manager.token_updated(token, vendor_id)
-        
+
         # Verify
         mock_vendor_repository.update_token.assert_called_once()
         call_args = mock_vendor_repository.update_token.call_args[0]
@@ -302,4 +302,4 @@ class TestRingConnectionManager:
         assert call_args[1] == vendor_id
         assert json.loads(call_args[2]) == token
         assert mock_registry.connection_managers[PluginType.RING]['token'] == token
-        assert mock_registry.connection_managers[PluginType.RING]['expires_at'] == datetime.fromtimestamp(token['expires_at']) 
+        assert mock_registry.connection_managers[PluginType.RING]['expires_at'] == datetime.fromtimestamp(token['expires_at'])

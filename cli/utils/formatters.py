@@ -38,4 +38,4 @@ def create_json_entry(entry: Any) -> Dict[str, Any]:
         'confidence_score': round(entry.confidence_score * 100, 1) if entry.confidence_score else None,
         'visited_at': entry.visited_at.isoformat() if entry.visited_at else None,
         'created_at': entry.created_at.isoformat() if entry.created_at else None
-    } 
+    }

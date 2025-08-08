@@ -84,7 +84,7 @@ def test_check_collection_exists_success(
 ) -> None:
     """Test successful collection existence check."""
     mock_rekognition_client.describe_collection.return_value = {'CollectionARN': 'test-arn'}
-    
+
     rekognition_service.check_collection_exists(TEST_COLLECTION_ID)
     mock_rekognition_client.describe_collection.assert_called_once_with(
         CollectionId=TEST_COLLECTION_ID
@@ -99,7 +99,7 @@ def test_check_collection_exists_not_found(
         {'Error': {'Code': 'ResourceNotFoundException'}},
         'DescribeCollection'
     )
-    
+
     with pytest.raises(RekognitionResourceNotFoundException) as exc_info:
         rekognition_service.check_collection_exists(TEST_COLLECTION_ID)
     assert str(exc_info.value) == f"Collection {TEST_COLLECTION_ID} not found"
@@ -112,12 +112,12 @@ def test_index_faces_success(
     """Test successful face indexing."""
     # Mock S3 files
     mock_s3_service.get_files_with_prefix.return_value = ['test/person1.jpg', 'test/person2.jpg']
-    
+
     # Mock Rekognition response
     mock_rekognition_client.index_faces.return_value = {'JobId': TEST_JOB_ID}
-    
+
     job_id = rekognition_service.index_faces(TEST_PERSON_ID)
-    
+
     assert job_id == TEST_JOB_ID
     assert mock_rekognition_client.index_faces.call_count == 2
     mock_s3_service.get_files_with_prefix.assert_called_once_with(TEST_BUCKET_NAME, TEST_PERSON_ID)
@@ -128,7 +128,7 @@ def test_index_faces_no_files(
 ) -> None:
     """Test face indexing with no matching files."""
     mock_s3_service.get_files_with_prefix.return_value = []
-    
+
     with pytest.raises(ValueError) as exc_info:
         rekognition_service.index_faces(TEST_PERSON_ID)
     assert "No matching files found" in str(exc_info.value)
@@ -154,9 +154,9 @@ async def test_start_face_search_success(
             }
         ]
     }
-    
+
     matches, was_skipped = await rekognition_service.start_face_search(TEST_VIDEO_PATH)
-    
+
     assert len(matches) == 2
     assert was_skipped == False
     assert any(match['face_id'] == 'face1' for match in matches)
@@ -173,9 +173,9 @@ async def test_start_face_search_failed_job(
     mock_rekognition_client.get_face_search.return_value = {
         'JobStatus': 'FAILED'
     }
-    
+
     matches, was_skipped = await rekognition_service.start_face_search(TEST_VIDEO_PATH)
-    
+
     assert len(matches) == 0
     assert was_skipped == False
     mock_rekognition_client.start_face_search.assert_called_once()
@@ -198,9 +198,9 @@ async def test_get_face_search_results_success(
             }
         ]
     }
-    
+
     matches = await rekognition_service.get_face_search_results(TEST_JOB_ID)
-    
+
     assert len(matches) == 2
     assert any(match['face_id'] == 'face1' for match in matches)
     assert any(match['face_id'] == 'face2' for match in matches)
@@ -226,9 +226,9 @@ async def test_get_face_search_results_polling(
             ]
         }
     ]
-    
+
     matches = await rekognition_service.get_face_search_results(TEST_JOB_ID)
-    
+
     assert len(matches) == 1
     assert any(match['face_id'] == 'face1' for match in matches)
-    assert mock_rekognition_client.get_face_search.call_count == 2 
+    assert mock_rekognition_client.get_face_search.call_count == 2

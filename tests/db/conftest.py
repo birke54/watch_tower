@@ -31,7 +31,7 @@ def db_session(engine: Engine) -> Generator[Session, None, None]:
     transaction = connection.begin()
     Session = sessionmaker(bind=connection)
     session = Session()
-    
+
     try:
         yield session
     finally:

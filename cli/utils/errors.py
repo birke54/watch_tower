@@ -42,4 +42,4 @@ def handle_cli_error(error: Exception, error_msg: str, ctx: click.Context) -> No
     if ctx.obj.get('verbose'):
         logger.exception("Full traceback:")
     click.echo(f"❌ {error_msg}")
-    sys.exit(1) 
+    sys.exit(1)

@@ -8,11 +8,11 @@ import enum
 
 from connection_managers.plugin_type import PluginType
 
-Base = declarative_base() 
+Base = declarative_base()
 
 class Vendors(Base):
     __tablename__ = 'vendors'
-    
+
     vendor_id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     plugin_type = Column(Enum(PluginType), nullable=True)
@@ -26,7 +26,7 @@ class Vendors(Base):
 
 class MotionEvent(Base):
     __tablename__ = 'motion_events'
-    
+
     id = Column(Integer, primary_key=True)
     camera_name = Column(String, nullable=False)
     motion_detected = Column(DateTime(timezone=True), nullable=False)
@@ -44,7 +44,7 @@ class MotionEvent(Base):
 
 class VisitorLogs(Base):
     __tablename__ = 'visitor_logs'
-    
+
     visitor_log_id = Column(Integer, primary_key=True)
     camera_name = Column(String, nullable=False)
     persons_name = Column(String, nullable=False)

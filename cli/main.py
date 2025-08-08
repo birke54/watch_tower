@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @click.pass_context
 def cli(ctx: click.Context, verbose: bool) -> None:
     """Watch Tower - Video Surveillance System CLI
-    
+
     This CLI provides commands to manage the Watch Tower video surveillance system,
     including starting and stopping the business logic loop, checking system status,
     and managing the application lifecycle.
@@ -28,7 +28,7 @@ def cli(ctx: click.Context, verbose: bool) -> None:
     # Ensure ctx.obj exists and is a dict
     ctx.ensure_object(dict)
     ctx.obj['verbose'] = verbose
-    
+
     if verbose:
         logging.getLogger().setLevel(logging.DEBUG)
         logger.debug("Verbose mode enabled")
@@ -40,4 +40,4 @@ cli.add_command(visitor_log_group, name='visitor-log')
 
 
 if __name__ == '__main__':
-    cli() 
+    cli()

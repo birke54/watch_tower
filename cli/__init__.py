@@ -9,4 +9,4 @@ monitoring, and visitor log management.
 from .main import cli
 
 __version__ = "3.0.0"
-__all__ = ["cli"] 
+__all__ = ["cli"]

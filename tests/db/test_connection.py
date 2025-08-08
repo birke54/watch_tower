@@ -36,7 +36,7 @@ def mock_db_connection(mock_secrets_manager: MagicMock) -> Generator[Tuple[Magic
     """Fixture to mock database connection"""
     with patch('db.connection.create_engine') as mock_create_engine, \
          patch('db.connection.sessionmaker') as mock_sessionmaker:
-        
+
         # Set up mock engine
         mock_engine = MagicMock()
         mock_url = MagicMock()
@@ -44,24 +44,24 @@ def mock_db_connection(mock_secrets_manager: MagicMock) -> Generator[Tuple[Magic
         mock_engine.url = mock_url
         mock_engine.pool._pre_ping = True
         mock_create_engine.return_value = mock_engine
-        
+
         # Set up mock session with proper structure
         mock_session = MagicMock()
         mock_session.is_active = True
-        
+
         # Set up session maker with proper configuration
         mock_maker = MagicMock()
         mock_maker.kw = {'autocommit': False, 'autoflush': False}
         mock_session._maker = mock_maker
-        
+
         # Set up query result
         mock_result = MagicMock()
         mock_result.scalar.return_value = 1
         mock_session.execute.return_value = mock_result
-        
+
         # Set up sessionmaker to return our configured session
         mock_sessionmaker.return_value = lambda: mock_session
-        
+
         yield mock_create_engine, mock_session
 
 def test_get_engine(mock_env_vars: None, mock_secrets_manager: MagicMock, mock_db_connection: Tuple[MagicMock, MagicMock]) -> None:
@@ -69,13 +69,13 @@ def test_get_engine(mock_env_vars: None, mock_secrets_manager: MagicMock, mock_d
     """Test that the engine can be created with correct configuration"""
     mock_create_engine, _ = mock_db_connection
     engine = get_engine()
-    
+
     # Verify the engine was created with correct URL
     assert str(engine.url) == f"postgresql://{MOCK_SECRET['username']}:{MOCK_SECRET['password']}@{MOCK_SECRET['host']}:{MOCK_SECRET['port']}/{MOCK_SECRET['dbname']}"
-    
+
     # Verify the engine has the expected configuration
     assert engine.pool._pre_ping is True
-    
+
     # Verify create_engine was called with correct arguments
     mock_create_engine.assert_called_once()
     call_args = mock_create_engine.call_args[1]
@@ -86,7 +86,7 @@ def test_get_session_factory(mock_db_connection: Tuple[MagicMock, MagicMock]) ->
     get_engine.cache_clear()
     """Test that the session factory can be created with correct configuration"""
     session_factory = get_session_factory()
-    
+
     # Create a session and verify its configuration
     session = session_factory()
     assert session.is_active
@@ -98,7 +98,7 @@ def test_engine_caching(mock_db_connection: Tuple[MagicMock, MagicMock]) -> None
     """Test that the engine is cached and reused"""
     engine1 = get_engine()
     engine2 = get_engine()
-    
+
     # Verify both calls return the same engine instance
     assert engine1 is engine2
 
@@ -106,10 +106,10 @@ def test_get_database_connection(mock_db_connection: Tuple[MagicMock, MagicMock]
     get_engine.cache_clear()
     """Test that get_database_connection returns both engine and session factory"""
     engine, session_factory = get_database_connection()
-    
+
     # Verify engine
     assert str(engine.url) == f"postgresql://{MOCK_SECRET['username']}:{MOCK_SECRET['password']}@{MOCK_SECRET['host']}:{MOCK_SECRET['port']}/{MOCK_SECRET['dbname']}"
-    
+
     # Verify session factory
     session = session_factory()
     assert session.is_active
@@ -120,7 +120,7 @@ def test_get_engine_secret_error(mock_env_vars: None) -> None:
     """Test that get_engine raises DatabaseConnectionError when secret retrieval fails"""
     # Clear the engine cache before testing
     get_engine.cache_clear()
-    
+
     with patch('db.connection.get_db_secret', side_effect=SecretsManagerError("Secret error")):
         with pytest.raises(DatabaseConnectionError) as exc_info:
             get_engine()
@@ -131,7 +131,7 @@ def test_get_session_factory_engine_error(mock_env_vars: None) -> None:
     """Test that get_session_factory raises DatabaseConnectionError when engine creation fails"""
     # Clear the engine cache before testing
     get_engine.cache_clear()
-    
+
     with patch('db.connection.get_engine', side_effect=Exception("Engine error")):
         with pytest.raises(DatabaseConnectionError) as exc_info:
             get_session_factory()
@@ -146,10 +146,10 @@ def test_actual_connection(mock_db_connection: Tuple[MagicMock, MagicMock]) -> N
     get_engine.cache_clear()
     engine, session_factory = get_database_connection()
     session = session_factory()
-    
+
     try:
         # Try to execute a simple query
         result = session.execute(text("SELECT 1"))
         assert result.scalar() == 1
     finally:
-        session.close() 
+        session.close()

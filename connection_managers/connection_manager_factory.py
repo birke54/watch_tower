@@ -31,7 +31,6 @@ class ConnectionManagerFactory:
         if plugin_type == PluginType.RING:
             from connection_managers.ring_connection_manager import RingConnectionManager
             return RingConnectionManager()
-        
+
         logger.error(f"Unsupported plugin type: {plugin_type}")
         raise ValueError(f"Unsupported plugin type: {plugin_type}")
-    

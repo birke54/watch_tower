@@ -36,7 +36,7 @@ class VideoConfig:
     rekognition_crf: int = 25
     max_width: int = 1280
     max_height: int = 720
-    polling_interval: int = 10 
+    polling_interval: int = 10
 
 @dataclass
 class CryptographyConfig:
@@ -80,25 +80,25 @@ class AppConfig:
     # Environment
     environment: str = os.getenv("ENVIRONMENT", "")
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"
-    
+
     # AWS Configuration
     aws_region: str = os.getenv("AWS_REGION", "")
     aws_access_key_id: str = os.getenv("AWS_ACCESS_KEY_ID", "")
     aws_secret_access_key: str = os.getenv("AWS_SECRET_ACCESS_KEY", "")
-    
+
     # Database Configuration
     db_secret_name: str = os.getenv("DB_SECRET_NAME", "")
     encryption_key_secret_name: str = os.getenv("ENCRYPTION_KEY_SECRET_NAME", "")
-    
+
     # S3 Configuration
     event_recordings_bucket: str = os.getenv("EVENT_RECORDINGS_BUCKET", "")
-    
+
     # Rekognition Configuration
     rekognition_collection_id: str = os.getenv("REKOGNITION_COLLECTION_ID", "")
     rekognition_s3_known_faces_bucket: str = os.getenv("REKOGNITION_S3_KNOWN_FACES_BUCKET", "")
     sns_rekognition_video_analysis_topic_arn: str = os.getenv("SNS_REKOGNITION_VIDEO_ANALYSIS_TOPIC_ARN", "")
     rekognition_video_service_role_arn: str = os.getenv("REKOGNITION_VIDEO_SERVICE_ROLE_ARN", "")
-    
+
     # Sub-configurations
     database: DatabaseConfig = DatabaseConfig()
     video: VideoConfig = VideoConfig()
@@ -107,11 +107,11 @@ class AppConfig:
     logging: LoggingConfig = LoggingConfig()
     cli: CLIConfig = CLIConfig()
     management: ManagementConfig = ManagementConfig()
-    
+
     def validate(self, required_fields: Optional[list] = None) -> None:
         """
         Validate that all required configuration is present.
-        
+
         Args:
             required_fields: List of required fields to validate. If None, validates all.
         """
@@ -119,7 +119,7 @@ class AppConfig:
             # Default required fields for production
             required_fields = [
                 "aws_region",
-                "aws_access_key_id", 
+                "aws_access_key_id",
                 "aws_secret_access_key",
                 "db_secret_name",
                 "encryption_key_secret_name",
@@ -129,30 +129,30 @@ class AppConfig:
                 "sns_rekognition_video_analysis_topic_arn",
                 "rekognition_video_service_role_arn"
             ]
-        
+
         missing_fields = []
         for field in required_fields:
             if not getattr(self, field):
                 missing_fields.append(field)
-        
+
         if missing_fields:
             raise ValueError(f"Missing required configuration: {', '.join(missing_fields)}")
-    
+
     def validate_aws_only(self) -> None:
         """Validate only AWS-related configuration."""
         self.validate([
             "aws_region",
-            "aws_access_key_id", 
+            "aws_access_key_id",
             "aws_secret_access_key"
         ])
-    
+
     def validate_database_only(self) -> None:
         """Validate only database-related configuration."""
         self.validate([
             "db_secret_name",
             "encryption_key_secret_name"
         ])
-    
+
     def validate_rekognition_only(self) -> None:
         """Validate only Rekognition-related configuration."""
         self.validate_aws_only()
@@ -162,7 +162,7 @@ class AppConfig:
             "sns_rekognition_video_analysis_topic_arn",
             "rekognition_video_service_role_arn"
         ])
-    
+
     def validate_s3_only(self) -> None:
         """Validate only S3-related configuration."""
         self.validate_aws_only()
@@ -175,4 +175,4 @@ config = AppConfig()
 
 # Note: Configuration validation is not run automatically on import
 # to allow for testing environments. Use config.validate() explicitly
-# when you need to validate configuration in production code. 
+# when you need to validate configuration in production code.

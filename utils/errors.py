@@ -13,7 +13,7 @@ class WatchTowerError(Exception):
 
 class ManagementAPIError(WatchTowerError):
     """Raised when there's an error with the management API."""
-    
+
     def __init__(self, message: str, status_code: Optional[int] = None, original_error: Optional[Exception] = None):
         super().__init__(message)
         self.status_code = status_code
@@ -22,7 +22,7 @@ class ManagementAPIError(WatchTowerError):
 
 class DependencyError(WatchTowerError):
     """Raised when a required dependency is missing."""
-    
+
     def __init__(self, dependency: str, install_command: str):
         message = f"{dependency} is required. Install with: {install_command}"
         super().__init__(message)

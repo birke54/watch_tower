@@ -28,4 +28,4 @@ class VendorsRepository(BaseRepository[Vendors]):
 
     def update_status(self, db: Session, vendor_id: int, status: VendorStatus) -> Optional[Vendors]:
         """Update vendor's status"""
-        return self.update(db, vendor_id, {"status": status}) 
+        return self.update(db, vendor_id, {"status": status})

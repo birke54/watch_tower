@@ -21,7 +21,7 @@ def setup_signal_handlers(loop, business_logic_manager):
         print("[DEBUG] Received SIGTERM: shutting down application.")
         loop.create_task(business_logic_manager.stop())
         sys.exit(0)
-    
+
     try:
         # Try to use add_signal_handler (Unix/Linux)
         loop.add_signal_handler(signal.SIGTERM, handle_sigterm)
@@ -80,7 +80,7 @@ async def _run_main_application_loop() -> None:
         # Start the management server
         management_server_task = asyncio.create_task(start_management_server())
         print(f"Management API server started on http://{config.management.host}:{config.management.port}")
-        
+
         # Start the business logic loop
         await business_logic_manager.start()
         while True:

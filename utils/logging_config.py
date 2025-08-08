@@ -20,7 +20,7 @@ def setup_logging(
 ) -> None:
     """
     Set up centralized logging configuration.
-    
+
     Args:
         level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         log_file: Optional file path for logging
@@ -32,30 +32,30 @@ def setup_logging(
     log_format = log_format or '%(asctime)s %(levelname)s %(name)s: %(message)s'
     # Convert string level to logging constant
     numeric_level = getattr(logging, level.upper(), logging.INFO)
-    
+
     # Create formatter
     formatter = logging.Formatter(log_format)
-    
+
     # Configure root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(numeric_level)
-    
+
     # Clear any existing handlers
     root_logger.handlers.clear()
-    
+
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(numeric_level)
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
-    
+
     # File handler (if specified)
     if log_file:
         # Ensure log directory exists
         log_dir = os.path.dirname(log_file)
         if log_dir and not os.path.exists(log_dir):
             os.makedirs(log_dir, exist_ok=True)
-            
+
         # Import config here to avoid circular imports
         from watch_tower.config import config as app_config
         file_handler = logging.handlers.RotatingFileHandler(
@@ -66,13 +66,13 @@ def setup_logging(
         file_handler.setLevel(numeric_level)
         file_handler.setFormatter(formatter)
         root_logger.addHandler(file_handler)
-    
+
     # Set specific logger levels for noisy libraries
     logging.getLogger('boto3').setLevel(logging.WARNING)
     logging.getLogger('botocore').setLevel(logging.WARNING)
     logging.getLogger('urllib3').setLevel(logging.WARNING)
     logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
-    
+
     # Log the setup
     logger = logging.getLogger(__name__)
     logger.info(f"Logging configured with level: {level}")
@@ -82,11 +82,11 @@ def setup_logging(
 def get_logger(name: str) -> logging.Logger:
     """
     Get a logger with the specified name.
-    
+
     Args:
         name: Logger name (usually __name__)
-        
+
     Returns:
         Configured logger instance
     """
-    return logging.getLogger(name) 
+    return logging.getLogger(name)

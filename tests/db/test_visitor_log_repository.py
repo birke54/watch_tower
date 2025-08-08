@@ -17,9 +17,9 @@ def test_create_visitor_log(
         "confidence_score": 0.98,
         "visited_at": now
     }
-    
+
     log = visitor_log_repository.create(db_session, log_data)
-    
+
     assert log.camera_name == "Test Camera"
     assert log.persons_name == "Test Person"
     assert log.confidence_score == 0.98
@@ -34,7 +34,7 @@ def test_get_visitor_log(
 ) -> None:
     """Test retrieving a visitor log by ID"""
     log = visitor_log_repository.get(db_session, int(sample_visitor_log.visitor_log_id))
-    
+
     assert log is not None
     assert log.visitor_log_id == sample_visitor_log.visitor_log_id
     assert log.camera_name == sample_visitor_log.camera_name
@@ -46,10 +46,10 @@ def test_get_by_persons_name(
 ) -> None:
     """Test retrieving visitor logs by person"""
     logs = visitor_log_repository.get_by_persons_name(
-        db_session, 
+        db_session,
         "Test Person"
     )
-    
+
     assert len(logs) == 1
     assert logs[0].visitor_log_id == sample_visitor_log.visitor_log_id
     assert logs[0].persons_name == "Test Person"
@@ -62,10 +62,10 @@ def test_get_by_camera_name(
 ) -> None:
     """Test retrieving visitor logs by camera"""
     logs = visitor_log_repository.get_by_camera_name(
-        db_session, 
+        db_session,
         "Test Camera"
     )
-    
+
     assert len(logs) == 1
     assert logs[0].visitor_log_id == sample_visitor_log.visitor_log_id
     assert logs[0].camera_name == "Test Camera"
@@ -79,13 +79,13 @@ def test_get_by_time_range(
     event_time = datetime.datetime.fromisoformat(str(sample_visitor_log.visited_at))
     start_time = event_time - datetime.timedelta(hours=1)
     end_time = event_time + datetime.timedelta(hours=1)
-    
+
     logs = visitor_log_repository.get_by_time_range(
-        db_session, 
-        start_time, 
+        db_session,
+        start_time,
         end_time
     )
-    
+
     assert len(logs) == 1
     assert logs[0].visitor_log_id == sample_visitor_log.visitor_log_id
     assert start_time <= logs[0].visited_at <= end_time
@@ -149,12 +149,12 @@ def test_get_high_confidence_visits(
         "visited_at": datetime.datetime.now()
     }
     visitor_log_repository.create(db_session, low_confidence_log_data)
-    
+
     high_confidence_logs = visitor_log_repository.get_high_confidence_visits(
-        db_session, 
+        db_session,
         0.8
     )
-    
+
     assert len(high_confidence_logs) == 1
     assert high_confidence_logs[0].visitor_log_id == sample_visitor_log.visitor_log_id
     assert high_confidence_logs[0].confidence_score > 0.8
@@ -167,7 +167,7 @@ def test_delete_visitor_log(
 ) -> None:
     """Test deleting a visitor log"""
     result = visitor_log_repository.delete(db_session, int(sample_visitor_log.visitor_log_id))
-    
+
     assert result is True
     deleted_log = visitor_log_repository.get(db_session, int(sample_visitor_log.visitor_log_id))
     assert deleted_log is None

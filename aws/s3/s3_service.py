@@ -15,17 +15,17 @@ class S3Service:
         """Initialize the S3 service with AWS credentials."""
         self._validate_environment_variables()
         self.client = self._initialize_s3_client()
-        
+
     def _validate_environment_variables(self) -> None:
         """
         Validate that all required environment variables are present.
-        
+
         Raises:
             ValueError: If any required environment variables are missing.
         """
         # Only validate AWS/S3 configuration
         config.validate_s3_only()
-        
+
         self.region = config.aws_region
         self.access_key = config.aws_access_key_id
         self.secret_key = config.aws_secret_access_key
@@ -33,10 +33,10 @@ class S3Service:
     def _initialize_s3_client(self) -> boto3.client:
         """
         Initialize the S3 client with AWS credentials.
-        
+
         Returns:
             boto3.client: Initialized S3 client.
-            
+
         Raises:
             ClientInitializationError: If client initialization fails.
         """
@@ -87,7 +87,7 @@ class S3Service:
             ClientError: If there's an AWS service error.
         """
         self.check_bucket_exists(bucket_name)
-        
+
         try:
             response = self.client.list_objects_v2(
                 Bucket=bucket_name,
@@ -99,10 +99,10 @@ class S3Service:
                 for obj in response.get('Contents', [])
                 if obj['Key'].startswith(prefix)
             ]
-            
+
             logger.info(f"Found {len(file_paths)} files with prefix {prefix} in bucket {bucket_name}")
             return file_paths
-            
+
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == '404':
@@ -129,11 +129,11 @@ class S3Service:
         try:
             # Create directory if it doesn't exist
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
-            
+
             # Download the file
             self.client.download_file(bucket_name, object_key, local_path)
             logger.info(f"Successfully downloaded s3://{bucket_name}/{object_key} to {local_path}")
-            
+
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == '404':
@@ -175,4 +175,3 @@ class S3Service:
 
 # Create a singleton instance
 s3_service = S3Service()
-    

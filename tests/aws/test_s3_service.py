@@ -31,7 +31,7 @@ def mock_s3_client() -> Generator[Mock, None, None]:
     """Create a mock S3 client."""
     with patch('boto3.client') as mock_client:
         yield mock_client.return_value
-    
+
 @pytest.fixture
 def s3_service(mock_env_vars: None, mock_config: Mock, mock_s3_client: Mock) -> S3Service:
     """Create an S3 service instance with mocked dependencies."""
@@ -55,7 +55,7 @@ def test_init_missing_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
         with pytest.raises(ValueError) as exc_info:
             S3Service()
         assert "Missing required environment variables" in str(exc_info.value)
-        
+
 def test_check_bucket_exists_success(s3_service: S3Service, mock_s3_client: Mock) -> None:
     """Test successful bucket existence check."""
     mock_s3_client.head_bucket.return_value = {}
@@ -110,7 +110,7 @@ def test_get_files_with_prefix_error(s3_service: S3Service, mock_s3_client: Mock
     mock_s3_client.list_objects_v2.side_effect = ClientError(
         {'Error': {'Code': '404'}},
         'ListObjectsV2'
-    ) 
+    )
 
     with pytest.raises(S3ResourceNotFoundException) as exc_info:
         s3_service.get_files_with_prefix(TEST_BUCKET_NAME, 'file')
@@ -122,13 +122,13 @@ def test_download_file_success(s3_service: S3Service, mock_s3_client: Mock, tmp_
     # Setup
     test_object_key = "test/object.jpg"
     local_path = tmp_path / "downloaded" / "object.jpg"
-    
+
     # Mock the head_bucket call in check_bucket_exists
     mock_s3_client.head_bucket.return_value = {}
-    
+
     # Test
     s3_service.download_file(TEST_BUCKET_NAME, test_object_key, str(local_path))
-    
+
     # Verify
     mock_s3_client.download_file.assert_called_once_with(
         TEST_BUCKET_NAME,
@@ -142,13 +142,13 @@ def test_download_file_bucket_not_found(s3_service: S3Service, mock_s3_client: M
     # Setup
     test_object_key = "test/object.jpg"
     local_path = tmp_path / "downloaded" / "object.jpg"
-    
+
     # Mock the head_bucket call to simulate bucket not found
     mock_s3_client.head_bucket.side_effect = ClientError(
         {'Error': {'Code': '404'}},
         'HeadBucket'
     )
-    
+
     # Test and verify
     with pytest.raises(S3ResourceNotFoundException) as exc_info:
         s3_service.download_file(TEST_BUCKET_NAME, test_object_key, str(local_path))
@@ -160,16 +160,16 @@ def test_download_file_object_not_found(s3_service: S3Service, mock_s3_client: M
     # Setup
     test_object_key = "test/object.jpg"
     local_path = tmp_path / "downloaded" / "object.jpg"
-    
+
     # Mock the head_bucket call in check_bucket_exists
     mock_s3_client.head_bucket.return_value = {}
-    
+
     # Mock the download_file call to simulate object not found
     mock_s3_client.download_file.side_effect = ClientError(
         {'Error': {'Code': '404'}},
         'GetObject'
     )
-    
+
     # Test and verify
     with pytest.raises(S3ResourceNotFoundException) as exc_info:
         s3_service.download_file(TEST_BUCKET_NAME, test_object_key, str(local_path))
@@ -181,13 +181,13 @@ def test_download_file_creates_directory(s3_service: S3Service, mock_s3_client: 
     # Setup
     test_object_key = "test/object.jpg"
     local_path = tmp_path / "new" / "directory" / "object.jpg"
-    
+
     # Mock the head_bucket call in check_bucket_exists
     mock_s3_client.head_bucket.return_value = {}
-    
+
     # Test
     s3_service.download_file(TEST_BUCKET_NAME, test_object_key, str(local_path))
-    
+
     # Verify
     assert local_path.parent.exists()
     mock_s3_client.download_file.assert_called_once()

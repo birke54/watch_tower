@@ -131,7 +131,7 @@ class TestExceptionInheritance:
             DatabaseConnectionError,
             CryptographyError,
         ]
-        
+
         for exception_class in custom_exceptions:
             error = exception_class("test message")
             assert isinstance(error, Exception)
@@ -156,4 +156,4 @@ class TestExceptionMessages:
         """Test exception with special characters in message."""
         special_message = "Error with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?"
         error = ConfigError(special_message)
-        assert str(error) == special_message 
+        assert str(error) == special_message

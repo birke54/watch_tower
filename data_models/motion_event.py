@@ -27,7 +27,7 @@ class MotionEvent:
 
         Args:
             event: The raw event data from the Ring API containing doorbot information
-                  and event details. 
+                  and event details.
 
         Returns:
             MotionEvent: The MotionEvent object.
@@ -41,25 +41,25 @@ class MotionEvent:
             raise ValueError("created_at timestamp is missing from event")
         if not isinstance(timestamp, datetime.datetime):
             timestamp = datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-        
+
         # Convert to Pacific time
         timestamp = timestamp.astimezone(ZoneInfo("America/Los_Angeles"))
-        
+
         doorbot = event.get("doorbot")
         if doorbot is None:
             raise ValueError("doorbot information is missing from event")
         if not isinstance(doorbot, dict):
             raise ValueError("doorbot information is not in expected format")
-        
+
         camera_name = doorbot.get("description")
         if camera_name is None:
             raise ValueError("camera name is missing from doorbot information")
-        
+
         # Get the Ring event ID
         ring_event_id = event.get("id")
         if ring_event_id is None:
             raise ValueError("event id is missing from event data")
-        
+
         return cls(
             event_id=str(ring_event_id),  # Use the Ring event ID as the event_id
             camera_vendor=PluginType.RING,

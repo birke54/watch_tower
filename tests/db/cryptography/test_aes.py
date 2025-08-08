@@ -116,7 +116,7 @@ def test_encrypt_decrypt_roundtrip(mock_env_vars: None, mock_secrets_manager: Ma
         "String with unicode: 你好世界",
         "Very long string " * 100
     ]
-    
+
     for test_data in test_cases:
         encrypted = encrypt(test_data)
         decrypted = decrypt(encrypted)
@@ -134,4 +134,4 @@ def test_decryption_deterministic(mock_env_vars: None, mock_secrets_manager: Mag
     encrypted = encrypt(TEST_DATA)
     decrypted1 = decrypt(encrypted)
     decrypted2 = decrypt(encrypted)
-    assert decrypted1 == decrypted2  # Should be the same 
+    assert decrypted1 == decrypted2  # Should be the same

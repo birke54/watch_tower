@@ -41,14 +41,14 @@ class ConnectionManagerError(WatchTowerError):
 __all__ = [
     # AWS exceptions
     'RekognitionResourceNotFoundException',
-    'S3ResourceNotFoundException', 
+    'S3ResourceNotFoundException',
     'SecretsManagerError',
     'ConfigError',
     'NoCredentialsError',
     'ClientError',
     'S3Error',
     'RekognitionError',
-    
+
     # Database exceptions
     'DatabaseConfigError',
     'DatabaseConnectionError',
@@ -62,4 +62,4 @@ __all__ = [
     'ManagementAPIError',
     'VideoProcessingError',
     'CameraError',
-] 
+]

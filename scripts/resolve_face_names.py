@@ -20,28 +20,28 @@ load_dotenv()
 def resolve_face_names_from_search_results(face_matches: list):
     """
     Resolve face names from face search results.
-    
+
     Args:
         face_matches: List of tuples (match_type, face_id, external_image_id)
     """
     try:
         print(f"Resolving names for face matches: {face_matches}")
-        
+
         # Initialize the Rekognition service
         rekognition_service = RekognitionService()
-        
+
         # Convert list to set for the method
         face_matches_set = set(face_matches)
-        
+
         # Resolve names using AWS Rekognition ExternalImageId
         face_to_name = rekognition_service.resolve_face_names(face_matches_set)
-        
+
         print("\nResolved names:")
         for face_id, name in face_to_name.items():
             print(f"  - {face_id} -> {name}")
-            
+
         return face_to_name
-        
+
     except Exception as e:
         print(f"Error: {e}")
         import traceback
@@ -58,13 +58,13 @@ def main():
         print("\nNote: This script requires the ExternalImageId from face search results.")
         print("For direct face ID resolution, use the test_face_search_results.py script instead.")
         return
-    
+
     # Get arguments in groups of 3 (match_type, face_id, external_image_id)
     args = sys.argv[1:]
     if len(args) % 3 != 0:
         print("Error: Arguments must be in groups of 3: match_type face_id external_image_id")
         return
-    
+
     # Parse arguments into tuples
     face_matches = []
     for i in range(0, len(args), 3):
@@ -72,9 +72,9 @@ def main():
         face_id = args[i + 1]
         external_image_id = args[i + 2]
         face_matches.append((match_type, face_id, external_image_id))
-    
+
     # Resolve names
     resolve_face_names_from_search_results(face_matches)
 
 if __name__ == "__main__":
-    main() 
+    main()

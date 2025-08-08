@@ -11,6 +11,6 @@ from .management_api import create_management_app
 
 __all__ = [
     "business_logic_manager",
-    "bootstrap", 
+    "bootstrap",
     "create_management_app",
-] 
+]

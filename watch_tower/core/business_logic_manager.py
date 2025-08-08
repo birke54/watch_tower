@@ -21,13 +21,13 @@ STATE_FILE = "/tmp/watch_tower_business_logic_state.json"
 
 class BusinessLogicManager:
     """Manages the business logic loop lifecycle with file-based state persistence."""
-    
+
     def __init__(self):
         self.task: Optional[asyncio.Task] = None
         self.running = False
         self.shutdown_event = asyncio.Event()
         self.start_time: Optional[datetime] = None
-        
+
     def _save_state(self) -> None:
         """Save the current state to a file for cross-process access."""
         try:
@@ -46,7 +46,7 @@ class BusinessLogicManager:
         except Exception as e:
             logger.error(f"Unexpected error saving state: {e}")
             raise BusinessLogicError(f"Unexpected error saving state: {str(e)}")
-            
+
     def _load_state(self) -> Dict[str, Any]:
         """Load the current state from file."""
         try:
@@ -59,27 +59,27 @@ class BusinessLogicManager:
             logger.error(f"Failed to parse state file JSON: {e}")
         except Exception as e:
             logger.error(f"Unexpected error loading state: {e}")
-        
+
         return {
             "running": False,
             "start_time": None,
             "business_logic_completed": None,
             "business_logic_cancelled": None
         }
-        
+
     async def start(self) -> None:
         """Start the business logic loop."""
         if self.running:
             logger.warning("Business logic loop is already running")
             return
-            
+
         # Store original state for rollback
         original_running = self.running
         original_start_time = self.start_time
         original_task = self.task
         original_shutdown_event_state = self.shutdown_event.is_set()
         rollback = False
-            
+
         try:
             logger.info("Starting business logic loop...")
             self.running = True
@@ -110,25 +110,25 @@ class BusinessLogicManager:
                 raise
             else:
                 raise BusinessLogicError(f"Failed to start business logic loop: {str(e)}")
-            
+
     async def stop(self) -> None:
         """Stop the business logic loop gracefully."""
         if not self.running:
             logger.warning("Business logic loop is not running")
             return
-            
+
         # Store original state for rollback
         original_running = self.running
         original_task = self.task
         original_shutdown_event_state = self.shutdown_event.is_set()
         rollback = False
-            
+
         try:
             logger.info("Stopping business logic loop...")
             self.running = False
             self.shutdown_event.set()
             self._save_state()
-            
+
             if self.task and not self.task.done():
                 # Wait for the task to complete with a timeout
                 try:
@@ -140,7 +140,7 @@ class BusinessLogicManager:
                         await self.task
                     except asyncio.CancelledError:
                         pass
-                        
+
             logger.info("Business logic loop stopped successfully")
         except Exception as e:
             logger.error(f"Error stopping business logic loop: {e}")
@@ -170,7 +170,7 @@ class BusinessLogicManager:
                     self._save_state()
                 except Exception as save_error:
                     logger.error(f"Failed to save final state: {save_error}")
-            
+
     async def _run_business_logic_loop(self) -> None:
         """Internal method to run the business logic loop with shutdown handling."""
         try:
@@ -179,11 +179,11 @@ class BusinessLogicManager:
             from data_models.motion_event import MotionEvent
             import datetime
             from watch_tower.core.events_loop import poll_for_events, insert_events_into_db, start_video_retrieval_tasks, start_facial_recognition_tasks
-            
+
             # Heartbeat counter - log every 5 minutes (300 seconds / 5 seconds = 60 iterations)
             heartbeat_counter = 0
             heartbeat_interval = 60  # Log heartbeat every 60 iterations (5 minutes)
-            
+
             # Run the business logic loop until shutdown is requested
             while self.running and not self.shutdown_event.is_set():
                 try:
@@ -192,26 +192,26 @@ class BusinessLogicManager:
                     if heartbeat_counter >= heartbeat_interval:
                         logger.info("[HEARTBEAT] Business logic loop is running inside the Docker container.")
                         heartbeat_counter = 0
-                    
+
                     # Run one iteration of the business logic loop
                     active_cameras = camera_registry.get_all_active()
                     current_time = datetime.datetime.now(datetime.timezone.utc)
                     new_events: list[MotionEvent] = []
-                    
+
                     for camera in active_cameras:
                         if not self.running or self.shutdown_event.is_set():
                             break
                         await poll_for_events(camera, current_time, new_events)
-                        
+
                     if new_events:
                         insert_events_into_db(new_events)
-                        
+
                     await start_video_retrieval_tasks()
                     await start_facial_recognition_tasks()
-                    
+
                     # Wait before next iteration, but check for shutdown
                     await asyncio.sleep(5)
-                    
+
                 except BusinessLogicError as e:
                     logger.error(f"Business logic error in loop iteration: {e}")
                     # Continue running unless explicitly stopped
@@ -241,13 +241,13 @@ class BusinessLogicManager:
         finally:
             self.running = False
             self._save_state()
-            
+
     def get_status(self) -> Dict[str, Any]:
         """Get the current status of the business logic loop."""
         try:
             # Load state from file for cross-process access
             state = self._load_state()
-            
+
             # Calculate uptime only if the business logic loop is running
             uptime = None
             if state.get('running', False) and state.get('start_time'):
@@ -276,7 +276,7 @@ class BusinessLogicManager:
                 except Exception as e:
                     logger.error(f"Failed to calculate total runtime: {e}")
                     uptime = "Unknown"
-            
+
             return {
                 "running": state.get('running', False),
                 "start_time": state.get('start_time'),
@@ -289,4 +289,4 @@ class BusinessLogicManager:
             raise BusinessLogicError(f"Failed to get business logic status: {str(e)}")
 
 # Create a singleton instance
-business_logic_manager = BusinessLogicManager() 
+business_logic_manager = BusinessLogicManager()

@@ -135,4 +135,4 @@ class TestCameraRegistry:
     def test_update_status_not_found(self, registry: CameraRegistry) -> None:
         """Test updating status of non-existent camera."""
         with pytest.raises(KeyError, match="Camera Test Camera not found in registry"):
-            registry.update_status(PluginType.RING, "Test Camera", CameraStatus.INACTIVE) 
+            registry.update_status(PluginType.RING, "Test Camera", CameraStatus.INACTIVE)

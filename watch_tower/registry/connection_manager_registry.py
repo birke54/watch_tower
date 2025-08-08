@@ -45,19 +45,19 @@ class ConnectionManagerRegistry:
         Get a connection manager for a plugin type.
         """
         return cast(ConnectionManagerBase, self.connection_managers[plugin_type]['connection_manager'])
-    
+
     def get_all_connection_managers(self) -> List[ConnectionManagerInfo]:
         """
         Get all connection managers.
         """
         return list(self.connection_managers.values())
-    
+
     def get_all_active_connection_managers(self) -> List[ConnectionManagerInfo]:
         """
         Get all active connection managers.
         """
         return [manager for manager in self.connection_managers.values() if manager['status'] == VendorStatus.ACTIVE]
-    
+
     def update_status(self, plugin_type: PluginType, status: VendorStatus) -> bool:
         """
         Update the status of a connection manager.

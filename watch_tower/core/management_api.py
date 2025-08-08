@@ -117,11 +117,11 @@ def create_management_app():
                 'healthy': aws_healthy,
                 'error': aws_error
             },
-            'business_logic': business_logic_status, 
-            'event_loop': business_logic_status, 
+            'business_logic': business_logic_status,
+            'event_loop': business_logic_status,
             'cameras': cameras
         }
-        
+
         if camera_error:
             response['camera_error'] = camera_error
 
@@ -184,7 +184,7 @@ def create_management_app():
                 status_code=500,
                 detail=f"Internal server error: {str(e)}"
             )
-    
+
     return app
 
-app = create_management_app() 
+app = create_management_app()

@@ -17,7 +17,7 @@ class TestMotionEvent:
         timestamp = datetime.now(timezone.utc)
         s3_url = "https://test-bucket.s3.amazonaws.com/video.mp4"
         event_metadata = {"test": "data"}
-        
+
         # Execute
         event = MotionEvent(
             event_id=event_id,
@@ -27,7 +27,7 @@ class TestMotionEvent:
             s3_url=s3_url,
             event_metadata=event_metadata
         )
-        
+
         # Verify
         assert event.event_id == event_id
         assert event.camera_vendor == camera_vendor
@@ -43,7 +43,7 @@ class TestMotionEvent:
         camera_vendor = PluginType.RING
         camera_name = "Front Door"
         timestamp = datetime.now(timezone.utc)
-        
+
         # Execute
         event = MotionEvent(
             event_id=event_id,
@@ -53,7 +53,7 @@ class TestMotionEvent:
             s3_url=None,
             event_metadata={}
         )
-        
+
         # Verify
         assert event.s3_url is None
 
@@ -64,7 +64,7 @@ class TestMotionEvent:
         camera_vendor = PluginType.RING
         camera_name = "Front Door"
         timestamp = datetime.now(timezone.utc)
-        
+
         # Execute
         event = MotionEvent(
             event_id=event_id,
@@ -73,7 +73,7 @@ class TestMotionEvent:
             timestamp=timestamp,
             s3_url="https://test.com/video.mp4"
         )
-        
+
         # Verify
         assert event.event_metadata == {}
 
@@ -87,10 +87,10 @@ class TestMotionEvent:
                 "description": "Front Door Camera"
             }
         }
-        
+
         # Execute
         event = MotionEvent.from_ring_event(ring_event)
-        
+
         # Verify
         assert event.event_id == "123456789"
         assert event.camera_vendor == PluginType.RING
@@ -108,7 +108,7 @@ class TestMotionEvent:
                 "description": "Front Door Camera"
             }
         }
-        
+
         # Execute and Verify
         with pytest.raises(ValueError, match="created_at timestamp is missing"):
             MotionEvent.from_ring_event(ring_event)
@@ -120,7 +120,7 @@ class TestMotionEvent:
             "id": 123456789,
             "created_at": datetime.now(timezone.utc)
         }
-        
+
         # Execute and Verify
         with pytest.raises(ValueError, match="doorbot information is missing"):
             MotionEvent.from_ring_event(ring_event)
@@ -133,7 +133,7 @@ class TestMotionEvent:
             "created_at": datetime.now(timezone.utc),
             "doorbot": "invalid_format"
         }
-        
+
         # Execute and Verify
         with pytest.raises(ValueError, match="doorbot information is not in expected format"):
             MotionEvent.from_ring_event(ring_event)
@@ -146,7 +146,7 @@ class TestMotionEvent:
             "created_at": datetime.now(timezone.utc),
             "doorbot": {}
         }
-        
+
         # Execute and Verify
         with pytest.raises(ValueError, match="camera name is missing from doorbot information"):
             MotionEvent.from_ring_event(ring_event)
@@ -160,7 +160,7 @@ class TestMotionEvent:
                 "description": "Front Door Camera"
             }
         }
-        
+
         # Execute and Verify
         with pytest.raises(ValueError, match="event id is missing"):
             MotionEvent.from_ring_event(ring_event)
@@ -177,7 +177,7 @@ class TestMotionEvent:
             s3_url="https://test.com/video.mp4",
             event_metadata={"test": "data"}
         )
-        
+
         event2 = MotionEvent(
             event_id="test_123",
             camera_vendor=PluginType.RING,
@@ -186,7 +186,7 @@ class TestMotionEvent:
             s3_url="https://test.com/video.mp4",
             event_metadata={"test": "data"}
         )
-        
+
         event3 = MotionEvent(
             event_id="different_123",
             camera_vendor=PluginType.RING,
@@ -195,7 +195,7 @@ class TestMotionEvent:
             s3_url="https://test.com/video.mp4",
             event_metadata={"test": "data"}
         )
-        
+
         # Verify
         assert event1 == event2
         assert event1 != event3
@@ -212,11 +212,11 @@ class TestMotionEvent:
             s3_url="https://test.com/video.mp4",
             event_metadata={"test": "data"}
         )
-        
+
         # Execute
         repr_str = repr(event)
-        
+
         # Verify
         assert "MotionEvent" in repr_str
         assert "test_123" in repr_str
-        assert "Front Door" in repr_str 
+        assert "Front Door" in repr_str

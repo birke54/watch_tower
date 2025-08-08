@@ -21,7 +21,7 @@ async def bootstrap() -> None:
     """Bootstrap the application."""
     # Initialize SQLite database for camera state
     init_camera_state_db()
-    
+
     vendors = retrieve_vendors()
     register_connection_managers(vendors)
     await login_to_vendors(vendors)
@@ -49,7 +49,7 @@ def retrieve_vendors() -> List[Vendors]:
         logger.info(f"Retrieved {len(vendors)} vendors from the database")
         logger.debug(f"Vendors: {vendors}")
         return list(vendors)  # Convert to list to ensure List[Vendors] return type
-    
+
 def register_connection_managers(vendors: List[Vendors]) -> None:
     """Register connection managers for each vendor."""
     for vendor in vendors:
@@ -88,7 +88,7 @@ async def retrieve_cameras(vendors: List[Vendors]) -> List[Tuple[PluginType, Any
                 plugin_type = cast(PluginType, connection_manager['connection_manager']._plugin_type)
                 cameras.extend([(plugin_type, camera) for camera in camera_objects])
     return cameras
-    
+
 async def __main__() -> None:
     """Main function."""
     await bootstrap()

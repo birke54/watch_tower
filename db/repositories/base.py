@@ -63,4 +63,4 @@ class BaseRepository(Generic[ModelType]):
 
     def exists_by_field(self, db: Session, field: str, value: Any) -> bool:
         """Check if a record exists by field value"""
-        return self.get_by_field(db, field, value) is not None 
+        return self.get_by_field(db, field, value) is not None

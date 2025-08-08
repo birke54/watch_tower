@@ -9,7 +9,7 @@ from ring_doorbell import Ring, Auth, Requires2FAError, RingDoorBell
 from db.connection import get_database_connection
 from db.models import VendorStatus as DBVendorStatus
 from db.repositories.vendors_repository import VendorsRepository
-from datetime import datetime    
+from datetime import datetime
 from db.cryptography.aes import decrypt
 
 from connection_managers.connection_manager_base import ConnectionManagerBase
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class RingConnectionManager(ConnectionManagerBase):
     """
-    Manager for handling authentication and session management with the 
+    Manager for handling authentication and session management with the
     Ring API.
     """
     _user_agent: str = "WatchTower API"
@@ -45,13 +45,13 @@ class RingConnectionManager(ConnectionManagerBase):
         """
         if self._is_authenticated:
             logger.info("Already authenticated, skipping login")
-        
+
         logger.info("Attempting to login with database token")
         try:
             engine, session_factory = get_database_connection()
             with session_factory() as session:
                 vendor = self._vendor_repository.get_by_field(session, 'plugin_type', self._plugin_type)
-                
+
                 # Try authentication with existing token first
                 try:
                     if await self._authenticate_with_existing_token():
@@ -68,7 +68,7 @@ class RingConnectionManager(ConnectionManagerBase):
                         return
                 except Exception as e:
                     logger.error(f"Failed to authenticate with credentials: {e}\n Moving on to new authentication")
-            
+
             raise
         except Exception as e:
             logger.error(f"Failed to authenticate with Ring: {str(e)}")
@@ -82,14 +82,14 @@ class RingConnectionManager(ConnectionManagerBase):
         if not self._is_authenticated:
             logger.info("Not authenticated, skipping logout")
             return True
-        
+
         logger.info("Attempting to logout")
         self._ring = None
         self._auth = None
         self._is_authenticated = False
         logger.info("Successfully logged out from Ring")
         return True
-    
+
     def is_healthy(self) -> bool:
         """
         Checks if the Ring connection is healthy by verifying the authentication state.
@@ -102,7 +102,7 @@ class RingConnectionManager(ConnectionManagerBase):
             return True
         except Exception as e:
             return False
-    
+
     async def get_cameras(self) -> Optional[Sequence[RingDoorBell]]:
         """
         Retrieves a list of Ring cameras associated with the authenticated account.
@@ -111,7 +111,7 @@ class RingConnectionManager(ConnectionManagerBase):
         if not self._is_authenticated:
             logger.info("Not authenticated, cameras cannot be retrieved")
             return None
-        
+
         try:
             if self._ring is None:
                 return None
@@ -180,12 +180,12 @@ class RingConnectionManager(ConnectionManagerBase):
                     self._ring.create_session()
                     logger.info("Created Ring session")
                     self._is_authenticated = True
-                    
+
                     # Update in-memory registry
                     registry.connection_managers[self._plugin_type]['status'] = RegistryVendorStatus.ACTIVE
                     registry.connection_managers[self._plugin_type]['token'] = token
                     registry.connection_managers[self._plugin_type]['expires_at'] = datetime.fromtimestamp(token['expires_at'])
-                    
+
                     logger.info("Successfully connected to Ring using database token")
                     return True
                 else:

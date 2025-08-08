@@ -7,4 +7,4 @@ API interactions for the CLI commands.
 
 from .watch_tower_service import WatchTowerService
 
-__all__ = ["WatchTowerService"] 
+__all__ = ["WatchTowerService"]

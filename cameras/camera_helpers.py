@@ -8,17 +8,17 @@ logger = get_logger(__name__)
 
 def find_device(connection_manager: 'RingConnectionManager', device_name: str) -> Optional[Any]:
     """Find a Ring device by name.
-    
+
     Args:
         connection_manager: The Ring connection manager
         device_name: Name of the device to find
-        
+
     Returns:
         The device object if found, None otherwise
     """
     if connection_manager._ring is None:
         return None
-        
+
     connection_manager._ring.update_data()
     for device in connection_manager._ring.video_devices():
         if device.name == device_name:
@@ -49,11 +49,11 @@ def get_camera_name(self: Any, camera_id: str) -> Optional[str]:
     if not self._is_authenticated:
         logger.info("Not authenticated, skipping get_camera_name")
         return None
-    
+
     try:
         if self._ring is None:
             return None
-            
+
         self._ring.update_data()
         cameras = self._ring.video_devices()
         for camera in cameras:

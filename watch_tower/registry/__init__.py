@@ -10,4 +10,4 @@ from .connection_manager_registry import registry as connection_manager_registry
 __all__ = [
     "camera_registry",
     "connection_manager_registry",
-] 
+]
