@@ -27,7 +27,8 @@ class TestApp:
 
         # Verify
         mock_get_event_loop.assert_called_once()
-        assert mock_loop.run_until_complete.call_count == 2  # bootstrap and _run_main_application_loop
+        # bootstrap and _run_main_application_loop
+        assert mock_loop.run_until_complete.call_count == 2
         mock_bootstrap.assert_called_once()
         mock_run_main_loop.assert_called_once()
 

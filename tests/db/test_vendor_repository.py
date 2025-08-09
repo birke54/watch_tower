@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from db.models import VendorStatus, PluginType, Vendors
 from db.repositories.vendors_repository import VendorsRepository
 
+
 def test_create_vendor(
     db_session: Session,
     vendor_repository: VendorsRepository
@@ -26,6 +27,7 @@ def test_create_vendor(
     assert vendor.created_at is not None
     assert vendor.updated_at is not None
 
+
 def test_get_vendor(
     db_session: Session,
     vendor_repository: VendorsRepository,
@@ -38,6 +40,7 @@ def test_get_vendor(
     assert vendor.vendor_id == sample_vendor.vendor_id
     assert vendor.name == sample_vendor.name
 
+
 def test_get_by_name(
     db_session: Session,
     vendor_repository: VendorsRepository,
@@ -49,6 +52,7 @@ def test_get_by_name(
     assert vendor is not None
     assert vendor.vendor_id == sample_vendor.vendor_id
     assert vendor.name == sample_vendor.name
+
 
 def test_get_active_vendors(
     db_session: Session,
@@ -71,6 +75,7 @@ def test_get_active_vendors(
     vendor_ids = [v.vendor_id for v in vendors]
     assert sample_vendor.vendor_id in vendor_ids
 
+
 def test_get_vendors_by_plugin_type(
     db_session: Session,
     vendor_repository: VendorsRepository,
@@ -92,6 +97,7 @@ def test_get_vendors_by_plugin_type(
     vendor_ids = [v.vendor_id for v in ring_vendors]
     assert sample_vendor.vendor_id in vendor_ids
 
+
 def test_update_token(
     db_session: Session,
     vendor_repository: VendorsRepository,
@@ -112,6 +118,7 @@ def test_update_token(
     assert updated_vendor.token == new_token
     assert updated_vendor.token_expires == new_expires
 
+
 def test_update_status(
     db_session: Session,
     vendor_repository: VendorsRepository,
@@ -127,6 +134,7 @@ def test_update_status(
     assert updated_vendor is not None
     assert updated_vendor.status == VendorStatus.INACTIVE
 
+
 def test_delete_vendor(
     db_session: Session,
     vendor_repository: VendorsRepository,
@@ -138,8 +146,10 @@ def test_delete_vendor(
     deleted_vendor = vendor_repository.get(db_session, int(sample_vendor.vendor_id))
     assert deleted_vendor is None
 
+
 def test_get_by_nonexistent_vendor_id(db_session, vendor_repository):
     assert vendor_repository.get(db_session, 999999) is None
+
 
 def test_create_with_missing_required_fields(db_session, vendor_repository):
     # Missing required fields should raise an error

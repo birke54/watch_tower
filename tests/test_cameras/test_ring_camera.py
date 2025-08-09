@@ -9,6 +9,7 @@ from ring_doorbell import RingDoorBell
 
 from data_models.motion_event import MotionEvent
 
+
 @pytest.fixture
 def mock_device_object() -> Mock:
     """Create a mock Ring doorbell device object."""
@@ -24,6 +25,7 @@ def mock_device_object() -> Mock:
     device.history = Mock(return_value=[])
     return device
 
+
 @pytest.fixture
 def mock_connection_manager() -> Mock:
     """Create a mock connection manager."""
@@ -32,6 +34,7 @@ def mock_connection_manager() -> Mock:
     manager._ring.update_data = Mock()
     return manager
 
+
 @pytest.fixture
 def mock_registry(mock_connection_manager: Mock) -> Generator[Mock, None, None]:
     """Mock the connection manager registry."""
@@ -39,10 +42,12 @@ def mock_registry(mock_connection_manager: Mock) -> Generator[Mock, None, None]:
         mock.get_connection_manager.return_value = mock_connection_manager
         yield mock
 
+
 @pytest.fixture
 def ring_camera(mock_device_object: Mock) -> RingCamera:
     """Create a RingCamera instance with mocked dependencies."""
     return RingCamera(mock_device_object)
+
 
 class TestRingCamera:
     """Test cases for RingCamera."""
@@ -132,7 +137,8 @@ class TestRingCamera:
 
         # Verify
         assert result is True
-        # Don't verify get_connection_manager calls since it's called in both is_healthy and get_properties
+        # Don't verify get_connection_manager calls since it's called in both
+        # is_healthy and get_properties
 
     @pytest.mark.asyncio
     async def test_is_healthy_offline(
@@ -236,24 +242,27 @@ class TestRingCamera:
                         mock_converter.get_video_info.return_value = {'codec': 'h264'}
                         # Mock the database session and repository
                         with patch('cameras.ring_camera.get_database_connection') as mock_get_db_conn, \
-                             patch('cameras.ring_camera.MotionEventRepository') as mock_repo_class:
+                                patch('cameras.ring_camera.MotionEventRepository') as mock_repo_class:
                             mock_engine = Mock()
                             mock_session_factory = MagicMock()
                             mock_session = Mock()
-                            mock_get_db_conn.return_value = (mock_engine, mock_session_factory)
+                            mock_get_db_conn.return_value = (
+                                mock_engine, mock_session_factory)
                             mock_session_factory.return_value.__enter__.return_value = mock_session
                             mock_repo = Mock()
                             mock_repo_class.return_value = mock_repo
                             # Mock the query to return a matching event
                             mock_event_model = Mock()
                             mock_event_model.id = 123
-                            mock_session.query.return_value.filter.return_value.all.return_value = [mock_event_model]
+                            mock_session.query.return_value.filter.return_value.all.return_value = [
+                                mock_event_model]
                             # Mock update_s3_url to do nothing
                             mock_repo.update_s3_url.return_value = None
                             # Execute
                             await ring_camera.retrieve_video_from_event_and_upload_to_s3(event)
                             # Verify
-                            mock_device_object.recording_url.assert_called_once_with("ring-event-456")
+                            mock_device_object.recording_url.assert_called_once_with(
+                                "ring-event-456")
                             mock_s3_service.upload_file.assert_called_once()
                             mock_repo.update_s3_url.assert_called_once()
 

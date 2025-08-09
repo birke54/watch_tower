@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from db.repositories.motion_event_repository import MotionEventRepository
 from db.models import MotionEvent
 
+
 def test_create_motion_event(
     db_session: Session,
     motion_event_repository: MotionEventRepository
@@ -31,6 +32,7 @@ def test_create_motion_event(
     assert event.updated_at is not None
     assert event.event_metadata == {"test_key": "test_value"}
 
+
 def test_get_motion_event(
     db_session: Session,
     motion_event_repository: MotionEventRepository,
@@ -43,6 +45,7 @@ def test_get_motion_event(
     assert event.id == sample_motion_event.id
     assert event.camera_name == sample_motion_event.camera_name
     assert event.event_metadata == sample_motion_event.event_metadata
+
 
 def test_get_by_camera(
     db_session: Session,
@@ -59,6 +62,7 @@ def test_get_by_camera(
     assert events[0].id == sample_motion_event.id
     assert events[0].camera_name == "Test Camera"
     assert events[0].event_metadata == sample_motion_event.event_metadata
+
 
 def test_get_by_time_range(
     db_session: Session,
@@ -80,6 +84,7 @@ def test_get_by_time_range(
     assert events[0].id == sample_motion_event.id
     assert start_time <= events[0].motion_detected <= end_time
     assert events[0].event_metadata == sample_motion_event.event_metadata
+
 
 def test_get_by_camera_and_time(
     db_session: Session,
@@ -103,6 +108,7 @@ def test_get_by_camera_and_time(
     assert events[0].camera_name == "Test Camera"
     assert start_time <= events[0].motion_detected <= end_time
     assert events[0].event_metadata == sample_motion_event.event_metadata
+
 
 def test_get_unprocessed_events(
     db_session: Session,
@@ -129,9 +135,11 @@ def test_get_unprocessed_events(
     # Verify our newly created event is in the results
     assert any(event.id == created_event.id for event in unprocessed_events)
     # Verify the event has the correct data
-    found_event = next(event for event in unprocessed_events if event.id == created_event.id)
+    found_event = next(
+        event for event in unprocessed_events if event.id == created_event.id)
     assert found_event.s3_url == "https://test-bucket.s3.amazonaws.com/unprocessed.jpg"
     assert found_event.event_metadata == {"unprocessed": True}
+
 
 def test_mark_as_processed(
     db_session: Session,
@@ -148,6 +156,7 @@ def test_mark_as_processed(
 
     assert updated_event is not None
     assert updated_event.facial_recognition_processed == processed_time
+
 
 def test_update_s3_url(
     db_session: Session,
@@ -169,6 +178,7 @@ def test_update_s3_url(
     assert updated_event.s3_url == new_url
     assert updated_event.uploaded_to_s3 == upload_time
 
+
 def test_delete_motion_event(
     db_session: Session,
     motion_event_repository: MotionEventRepository,
@@ -181,8 +191,10 @@ def test_delete_motion_event(
     deleted_event = motion_event_repository.get(db_session, int(sample_motion_event.id))
     assert deleted_event is None
 
+
 def test_get_by_nonexistent_id(db_session, motion_event_repository):
     assert motion_event_repository.get(db_session, 999999) is None
+
 
 def test_create_with_missing_required_fields(db_session, motion_event_repository):
     # Missing required fields should raise an error

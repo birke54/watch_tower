@@ -124,7 +124,8 @@ class TestBootstrap:
         ]
 
         # Execute
-        await bootstrap_module.login_to_vendors([])  # vendors list not used in current implementation
+        # vendors list not used in current implementation
+        await bootstrap_module.login_to_vendors([])
 
         # Verify
         mock_connection_manager.login.assert_called_once()

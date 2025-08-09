@@ -9,6 +9,7 @@ from connection_managers.plugin_type import PluginType
 from watch_tower.registry.camera_registry import CameraStatus
 from watch_tower.registry.connection_manager_registry import VendorStatus
 
+
 @pytest.fixture
 def mock_camera() -> Mock:
     """Create a mock camera instance."""
@@ -19,6 +20,7 @@ def mock_camera() -> Mock:
     camera.retrieve_motion_events = AsyncMock(return_value=[])
     return camera
 
+
 @pytest.fixture
 def mock_camera_registry() -> Generator[Mock, None, None]:
     """Mock the camera registry."""
@@ -26,19 +28,23 @@ def mock_camera_registry() -> Generator[Mock, None, None]:
         # Set last_polled to be older than motion_poll_interval
         mock.cameras = {
             (PluginType.RING, "Test Camera"): Mock(
-                last_polled=datetime.now(timezone.utc) - timedelta(seconds=120),  # 2 minutes ago
+                last_polled=datetime.now(timezone.utc) -
+                timedelta(seconds=120),  # 2 minutes ago
                 status=CameraStatus.ACTIVE
             )
         }
         mock.get_all_by_vendor.return_value = [Mock()]
         yield mock
 
+
 @pytest.fixture
 def mock_connection_manager_registry() -> Generator[Mock, None, None]:
     """Mock the connection manager registry."""
     with patch('watch_tower.core.events_loop.connection_manager_registry') as mock:
-        mock.get_connection_manager.return_value = Mock(is_healthy=Mock(return_value=True))
+        mock.get_connection_manager.return_value = Mock(
+            is_healthy=Mock(return_value=True))
         yield mock
+
 
 @pytest.mark.asyncio
 async def test_poll_for_events_success(
@@ -53,7 +59,9 @@ async def test_poll_for_events_success(
 
     mock_camera.get_properties.assert_called_once()
     mock_camera.retrieve_motion_events.assert_called_once()
-    assert mock_camera_registry.cameras[(PluginType.RING, "Test Camera")].last_polled == current_time
+    assert mock_camera_registry.cameras[(
+        PluginType.RING, "Test Camera")].last_polled == current_time
+
 
 @pytest.mark.asyncio
 async def test_poll_for_events_error(
@@ -74,7 +82,9 @@ async def test_poll_for_events_error(
 
     await poll_for_events(mock_camera, current_time, new_events)
 
-    mock_connection_manager_registry.get_connection_manager.assert_called_with(PluginType.RING)
+    mock_connection_manager_registry.get_connection_manager.assert_called_with(
+        PluginType.RING)
+
 
 @pytest.mark.asyncio
 async def test_handle_camera_error_connection_manager_unhealthy(
@@ -87,8 +97,10 @@ async def test_handle_camera_error_connection_manager_unhealthy(
 
     await handle_camera_error(mock_camera)
 
-    mock_connection_manager_registry.update_status.assert_called_with(PluginType.RING, VendorStatus.INACTIVE)
+    mock_connection_manager_registry.update_status.assert_called_with(
+        PluginType.RING, VendorStatus.INACTIVE)
     mock_camera_registry.update_status.assert_called()
+
 
 @pytest.mark.asyncio
 async def test_handle_camera_error_connection_manager_healthy(
@@ -101,7 +113,9 @@ async def test_handle_camera_error_connection_manager_healthy(
 
     await handle_camera_error(mock_camera)
 
-    mock_camera_registry.update_status.assert_called_with(PluginType.RING, "Test Camera", CameraStatus.INACTIVE)
+    mock_camera_registry.update_status.assert_called_with(
+        PluginType.RING, "Test Camera", CameraStatus.INACTIVE)
+
 
 @pytest.mark.asyncio
 async def test_poll_for_events_skip_recent_poll(
@@ -120,4 +134,5 @@ async def test_poll_for_events_skip_recent_poll(
     await poll_for_events(mock_camera, current_time, new_events)
 
     mock_camera.get_properties.assert_called_once()
-    mock_camera.retrieve_motion_events.assert_not_called()  # Should not be called for recent polls
+    # Should not be called for recent polls
+    mock_camera.retrieve_motion_events.assert_not_called()

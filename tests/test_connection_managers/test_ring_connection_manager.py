@@ -9,6 +9,7 @@ from connection_managers.plugin_type import PluginType
 from watch_tower.registry.connection_manager_registry import VendorStatus as RegistryVendorStatus
 from ring_doorbell import Ring, Auth, AuthenticationError, Requires2FAError, RingDoorBell
 
+
 @pytest.fixture
 def mock_vendor() -> Mock:
     """Create a mock vendor object."""
@@ -20,12 +21,14 @@ def mock_vendor() -> Mock:
     vendor.token = None
     return vendor
 
+
 @pytest.fixture
 def mock_auth() -> Mock:
     """Create a mock Auth object."""
     auth = Mock(spec=Auth)
     auth.fetch_token = Mock()
     return auth
+
 
 @pytest.fixture
 def mock_ring() -> Mock:
@@ -36,6 +39,7 @@ def mock_ring() -> Mock:
     ring.create_session = Mock()
     return ring
 
+
 @pytest.fixture
 def mock_vendor_repository() -> Mock:
     """Create a mock VendorsRepository."""
@@ -45,11 +49,13 @@ def mock_vendor_repository() -> Mock:
     repo.update_token = Mock()  # Make sure this is a Mock object
     return repo
 
+
 @pytest.fixture
 def mock_session() -> Mock:
     """Create a mock database session."""
     session = Mock()
     return session
+
 
 @pytest.fixture
 def mock_session_factory(mock_session: Mock) -> MagicMock:
@@ -60,12 +66,14 @@ def mock_session_factory(mock_session: Mock) -> MagicMock:
     factory.return_value = context
     return factory
 
+
 @pytest.fixture
 def mock_db_connection(mock_session_factory: MagicMock) -> Generator[Mock, None, None]:
     """Mock the database connection."""
     with patch('connection_managers.ring_connection_manager.get_database_connection') as mock:
         mock.return_value = (None, mock_session_factory)
         yield mock
+
 
 @pytest.fixture
 def mock_registry() -> Generator[Mock, None, None]:
@@ -80,6 +88,7 @@ def mock_registry() -> Generator[Mock, None, None]:
         }
         yield mock
 
+
 @pytest.fixture
 def ring_connection_manager(mock_vendor_repository: Mock) -> RingConnectionManager:
     """Create a RingConnectionManager instance with mocked dependencies."""
@@ -88,6 +97,7 @@ def ring_connection_manager(mock_vendor_repository: Mock) -> RingConnectionManag
         manager = RingConnectionManager()
         manager._vendor_repository = mock_vendor_repository  # Explicitly set the repository
         return manager
+
 
 class TestRingConnectionManager:
     """Test cases for RingConnectionManager."""
@@ -109,10 +119,11 @@ class TestRingConnectionManager:
         }
         token_bytes = json.dumps(token).encode('utf-8')
         mock_vendor.token = memoryview(token_bytes)
-        ring_connection_manager._vendor_repository.get_by_field = Mock(return_value=mock_vendor)
+        ring_connection_manager._vendor_repository.get_by_field = Mock(
+            return_value=mock_vendor)
 
         with patch('connection_managers.ring_connection_manager.Auth', return_value=mock_auth), \
-             patch('connection_managers.ring_connection_manager.Ring', return_value=mock_ring):
+                patch('connection_managers.ring_connection_manager.Ring', return_value=mock_ring):
 
             # Execute
             await ring_connection_manager.login()
@@ -137,11 +148,12 @@ class TestRingConnectionManager:
         """Test successful login with credentials when no valid token exists."""
         # Setup
         mock_vendor.token = None
-        ring_connection_manager._vendor_repository.get_by_field = Mock(return_value=mock_vendor)
+        ring_connection_manager._vendor_repository.get_by_field = Mock(
+            return_value=mock_vendor)
 
         with patch('connection_managers.ring_connection_manager.Auth', return_value=mock_auth), \
-             patch('connection_managers.ring_connection_manager.Ring', return_value=mock_ring), \
-             patch('connection_managers.ring_connection_manager.decrypt', return_value="decrypted_password"):
+                patch('connection_managers.ring_connection_manager.Ring', return_value=mock_ring), \
+                patch('connection_managers.ring_connection_manager.decrypt', return_value="decrypted_password"):
 
             # Execute
             await ring_connection_manager.login()
@@ -150,7 +162,8 @@ class TestRingConnectionManager:
             assert ring_connection_manager._is_authenticated
             assert ring_connection_manager._ring == mock_ring
             assert ring_connection_manager._auth == mock_auth
-            mock_auth.fetch_token.assert_called_once_with("test_user", "decrypted_password")
+            mock_auth.fetch_token.assert_called_once_with(
+                "test_user", "decrypted_password")
             assert mock_registry.connection_managers[PluginType.RING]['status'] == RegistryVendorStatus.ACTIVE
 
     @pytest.mark.asyncio
@@ -166,20 +179,22 @@ class TestRingConnectionManager:
         """Test login with 2FA requirement."""
         # Setup
         mock_vendor.token = None
-        ring_connection_manager._vendor_repository.get_by_field = Mock(return_value=mock_vendor)
+        ring_connection_manager._vendor_repository.get_by_field = Mock(
+            return_value=mock_vendor)
         mock_auth.fetch_token.side_effect = [Requires2FAError(), None]
 
         with patch('connection_managers.ring_connection_manager.Auth', return_value=mock_auth), \
-             patch('connection_managers.ring_connection_manager.Ring', return_value=mock_ring), \
-             patch('connection_managers.ring_connection_manager.decrypt', return_value="decrypted_password"), \
-             patch('builtins.input', return_value="123456"):
+                patch('connection_managers.ring_connection_manager.Ring', return_value=mock_ring), \
+                patch('connection_managers.ring_connection_manager.decrypt', return_value="decrypted_password"), \
+                patch('builtins.input', return_value="123456"):
 
             # Execute
             await ring_connection_manager.login()
 
             # Verify
             assert mock_auth.fetch_token.call_count == 2
-            mock_auth.fetch_token.assert_called_with("test_user", "decrypted_password", "123456")
+            mock_auth.fetch_token.assert_called_with(
+                "test_user", "decrypted_password", "123456")
 
     @pytest.mark.asyncio
     async def test_login_failure(
@@ -192,11 +207,12 @@ class TestRingConnectionManager:
         """Test login failure."""
         # Setup
         mock_vendor.token = None
-        ring_connection_manager._vendor_repository.get_by_field = Mock(return_value=mock_vendor)
+        ring_connection_manager._vendor_repository.get_by_field = Mock(
+            return_value=mock_vendor)
         mock_auth.fetch_token.side_effect = AuthenticationError("Invalid credentials")
 
         with patch('connection_managers.ring_connection_manager.Auth', return_value=mock_auth), \
-             patch('connection_managers.ring_connection_manager.decrypt', return_value="decrypted_password"):
+                patch('connection_managers.ring_connection_manager.decrypt', return_value="decrypted_password"):
 
             # Execute and Verify
             with pytest.raises(Exception):
@@ -302,4 +318,5 @@ class TestRingConnectionManager:
         assert call_args[1] == vendor_id
         assert json.loads(call_args[2]) == token
         assert mock_registry.connection_managers[PluginType.RING]['token'] == token
-        assert mock_registry.connection_managers[PluginType.RING]['expires_at'] == datetime.fromtimestamp(token['expires_at'])
+        assert mock_registry.connection_managers[PluginType.RING]['expires_at'] == datetime.fromtimestamp(
+            token['expires_at'])

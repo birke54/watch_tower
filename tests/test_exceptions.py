@@ -17,6 +17,7 @@ from watch_tower.exceptions import (
     CryptographyError,
 )
 
+
 class TestWatchTowerExceptions:
     def test_watch_tower_error(self):
         error = WatchTowerError("error")

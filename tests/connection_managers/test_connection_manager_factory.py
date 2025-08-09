@@ -3,6 +3,7 @@ from connection_managers.connection_manager_factory import ConnectionManagerFact
 from connection_managers.plugin_type import PluginType
 from connection_managers.ring_connection_manager import RingConnectionManager
 
+
 def test_create_ring_connection_manager() -> None:
     """Test creating a Ring connection manager."""
     # Execute
@@ -10,6 +11,7 @@ def test_create_ring_connection_manager() -> None:
 
     # Assert
     assert isinstance(connection_manager, RingConnectionManager)
+
 
 def test_create_unsupported_plugin_type() -> None:
     """Test creating a connection manager for an unsupported plugin type."""

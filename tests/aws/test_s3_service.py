@@ -11,6 +11,7 @@ TEST_BUCKET_NAME = "test-bucket"
 TEST_OBJECT_NAME = "test-object"
 TEST_FILE_PATH = "test-file-path"
 
+
 @pytest.fixture
 def mock_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     """Set up test environment variables."""
@@ -19,6 +20,7 @@ def mock_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv('AWS_SECRET_ACCESS_KEY', 'test-secret')
     monkeypatch.setenv('S3_BUCKET_NAME', TEST_BUCKET_NAME)
 
+
 @pytest.fixture
 def mock_config(monkeypatch: pytest.MonkeyPatch) -> None:
     """Mock the configuration to use test values."""
@@ -26,21 +28,31 @@ def mock_config(monkeypatch: pytest.MonkeyPatch) -> None:
         mock_config.s3_bucket_name = TEST_BUCKET_NAME
         yield mock_config
 
+
 @pytest.fixture
 def mock_s3_client() -> Generator[Mock, None, None]:
     """Create a mock S3 client."""
     with patch('boto3.client') as mock_client:
         yield mock_client.return_value
 
+
 @pytest.fixture
-def s3_service(mock_env_vars: None, mock_config: Mock, mock_s3_client: Mock) -> S3Service:
+def s3_service(
+        mock_env_vars: None,
+        mock_config: Mock,
+        mock_s3_client: Mock) -> S3Service:
     """Create an S3 service instance with mocked dependencies."""
     return S3Service()
 
-def test_init_success(mock_env_vars: None, mock_config: Mock, mock_s3_client: Mock) -> None:
+
+def test_init_success(
+        mock_env_vars: None,
+        mock_config: Mock,
+        mock_s3_client: Mock) -> None:
     """Test successful initialization of S3Service."""
     service = S3Service()
     assert service.client == mock_s3_client
+
 
 def test_init_missing_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test initialization fails with missing environment variables."""
@@ -51,18 +63,25 @@ def test_init_missing_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Mock config to raise ValueError when missing required vars
     with patch('aws.s3.s3_service.config') as mock_config:
-        mock_config.validate_s3_only.side_effect = ValueError("Missing required environment variables")
+        mock_config.validate_s3_only.side_effect = ValueError(
+            "Missing required environment variables")
         with pytest.raises(ValueError) as exc_info:
             S3Service()
         assert "Missing required environment variables" in str(exc_info.value)
 
-def test_check_bucket_exists_success(s3_service: S3Service, mock_s3_client: Mock) -> None:
+
+def test_check_bucket_exists_success(
+        s3_service: S3Service,
+        mock_s3_client: Mock) -> None:
     """Test successful bucket existence check."""
     mock_s3_client.head_bucket.return_value = {}
 
     s3_service.check_bucket_exists(TEST_BUCKET_NAME)
 
-def test_check_bucket_exists_not_found(s3_service: S3Service, mock_s3_client: Mock) -> None:
+
+def test_check_bucket_exists_not_found(
+        s3_service: S3Service,
+        mock_s3_client: Mock) -> None:
     """Test bucket existence check when bucket doesn't exist."""
     mock_s3_client.head_bucket.side_effect = ClientError(
         {'Error': {'Code': '404'}},
@@ -73,7 +92,10 @@ def test_check_bucket_exists_not_found(s3_service: S3Service, mock_s3_client: Mo
         s3_service.check_bucket_exists(TEST_BUCKET_NAME)
     assert str(exc_info.value) == f"Bucket {TEST_BUCKET_NAME} not found"
 
-def test_get_files_with_prefix_success(s3_service: S3Service, mock_s3_client: Mock) -> None:
+
+def test_get_files_with_prefix_success(
+        s3_service: S3Service,
+        mock_s3_client: Mock) -> None:
     """Test successful retrieval of files with a given prefix."""
     mock_s3_client.list_objects_v2.return_value = {
         'Contents': [
@@ -95,7 +117,10 @@ def test_get_files_with_prefix_success(s3_service: S3Service, mock_s3_client: Mo
     assert 's3://test-bucket/file2.jpg' in files
     assert 's3://test-bucket/different_prefix_file.jpg' not in files
 
-def test_get_files_with_prefix_no_files(s3_service: S3Service, mock_s3_client: Mock) -> None:
+
+def test_get_files_with_prefix_no_files(
+        s3_service: S3Service,
+        mock_s3_client: Mock) -> None:
     """Test retrieval of files with a given prefix when no files match."""
     mock_s3_client.list_objects_v2.return_value = {
         'Contents': []
@@ -105,7 +130,10 @@ def test_get_files_with_prefix_no_files(s3_service: S3Service, mock_s3_client: M
     assert len(files) == 0
     assert mock_s3_client.list_objects_v2.call_count == 1
 
-def test_get_files_with_prefix_error(s3_service: S3Service, mock_s3_client: Mock) -> None:
+
+def test_get_files_with_prefix_error(
+        s3_service: S3Service,
+        mock_s3_client: Mock) -> None:
     """Test retrieval of files with a given prefix when an error occurs."""
     mock_s3_client.list_objects_v2.side_effect = ClientError(
         {'Error': {'Code': '404'}},
@@ -117,7 +145,11 @@ def test_get_files_with_prefix_error(s3_service: S3Service, mock_s3_client: Mock
     assert str(exc_info.value) == f"Bucket {TEST_BUCKET_NAME} not found"
     assert mock_s3_client.list_objects_v2.call_count == 1
 
-def test_download_file_success(s3_service: S3Service, mock_s3_client: Mock, tmp_path: pytest.TempPathFactory) -> None:
+
+def test_download_file_success(
+        s3_service: S3Service,
+        mock_s3_client: Mock,
+        tmp_path: pytest.TempPathFactory) -> None:
     """Test successful file download from S3."""
     # Setup
     test_object_key = "test/object.jpg"
@@ -137,7 +169,11 @@ def test_download_file_success(s3_service: S3Service, mock_s3_client: Mock, tmp_
     )
     assert local_path.parent.exists()
 
-def test_download_file_bucket_not_found(s3_service: S3Service, mock_s3_client: Mock, tmp_path: pytest.TempPathFactory) -> None:
+
+def test_download_file_bucket_not_found(
+        s3_service: S3Service,
+        mock_s3_client: Mock,
+        tmp_path: pytest.TempPathFactory) -> None:
     """Test file download when bucket doesn't exist."""
     # Setup
     test_object_key = "test/object.jpg"
@@ -155,7 +191,11 @@ def test_download_file_bucket_not_found(s3_service: S3Service, mock_s3_client: M
     assert str(exc_info.value) == f"Bucket {TEST_BUCKET_NAME} not found"
     mock_s3_client.download_file.assert_not_called()
 
-def test_download_file_object_not_found(s3_service: S3Service, mock_s3_client: Mock, tmp_path: pytest.TempPathFactory) -> None:
+
+def test_download_file_object_not_found(
+        s3_service: S3Service,
+        mock_s3_client: Mock,
+        tmp_path: pytest.TempPathFactory) -> None:
     """Test file download when object doesn't exist."""
     # Setup
     test_object_key = "test/object.jpg"
@@ -173,10 +213,15 @@ def test_download_file_object_not_found(s3_service: S3Service, mock_s3_client: M
     # Test and verify
     with pytest.raises(S3ResourceNotFoundException) as exc_info:
         s3_service.download_file(TEST_BUCKET_NAME, test_object_key, str(local_path))
-    assert str(exc_info.value) == f"Object {test_object_key} not found in bucket {TEST_BUCKET_NAME}"
+    assert str(
+        exc_info.value) == f"Object {test_object_key} not found in bucket {TEST_BUCKET_NAME}"
     mock_s3_client.download_file.assert_called_once()
 
-def test_download_file_creates_directory(s3_service: S3Service, mock_s3_client: Mock, tmp_path: pytest.TempPathFactory) -> None:
+
+def test_download_file_creates_directory(
+        s3_service: S3Service,
+        mock_s3_client: Mock,
+        tmp_path: pytest.TempPathFactory) -> None:
     """Test that download_file creates the target directory if it doesn't exist."""
     # Setup
     test_object_key = "test/object.jpg"

@@ -10,6 +10,7 @@ TEST_KEY = "test_encryption_key_123"
 TEST_DATA = "This is a test message"
 TEST_BYTES = b"This is test bytes"
 
+
 @pytest.fixture(autouse=True)
 def mock_env_vars() -> Generator[None, None, None]:
     """Mock environment variables"""
@@ -19,6 +20,7 @@ def mock_env_vars() -> Generator[None, None, None]:
     }):
         yield
 
+
 @pytest.fixture(autouse=True)
 def mock_secrets_manager() -> Generator[MagicMock, None, None]:
     """Mock AWS Secrets Manager"""
@@ -27,11 +29,15 @@ def mock_secrets_manager() -> Generator[MagicMock, None, None]:
         mock_get_secret.return_value = {'encryption_key': TEST_KEY}
         yield mock_get_secret
 
-def test_get_encryption_key_success(mock_env_vars: None, mock_secrets_manager: MagicMock) -> None:
+
+def test_get_encryption_key_success(
+        mock_env_vars: None,
+        mock_secrets_manager: MagicMock) -> None:
     """Test successful retrieval of encryption key"""
     key = get_encryption_key()
     assert isinstance(key, bytes)
     assert key == TEST_KEY.encode('utf-8')
+
 
 def test_get_encryption_key_failure(mock_env_vars: None) -> None:
     """Test key retrieval failure"""
@@ -40,13 +46,16 @@ def test_get_encryption_key_failure(mock_env_vars: None) -> None:
             get_encryption_key()
         assert "Failed to get encryption key" in str(exc_info.value)
 
+
 def test_encrypt_string(mock_env_vars: None, mock_secrets_manager: MagicMock) -> None:
     """Test encryption of string data"""
     encrypted = encrypt(TEST_DATA)
     assert isinstance(encrypted, str)
     assert len(encrypted) > 0
     # Verify the encrypted data is base64 encoded
-    assert all(c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=" for c in encrypted)
+    assert all(
+        c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=" for c in encrypted)
+
 
 def test_encrypt_bytes(mock_env_vars: None, mock_secrets_manager: MagicMock) -> None:
     """Test encryption of bytes data"""
@@ -54,7 +63,9 @@ def test_encrypt_bytes(mock_env_vars: None, mock_secrets_manager: MagicMock) -> 
     assert isinstance(encrypted, str)
     assert len(encrypted) > 0
     # Verify the encrypted data is base64 encoded
-    assert all(c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=" for c in encrypted)
+    assert all(
+        c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=" for c in encrypted)
+
 
 def test_encrypt_with_custom_key(mock_env_vars: None) -> None:
     """Test encryption with a custom key"""
@@ -63,10 +74,12 @@ def test_encrypt_with_custom_key(mock_env_vars: None) -> None:
     assert isinstance(encrypted, str)
     assert len(encrypted) > 0
 
+
 def test_encrypt_failure(mock_env_vars: None, mock_secrets_manager: MagicMock) -> None:
     """Test encryption failure with invalid data"""
     with pytest.raises(CryptographyError):
         encrypt("")  # Use empty string instead of None to match expected type
+
 
 def test_decrypt_success(mock_env_vars: None, mock_secrets_manager: MagicMock) -> None:
     """Test successful decryption of encrypted data"""
@@ -77,6 +90,7 @@ def test_decrypt_success(mock_env_vars: None, mock_secrets_manager: MagicMock) -
     # Verify the decrypted data matches the original
     assert decrypted == TEST_DATA
 
+
 def test_decrypt_bytes(mock_env_vars: None, mock_secrets_manager: MagicMock) -> None:
     """Test successful decryption of encrypted bytes data"""
     # Encrypt test data
@@ -85,6 +99,7 @@ def test_decrypt_bytes(mock_env_vars: None, mock_secrets_manager: MagicMock) -> 
     decrypted = decrypt(encrypted)
     # Verify the decrypted data matches the original
     assert decrypted == TEST_BYTES.decode('utf-8')
+
 
 def test_decrypt_with_custom_key(mock_env_vars: None) -> None:
     """Test decryption with a custom key"""
@@ -95,17 +110,26 @@ def test_decrypt_with_custom_key(mock_env_vars: None) -> None:
     decrypted = decrypt(encrypted, key=custom_key)
     assert decrypted == TEST_DATA
 
-def test_decrypt_invalid_data(mock_env_vars: None, mock_secrets_manager: MagicMock) -> None:
+
+def test_decrypt_invalid_data(
+        mock_env_vars: None,
+        mock_secrets_manager: MagicMock) -> None:
     """Test decryption failure with invalid data"""
     with pytest.raises(CryptographyError):
         decrypt("invalid_base64_data")
 
-def test_decrypt_empty_data(mock_env_vars: None, mock_secrets_manager: MagicMock) -> None:
+
+def test_decrypt_empty_data(
+        mock_env_vars: None,
+        mock_secrets_manager: MagicMock) -> None:
     """Test decryption failure with empty data"""
     with pytest.raises(CryptographyError):
         decrypt("")
 
-def test_encrypt_decrypt_roundtrip(mock_env_vars: None, mock_secrets_manager: MagicMock) -> None:
+
+def test_encrypt_decrypt_roundtrip(
+        mock_env_vars: None,
+        mock_secrets_manager: MagicMock) -> None:
     """Test multiple encrypt-decrypt roundtrips with different data"""
     test_cases: List[str] = [
         "Simple string",
@@ -122,14 +146,20 @@ def test_encrypt_decrypt_roundtrip(mock_env_vars: None, mock_secrets_manager: Ma
         decrypted = decrypt(encrypted)
         assert decrypted == test_data
 
-def test_encryption_deterministic(mock_env_vars: None, mock_secrets_manager: MagicMock) -> None:
+
+def test_encryption_deterministic(
+        mock_env_vars: None,
+        mock_secrets_manager: MagicMock) -> None:
     """Test that encrypting the same data multiple times produces different results
     (due to random IV and salt)"""
     encrypted1 = encrypt(TEST_DATA)
     encrypted2 = encrypt(TEST_DATA)
     assert encrypted1 != encrypted2  # Should be different due to random IV/salt
 
-def test_decryption_deterministic(mock_env_vars: None, mock_secrets_manager: MagicMock) -> None:
+
+def test_decryption_deterministic(
+        mock_env_vars: None,
+        mock_secrets_manager: MagicMock) -> None:
     """Test that decrypting the same encrypted data multiple times produces the same result"""
     encrypted = encrypt(TEST_DATA)
     decrypted1 = decrypt(encrypted)

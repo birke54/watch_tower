@@ -16,6 +16,7 @@ MOCK_SECRET: Dict[str, str] = {
     "dbname": "test_db"
 }
 
+
 @pytest.fixture
 def mock_env_vars() -> Generator[None, None, None]:
     """Fixture to set up test environment variables"""
@@ -24,6 +25,7 @@ def mock_env_vars() -> Generator[None, None, None]:
     }):
         yield
 
+
 @pytest.fixture
 def mock_secrets_manager() -> Generator[MagicMock, None, None]:
     """Fixture to mock AWS Secrets Manager service"""
@@ -31,16 +33,19 @@ def mock_secrets_manager() -> Generator[MagicMock, None, None]:
         mock_get_secret.return_value = MOCK_SECRET
         yield mock_get_secret
 
+
 @pytest.fixture
-def mock_db_connection(mock_secrets_manager: MagicMock) -> Generator[Tuple[MagicMock, MagicMock], None, None]:
+def mock_db_connection(
+        mock_secrets_manager: MagicMock) -> Generator[Tuple[MagicMock, MagicMock], None, None]:
     """Fixture to mock database connection"""
     with patch('db.connection.create_engine') as mock_create_engine, \
-         patch('db.connection.sessionmaker') as mock_sessionmaker:
+            patch('db.connection.sessionmaker') as mock_sessionmaker:
 
         # Set up mock engine
         mock_engine = MagicMock()
         mock_url = MagicMock()
-        mock_url.__str__ = MagicMock(return_value=f"postgresql://{MOCK_SECRET['username']}:{MOCK_SECRET['password']}@{MOCK_SECRET['host']}:{MOCK_SECRET['port']}/{MOCK_SECRET['dbname']}")
+        mock_url.__str__ = MagicMock(
+            return_value=f"postgresql://{MOCK_SECRET['username']}:{MOCK_SECRET['password']}@{MOCK_SECRET['host']}:{MOCK_SECRET['port']}/{MOCK_SECRET['dbname']}")
         mock_engine.url = mock_url
         mock_engine.pool._pre_ping = True
         mock_create_engine.return_value = mock_engine
@@ -64,14 +69,17 @@ def mock_db_connection(mock_secrets_manager: MagicMock) -> Generator[Tuple[Magic
 
         yield mock_create_engine, mock_session
 
-def test_get_engine(mock_env_vars: None, mock_secrets_manager: MagicMock, mock_db_connection: Tuple[MagicMock, MagicMock]) -> None:
+
+def test_get_engine(mock_env_vars: None, mock_secrets_manager: MagicMock,
+                    mock_db_connection: Tuple[MagicMock, MagicMock]) -> None:
     get_engine.cache_clear()
     """Test that the engine can be created with correct configuration"""
     mock_create_engine, _ = mock_db_connection
     engine = get_engine()
 
     # Verify the engine was created with correct URL
-    assert str(engine.url) == f"postgresql://{MOCK_SECRET['username']}:{MOCK_SECRET['password']}@{MOCK_SECRET['host']}:{MOCK_SECRET['port']}/{MOCK_SECRET['dbname']}"
+    assert str(
+        engine.url) == f"postgresql://{MOCK_SECRET['username']}:{MOCK_SECRET['password']}@{MOCK_SECRET['host']}:{MOCK_SECRET['port']}/{MOCK_SECRET['dbname']}"
 
     # Verify the engine has the expected configuration
     assert engine.pool._pre_ping is True
@@ -81,6 +89,7 @@ def test_get_engine(mock_env_vars: None, mock_secrets_manager: MagicMock, mock_d
     call_args = mock_create_engine.call_args[1]
     assert call_args['pool_pre_ping'] is True
     assert call_args['connect_args'] == {'connect_timeout': 5}
+
 
 def test_get_session_factory(mock_db_connection: Tuple[MagicMock, MagicMock]) -> None:
     get_engine.cache_clear()
@@ -93,6 +102,7 @@ def test_get_session_factory(mock_db_connection: Tuple[MagicMock, MagicMock]) ->
     assert session._maker.kw['autocommit'] is False
     assert session._maker.kw['autoflush'] is False
 
+
 def test_engine_caching(mock_db_connection: Tuple[MagicMock, MagicMock]) -> None:
     get_engine.cache_clear()
     """Test that the engine is cached and reused"""
@@ -102,19 +112,23 @@ def test_engine_caching(mock_db_connection: Tuple[MagicMock, MagicMock]) -> None
     # Verify both calls return the same engine instance
     assert engine1 is engine2
 
-def test_get_database_connection(mock_db_connection: Tuple[MagicMock, MagicMock]) -> None:
+
+def test_get_database_connection(
+        mock_db_connection: Tuple[MagicMock, MagicMock]) -> None:
     get_engine.cache_clear()
     """Test that get_database_connection returns both engine and session factory"""
     engine, session_factory = get_database_connection()
 
     # Verify engine
-    assert str(engine.url) == f"postgresql://{MOCK_SECRET['username']}:{MOCK_SECRET['password']}@{MOCK_SECRET['host']}:{MOCK_SECRET['port']}/{MOCK_SECRET['dbname']}"
+    assert str(
+        engine.url) == f"postgresql://{MOCK_SECRET['username']}:{MOCK_SECRET['password']}@{MOCK_SECRET['host']}:{MOCK_SECRET['port']}/{MOCK_SECRET['dbname']}"
 
     # Verify session factory
     session = session_factory()
     assert session.is_active
     assert session._maker.kw['autocommit'] is False
     assert session._maker.kw['autoflush'] is False
+
 
 def test_get_engine_secret_error(mock_env_vars: None) -> None:
     """Test that get_engine raises DatabaseConnectionError when secret retrieval fails"""
@@ -127,6 +141,7 @@ def test_get_engine_secret_error(mock_env_vars: None) -> None:
         assert "Failed to create database engine" in str(exc_info.value)
         assert "Secret error" in str(exc_info.value)
 
+
 def test_get_session_factory_engine_error(mock_env_vars: None) -> None:
     """Test that get_session_factory raises DatabaseConnectionError when engine creation fails"""
     # Clear the engine cache before testing
@@ -137,6 +152,7 @@ def test_get_session_factory_engine_error(mock_env_vars: None) -> None:
             get_session_factory()
         assert "Failed to create session factory" in str(exc_info.value)
         assert "Engine error" in str(exc_info.value)
+
 
 @pytest.mark.integration
 def test_actual_connection(mock_db_connection: Tuple[MagicMock, MagicMock]) -> None:

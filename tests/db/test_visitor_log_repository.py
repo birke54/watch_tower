@@ -5,6 +5,7 @@ from db.models import VisitorLogs
 from db.repositories.visitor_log_repository import VisitorLogRepository
 import datetime
 
+
 def test_create_visitor_log(
     db_session: Session,
     visitor_log_repository: VisitorLogRepository
@@ -39,6 +40,7 @@ def test_get_visitor_log(
     assert log.visitor_log_id == sample_visitor_log.visitor_log_id
     assert log.camera_name == sample_visitor_log.camera_name
 
+
 def test_get_by_persons_name(
     db_session: Session,
     visitor_log_repository: VisitorLogRepository,
@@ -55,6 +57,7 @@ def test_get_by_persons_name(
     assert logs[0].persons_name == "Test Person"
     assert logs[0].camera_name == sample_visitor_log.camera_name
 
+
 def test_get_by_camera_name(
     db_session: Session,
     visitor_log_repository: VisitorLogRepository,
@@ -69,6 +72,7 @@ def test_get_by_camera_name(
     assert len(logs) == 1
     assert logs[0].visitor_log_id == sample_visitor_log.visitor_log_id
     assert logs[0].camera_name == "Test Camera"
+
 
 def test_get_by_time_range(
     db_session: Session,
@@ -90,6 +94,7 @@ def test_get_by_time_range(
     assert logs[0].visitor_log_id == sample_visitor_log.visitor_log_id
     assert start_time <= logs[0].visited_at <= end_time
     assert logs[0].camera_name == sample_visitor_log.camera_name
+
 
 def test_get_visitor_stats(
     db_session: Session,
@@ -113,6 +118,7 @@ def test_get_visitor_stats(
     assert stats[0][1] == 1  # visit_count
     assert stats[0][2] == sample_visitor_log.confidence_score  # avg_confidence
 
+
 def test_get_camera_stats(
     db_session: Session,
     visitor_log_repository: VisitorLogRepository,
@@ -134,6 +140,7 @@ def test_get_camera_stats(
     assert stats[0][0] == 'Test Camera'  # name
     assert stats[0][1] == 1  # visitor_count
     assert stats[0][2] == sample_visitor_log.confidence_score  # avg_confidence
+
 
 def test_get_high_confidence_visits(
     db_session: Session,
@@ -160,17 +167,21 @@ def test_get_high_confidence_visits(
     assert high_confidence_logs[0].confidence_score > 0.8
     assert high_confidence_logs[0].camera_name == sample_visitor_log.camera_name
 
+
 def test_delete_visitor_log(
     db_session: Session,
     visitor_log_repository: VisitorLogRepository,
     sample_visitor_log: VisitorLogs
 ) -> None:
     """Test deleting a visitor log"""
-    result = visitor_log_repository.delete(db_session, int(sample_visitor_log.visitor_log_id))
+    result = visitor_log_repository.delete(
+        db_session, int(sample_visitor_log.visitor_log_id))
 
     assert result is True
-    deleted_log = visitor_log_repository.get(db_session, int(sample_visitor_log.visitor_log_id))
+    deleted_log = visitor_log_repository.get(
+        db_session, int(sample_visitor_log.visitor_log_id))
     assert deleted_log is None
+
 
 def test_get_by_nonexistent_visitor_log_id(db_session, visitor_log_repository):
     assert visitor_log_repository.get(db_session, 999999) is None
