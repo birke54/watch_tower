@@ -14,7 +14,8 @@ import click
 logger = logging.getLogger(__name__)
 
 
-def create_validation_result(status: str, field: str, value: Any, message: str = "") -> Dict[str, Any]:
+def create_validation_result(status: str, field: str,
+                             value: Any, message: str = "") -> Dict[str, Any]:
     """Create a standardized validation result."""
     return {
         'status': status,

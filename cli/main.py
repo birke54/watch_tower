@@ -33,6 +33,7 @@ def cli(ctx: click.Context, verbose: bool) -> None:
         logging.getLogger().setLevel(logging.DEBUG)
         logger.debug("Verbose mode enabled")
 
+
 # Add command groups to the main CLI
 cli.add_command(status_command, name='status')
 cli.add_command(business_logic_group, name='business-logic')

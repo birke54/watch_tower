@@ -27,7 +27,8 @@ service = WatchTowerService()
 
 
 @click.command()
-@click.option('--format', '-f', default='text', type=click.Choice(['text', 'json']), help='Output format (text or json)')
+@click.option('--format', '-f', default='text',
+              type=click.Choice(['text', 'json']), help='Output format (text or json)')
 @click.option('--detailed', '-d', is_flag=True, help='Show detailed status information')
 @click.pass_context
 def status_command(ctx: click.Context, format: str, detailed: bool) -> None:
@@ -159,8 +160,10 @@ def status_command(ctx: click.Context, format: str, detailed: bool) -> None:
 
             click.echo("\n🔄 Business Logic Loop:")
             bl_status = business_logic_status
-            click.echo(f"  Status: {'🟢 Running' if bl_status.get('running') else '🔴 Stopped'}")
-            click.echo(f"  Start Time: {bl_status.get('start_time', 'Unknown')}")
+            click.echo(
+                f"  Status: {'🟢 Running' if bl_status.get('running') else '🔴 Stopped'}")
+            click.echo(
+                f"  Start Time: {bl_status.get('start_time', 'Unknown')}")
             click.echo(f"  Uptime: {bl_status.get('uptime', 'Unknown')}")
 
             if 'error' in bl_status:
@@ -178,17 +181,21 @@ def status_command(ctx: click.Context, format: str, detailed: bool) -> None:
                     field = result['field']
                     value = result['value']
                     message = result.get('message', '')
-                    display_value = str(value) if value is not None else 'Not set'
+                    display_value = str(
+                        value) if value is not None else 'Not set'
                     click.echo(f"  {status_icon} {field}: {display_value}")
                     if message:
                         click.echo(f"     💡 {message}")
 
             # Summary
             if config_failed > 0:
-                click.echo(f"\n❌ System has {config_failed} configuration errors")
-                click.echo("💡 Check your environment variables and configuration")
+                click.echo(
+                    f"\n❌ System has {config_failed} configuration errors")
+                click.echo(
+                    "💡 Check your environment variables and configuration")
             elif config_warnings > 0:
-                click.echo(f"\n⚠️  System has {config_warnings} configuration warnings")
+                click.echo(
+                    f"\n⚠️  System has {config_warnings} configuration warnings")
             else:
                 click.echo("\n✅ All systems operational")
 

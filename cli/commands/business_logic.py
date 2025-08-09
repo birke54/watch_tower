@@ -31,14 +31,17 @@ def business_logic_group():
 
 
 @business_logic_group.command()
-@click.option('--host', default=DEFAULT_HOST, help=f'API host (default: {DEFAULT_HOST})')
-@click.option('--port', default=DEFAULT_PORT, help=f'API port (default: {DEFAULT_PORT})')
+@click.option('--host', default=DEFAULT_HOST,
+              help=f'API host (default: {DEFAULT_HOST})')
+@click.option('--port', default=DEFAULT_PORT,
+              help=f'API port (default: {DEFAULT_PORT})')
 @click.pass_context
 def start(ctx: click.Context, host: str, port: int) -> None:
     """Start the business logic loop via HTTP API."""
     try:
         if ctx.obj.get('verbose'):
-            logger.debug(f"Starting business logic loop via API at http://{host}:{port}/start...")
+            logger.debug(
+                f"Starting business logic loop via API at http://{host}:{port}/start...")
 
         result = asyncio.run(service.start_business_logic_api(host, port))
 
@@ -60,14 +63,17 @@ def start(ctx: click.Context, host: str, port: int) -> None:
 
 
 @business_logic_group.command()
-@click.option('--host', default=DEFAULT_HOST, help=f'API host (default: {DEFAULT_HOST})')
-@click.option('--port', default=DEFAULT_PORT, help=f'API port (default: {DEFAULT_PORT})')
+@click.option('--host', default=DEFAULT_HOST,
+              help=f'API host (default: {DEFAULT_HOST})')
+@click.option('--port', default=DEFAULT_PORT,
+              help=f'API port (default: {DEFAULT_PORT})')
 @click.pass_context
 def stop(ctx: click.Context, host: str, port: int) -> None:
     """Stop the business logic loop via HTTP API."""
     try:
         if ctx.obj.get('verbose'):
-            logger.debug(f"Stopping business logic loop via API at http://{host}:{port}/stop...")
+            logger.debug(
+                f"Stopping business logic loop via API at http://{host}:{port}/stop...")
 
         result = asyncio.run(service.stop_business_logic_api(host, port))
 
