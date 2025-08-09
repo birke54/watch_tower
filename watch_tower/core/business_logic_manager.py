@@ -37,8 +37,8 @@ class BusinessLogicManager:
                 "start_time": self.start_time.isoformat() if self.start_time else None,
                 "business_logic_completed": self.task.done() if self.task else None,
                 "business_logic_cancelled": self.task.cancelled() if self.task else None,
-                "last_updated": datetime.now(timezone.utc).isoformat()
-            }
+                "last_updated": datetime.now(
+                    timezone.utc).isoformat()}
             with open(STATE_FILE, 'w') as f:
                 json.dump(state, f)
         except (OSError, IOError) as e:
@@ -185,7 +185,8 @@ class BusinessLogicManager:
             import datetime
             from watch_tower.core.events_loop import poll_for_events, insert_events_into_db, start_video_retrieval_tasks, start_facial_recognition_tasks
 
-            # Heartbeat counter - log every 5 minutes (300 seconds / 5 seconds = 60 iterations)
+            # Heartbeat counter - log every 5 minutes (300 seconds / 5 seconds = 60
+            # iterations)
             heartbeat_counter = 0
             # Log heartbeat every 60 iterations (5 minutes)
             heartbeat_interval = 60
@@ -274,7 +275,8 @@ class BusinessLogicManager:
                 # If not running, show the total runtime before it stopped
                 try:
                     start_time = datetime.fromisoformat(state['start_time'])
-                    # Use last_updated as the stop time if available, otherwise use current time
+                    # Use last_updated as the stop time if available, otherwise use
+                    # current time
                     if state.get('last_updated'):
                         stop_time = datetime.fromisoformat(
                             state['last_updated'])

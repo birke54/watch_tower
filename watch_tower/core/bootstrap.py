@@ -15,6 +15,7 @@ logger = get_logger(__name__)
 
 engine, session_factory = get_database_connection()
 
+
 @monitor_async_performance("bootstrap")
 @handle_async_errors(log_error=True, reraise=True)
 async def bootstrap() -> None:
@@ -27,6 +28,7 @@ async def bootstrap() -> None:
     await login_to_vendors(vendors)
     cameras = await retrieve_cameras(vendors)
     await add_cameras_to_registry(cameras)
+
 
 async def add_cameras_to_registry(cameras: List[Tuple[PluginType, Any]]) -> None:
     """Add cameras to the camera registry."""
@@ -42,6 +44,7 @@ async def add_cameras_to_registry(cameras: List[Tuple[PluginType, Any]]) -> None
     logger.info(f"Active cameras: {len(registry.get_all_active())}")
     logger.debug(f"Camera registry: {registry.cameras}")
 
+
 def retrieve_vendors() -> List[Vendors]:
     """Retrieve vendors from the database."""
     with session_factory() as session:
@@ -49,6 +52,7 @@ def retrieve_vendors() -> List[Vendors]:
         logger.info(f"Retrieved {len(vendors)} vendors from the database")
         logger.debug(f"Vendors: {vendors}")
         return list(vendors)  # Convert to list to ensure List[Vendors] return type
+
 
 def register_connection_managers(vendors: List[Vendors]) -> None:
     """Register connection managers for each vendor."""
@@ -59,35 +63,47 @@ def register_connection_managers(vendors: List[Vendors]) -> None:
         logger.debug(f"Registered connection manager for {vendor.plugin_type}")
     logger.info(f"Registered {len(vendors)} connection managers")
 
+
 async def login_to_vendors(vendors: List[Vendors]) -> None:
     """Login to vendors."""
     for connection_manager in registry.get_all_connection_managers():
-        logger.debug(f"Attempting to login to {connection_manager['connection_manager'].__class__.__name__}")
+        logger.debug(
+            f"Attempting to login to {connection_manager['connection_manager'].__class__.__name__}")
         try:
             await connection_manager['connection_manager'].login()
-            plugin_type = cast(PluginType, connection_manager['connection_manager']._plugin_type)
+            plugin_type = cast(PluginType,
+                               connection_manager['connection_manager']._plugin_type)
             registry.update_status(plugin_type, VendorStatus.ACTIVE)
-            logger.info(f"Logged in to {connection_manager['connection_manager'].__class__.__name__}")
+            logger.info(
+                f"Logged in to {connection_manager['connection_manager'].__class__.__name__}")
         except Exception as e:
-            logger.error(f"Failed to login to {connection_manager['connection_manager'].__class__.__name__}: {e}")
-            plugin_type = cast(PluginType, connection_manager['connection_manager']._plugin_type)
+            logger.error(
+                f"Failed to login to {connection_manager['connection_manager'].__class__.__name__}: {e}")
+            plugin_type = cast(PluginType,
+                               connection_manager['connection_manager']._plugin_type)
             registry.update_status(plugin_type, VendorStatus.INACTIVE)
+
 
 async def retrieve_cameras(vendors: List[Vendors]) -> List[Tuple[PluginType, Any]]:
     """Retrieve active connection managers and retrieve cameras from them."""
     cameras: List[Tuple[PluginType, Any]] = []
     logger.info("Starting camera retrieval process")
     for connection_manager in registry.get_all_connection_managers():
-        logger.debug(f"Checking connection manager: {connection_manager['connection_manager'].__class__.__name__}, status: {connection_manager['status']}")
+        logger.debug(
+            f"Checking connection manager: {connection_manager['connection_manager'].__class__.__name__}, status: {connection_manager['status']}")
         if connection_manager['status'] == VendorStatus.ACTIVE:
-            logger.debug(f"{connection_manager['connection_manager'].__class__.__name__} is active, attempting to get cameras")
+            logger.debug(
+                f"{connection_manager['connection_manager'].__class__.__name__} is active, attempting to get cameras")
             camera_objects = await connection_manager['connection_manager'].get_cameras()
-            logger.debug(f"Retrieved {len(camera_objects)} camera objects, attempting to add to camera registry")
+            logger.debug(
+                f"Retrieved {len(camera_objects)} camera objects, attempting to add to camera registry")
             logger.debug(f"Camera objects: {camera_objects}")
             if camera_objects:
-                plugin_type = cast(PluginType, connection_manager['connection_manager']._plugin_type)
+                plugin_type = cast(
+                    PluginType, connection_manager['connection_manager']._plugin_type)
                 cameras.extend([(plugin_type, camera) for camera in camera_objects])
     return cameras
+
 
 async def __main__() -> None:
     """Main function."""

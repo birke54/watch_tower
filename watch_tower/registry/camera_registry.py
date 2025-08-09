@@ -9,10 +9,12 @@ from db.camera_state_db import save_camera_states, load_camera_states
 
 logger = get_logger(__name__)
 
+
 class CameraStatus(Enum):
     """Enum representing the status of a camera in the registry."""
     ACTIVE = 1
     INACTIVE = 2
+
 
 @dataclass
 class CameraEntry:
@@ -21,6 +23,7 @@ class CameraEntry:
     status: CameraStatus
     last_polled: datetime.datetime
     status_last_updated: datetime.datetime
+
 
 class CameraRegistry:
     """Registry for managing camera instances.
@@ -152,7 +155,8 @@ class CameraRegistry:
         Returns:
             List[CameraBase]: List of all registered cameras by vendor
         """
-        return [entry.camera for entry in self.cameras.values() if entry.camera.plugin_type == vendor]
+        return [entry.camera for entry in self.cameras.values(
+        ) if entry.camera.plugin_type == vendor]
 
     def get_all_active(self) -> List[CameraBase]:
         """Get all active cameras from the registry.
@@ -166,7 +170,11 @@ class CameraRegistry:
             if entry.status == CameraStatus.ACTIVE
         ]
 
-    def update_status(self, vendor: PluginType, camera_name: str, status: CameraStatus) -> None:
+    def update_status(
+            self,
+            vendor: PluginType,
+            camera_name: str,
+            status: CameraStatus) -> None:
         """Update the status of a camera in the registry.
 
         Args:
@@ -183,7 +191,8 @@ class CameraRegistry:
                 raise KeyError(f"Camera {camera_name} not found in registry")
 
             self.cameras[camera_key].status = status
-            self.cameras[camera_key].status_last_updated = datetime.datetime.now(datetime.timezone.utc)
+            self.cameras[camera_key].status_last_updated = datetime.datetime.now(
+                datetime.timezone.utc)
             logger.debug(f"Updated status of camera {camera_name} to {status.name}")
 
             # Save state to database for cross-process access
@@ -219,6 +228,7 @@ class CameraRegistry:
         except Exception as e:
             logger.error(f"Failed to load camera state from database: {e}")
             return []
+
 
 # Singleton instance of the camera registry
 registry = CameraRegistry()
