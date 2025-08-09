@@ -16,6 +16,7 @@ from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+
 @dataclass
 class PerformanceMetrics:
     """Container for performance metrics."""
@@ -26,6 +27,7 @@ class PerformanceMetrics:
     success: bool = True
     error: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+
 
 class PerformanceMonitor:
     """Performance monitoring utility."""
@@ -52,7 +54,11 @@ class PerformanceMonitor:
         )
         return operation_id
 
-    def end_operation(self, operation_id: str, success: bool = True, error: Optional[str] = None) -> None:
+    def end_operation(
+            self,
+            operation_id: str,
+            success: bool = True,
+            error: Optional[str] = None) -> None:
         """
         End monitoring an operation.
 
@@ -70,11 +76,14 @@ class PerformanceMonitor:
 
             # Log performance metrics
             if success:
-                logger.info(f"Operation '{metric.operation}' completed in {metric.duration:.3f}s")
+                logger.info(
+                    f"Operation '{metric.operation}' completed in {metric.duration:.3f}s")
             else:
-                logger.error(f"Operation '{metric.operation}' failed after {metric.duration:.3f}s: {error}")
+                logger.error(
+                    f"Operation '{metric.operation}' failed after {metric.duration:.3f}s: {error}")
 
-    def get_metrics(self, operation: Optional[str] = None) -> Dict[str, PerformanceMetrics]:
+    def get_metrics(self, operation: Optional[str]
+                    = None) -> Dict[str, PerformanceMetrics]:
         """
         Get performance metrics.
 
@@ -104,8 +113,10 @@ class PerformanceMonitor:
         ]
         return sum(durations) / len(durations) if durations else None
 
+
 # Global performance monitor instance
 performance_monitor = PerformanceMonitor()
+
 
 def monitor_performance(operation: str):
     """
@@ -126,10 +137,12 @@ def monitor_performance(operation: str):
                 performance_monitor.end_operation(operation_id, success=True)
                 return result
             except Exception as e:
-                performance_monitor.end_operation(operation_id, success=False, error=str(e))
+                performance_monitor.end_operation(
+                    operation_id, success=False, error=str(e))
                 raise
         return wrapper
     return decorator
+
 
 def monitor_async_performance(operation: str):
     """
@@ -150,10 +163,12 @@ def monitor_async_performance(operation: str):
                 performance_monitor.end_operation(operation_id, success=True)
                 return result
             except Exception as e:
-                performance_monitor.end_operation(operation_id, success=False, error=str(e))
+                performance_monitor.end_operation(
+                    operation_id, success=False, error=str(e))
                 raise
         return wrapper
     return decorator
+
 
 @contextmanager
 def performance_context(operation: str, **metadata: Any):
@@ -174,6 +189,7 @@ def performance_context(operation: str, **metadata: Any):
     except Exception as e:
         performance_monitor.end_operation(operation_id, success=False, error=str(e))
         raise
+
 
 def log_performance_summary() -> None:
     """Log a summary of performance metrics."""

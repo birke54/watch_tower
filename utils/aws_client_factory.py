@@ -15,6 +15,7 @@ from utils.error_handler import handle_errors
 
 logger = get_logger(__name__)
 
+
 class AWSClientFactory:
     """Factory for creating AWS clients with consistent configuration."""
 
@@ -66,6 +67,7 @@ class AWSClientFactory:
     def create_secrets_manager_client(**kwargs: Any) -> boto3.client:
         """Create a Secrets Manager client."""
         return AWSClientFactory.create_client('secretsmanager', **kwargs)
+
 
 def handle_aws_error(
     error: ClientError,

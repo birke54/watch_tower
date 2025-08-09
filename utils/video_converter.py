@@ -10,6 +10,7 @@ from utils.performance_monitor import monitor_performance
 
 logger = get_logger(__name__)
 
+
 class VideoConverter:
     """A library for converting video files to H.264 format using ffmpeg."""
 
@@ -22,7 +23,8 @@ class VideoConverter:
         """
         self.ffmpeg_path = ffmpeg_path or self._find_ffmpeg()
         if not self.ffmpeg_path:
-            raise RuntimeError("ffmpeg not found. Please install ffmpeg and ensure it's in your PATH.")
+            raise RuntimeError(
+                "ffmpeg not found. Please install ffmpeg and ensure it's in your PATH.")
 
         logger.debug(f"VideoConverter initialized with ffmpeg at: {self.ffmpeg_path}")
 
@@ -30,7 +32,7 @@ class VideoConverter:
         """Find ffmpeg executable in system PATH."""
         try:
             result = subprocess.run(['which', 'ffmpeg'],
-                                  capture_output=True, text=True, check=True)
+                                    capture_output=True, text=True, check=True)
             return result.stdout.strip()
         except (subprocess.CalledProcessError, FileNotFoundError):
             # Try common installation paths
@@ -115,14 +117,14 @@ class VideoConverter:
     @monitor_performance("video_conversion")
     @handle_errors(RuntimeError, log_error=True, reraise=True)
     def convert_to_h264(self,
-                       input_path: str,
-                       output_path: Optional[str] = None,
-                       preset: str = None,  # Use config default
-                       crf: int = None,  # Use config default
-                       max_width: Optional[int] = None,
-                       max_height: Optional[int] = None,
-                       audio_codec: Optional[str] = 'aac',
-                       overwrite: bool = False) -> Tuple[str, bool]:
+                        input_path: str,
+                        output_path: Optional[str] = None,
+                        preset: str = None,  # Use config default
+                        crf: int = None,  # Use config default
+                        max_width: Optional[int] = None,
+                        max_height: Optional[int] = None,
+                        audio_codec: Optional[str] = 'aac',
+                        overwrite: bool = False) -> Tuple[str, bool]:
         """
         Convert a video file to H.264 format.
 
@@ -234,14 +236,17 @@ class VideoConverter:
             return output_path, is_temp_file
 
         except subprocess.TimeoutExpired:
-            logger.error(f"FFmpeg conversion timed out after {config.video.ffmpeg_timeout} seconds")
+            logger.error(
+                f"FFmpeg conversion timed out after {config.video.ffmpeg_timeout} seconds")
             # Clean up temp file if conversion failed
             if is_temp_file and os.path.exists(output_path):
                 try:
                     os.remove(output_path)
                 except Exception as cleanup_error:
-                    logger.warning(f"Failed to cleanup temp file after timeout: {cleanup_error}")
-            raise RuntimeError(f"Video conversion timed out after {config.video.ffmpeg_timeout} seconds")
+                    logger.warning(
+                        f"Failed to cleanup temp file after timeout: {cleanup_error}")
+            raise RuntimeError(
+                f"Video conversion timed out after {config.video.ffmpeg_timeout} seconds")
         except subprocess.CalledProcessError as e:
             logger.error(f"FFmpeg conversion failed with return code: {e.returncode}")
             # Clean up temp file if conversion failed
@@ -249,10 +254,13 @@ class VideoConverter:
                 try:
                     os.remove(output_path)
                 except Exception as cleanup_error:
-                    logger.warning(f"Failed to cleanup temp file after conversion error: {cleanup_error}")
-            raise RuntimeError(f"Video conversion failed with return code: {e.returncode}")
+                    logger.warning(
+                        f"Failed to cleanup temp file after conversion error: {cleanup_error}")
+            raise RuntimeError(
+                f"Video conversion failed with return code: {e.returncode}")
 
-    def convert_for_rekognition(self, input_path: str, output_path: Optional[str] = None) -> Tuple[str, bool]:
+    def convert_for_rekognition(self, input_path: str,
+                                output_path: Optional[str] = None) -> Tuple[str, bool]:
         """
         Convert video specifically optimized for AWS Rekognition.
 
@@ -282,11 +290,13 @@ class VideoConverter:
             file_path: Path to the file to delete.
         """
         try:
-            if os.path.exists(file_path) and file_path.startswith(tempfile.gettempdir()):
+            if os.path.exists(file_path) and file_path.startswith(
+                    tempfile.gettempdir()):
                 os.remove(file_path)
                 logger.debug(f"Cleaned up temp file: {file_path}")
         except Exception as e:
             logger.warning(f"Failed to cleanup temp file {file_path}: {e}")
+
 
 # Create a singleton instance
 video_converter = VideoConverter()

@@ -14,6 +14,7 @@ from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+
 def handle_errors(
     error_types: Optional[Union[Type[Exception], Tuple[Type[Exception], ...]]] = None,
     default_return: Any = None,
@@ -53,6 +54,7 @@ def handle_errors(
                     raise
         return wrapper
     return decorator
+
 
 def handle_async_errors(
     error_types: Optional[Union[Type[Exception], Tuple[Type[Exception], ...]]] = None,
@@ -94,6 +96,7 @@ def handle_async_errors(
         return wrapper
     return decorator
 
+
 @contextmanager
 def error_context(
     operation: str,
@@ -129,6 +132,7 @@ def error_context(
             # Re-raise if it's not the type we're handling
             raise
 
+
 def log_and_raise(
     error: Exception,
     message: str,
@@ -145,6 +149,7 @@ def log_and_raise(
     log = logger_instance or logger
     log.error(f"{message}: {str(error)}", exc_info=True)
     raise error
+
 
 def safe_execute(
     func: Callable,
@@ -171,6 +176,7 @@ def safe_execute(
     except Exception as e:
         logger.error(f"{error_message}: {str(e)}", exc_info=True)
         return default_return
+
 
 async def safe_execute_async(
     func: Callable,

@@ -14,7 +14,11 @@ class WatchTowerError(Exception):
 class ManagementAPIError(WatchTowerError):
     """Raised when there's an error with the management API."""
 
-    def __init__(self, message: str, status_code: Optional[int] = None, original_error: Optional[Exception] = None):
+    def __init__(
+            self,
+            message: str,
+            status_code: Optional[int] = None,
+            original_error: Optional[Exception] = None):
         super().__init__(message)
         self.status_code = status_code
         self.original_error = original_error

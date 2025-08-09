@@ -12,6 +12,7 @@ import sys
 from typing import Optional
 import os
 
+
 def setup_logging(
     level: Optional[str] = None,
     log_file: Optional[str] = None,
@@ -78,6 +79,7 @@ def setup_logging(
     logger.info(f"Logging configured with level: {level}")
     if log_file:
         logger.info(f"Logging to file: {log_file}")
+
 
 def get_logger(name: str) -> logging.Logger:
     """
