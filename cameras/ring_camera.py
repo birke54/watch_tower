@@ -27,6 +27,7 @@ except ImportError:
 
 logger = get_logger(__name__)
 
+
 class RingCamera(CameraBase):
     """Ring camera implementation."""
 
@@ -64,21 +65,24 @@ class RingCamera(CameraBase):
             List of motion events found within the time range
         """
         try:
-            connection_manager = cast(RingConnectionManager, registry.get_connection_manager(PluginType.RING))
+            connection_manager = cast(
+                RingConnectionManager, registry.get_connection_manager(PluginType.RING))
             connection_manager._ring.update_data()
 
             # Get more events to ensure we don't miss any within our time window
             events = self.device_object.history(limit=5)
             logger.debug(f"Events: {events}")
             logger.debug(f"Retrieved {len(events)} events from Ring history")
-            logger.debug(f"Looking for new {self.device_object.name} events between {from_time} and {to_time}")
+            logger.debug(
+                f"Looking for new {self.device_object.name} events between {from_time} and {to_time}")
 
             matching_events = []
             for event in events:
                 # Convert event timestamp to timezone-aware datetime if it isn't already
                 event_time = event.get("created_at")
                 if event_time is not None:
-                    event_time = event_time.astimezone(ZoneInfo("America/Los_Angeles"))
+                    event_time = event_time.astimezone(
+                        ZoneInfo("America/Los_Angeles"))
 
                     if from_time <= event_time <= to_time:
                         motion_event = MotionEvent.from_ring_event(event)
@@ -101,8 +105,10 @@ class RingCamera(CameraBase):
         # Get the event ID from the event metadata
         event_id = event.event_metadata.get("event_id")
         if not event_id:
-            logger.error(f"No event ID found in metadata for event {event.event_id}")
-            raise ValueError(f"No event ID found in metadata for event {event.event_id}")
+            logger.error(
+                f"No event ID found in metadata for event {event.event_id}")
+            raise ValueError(
+                f"No event ID found in metadata for event {event.event_id}")
 
         bucket_name = config.event_recordings_bucket
         temp_file_path = None
@@ -113,9 +119,11 @@ class RingCamera(CameraBase):
             video_url = self.device_object.recording_url(event_id)
             if video_url is None:
                 logger.warning(f"No video URL found for Ring event {event_id}")
-                raise ValueError(f"No video URL found for Ring event {event_id}")
+                raise ValueError(
+                    f"No video URL found for Ring event {event_id}")
             object_key = f'ring_{event_id}.mp4'
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+            temp_file = tempfile.NamedTemporaryFile(
+                delete=False, suffix='.mp4')
             temp_file_path = temp_file.name
             try:
                 # Download the video to the temp file
@@ -127,7 +135,8 @@ class RingCamera(CameraBase):
 
                 # If file is not already H.264, convert it to H.264 for Rekognition
                 if not video_converter.get_video_info(temp_file_path).get('codec') == 'h264':
-                    h264_file_path, h264_is_temp = video_converter.convert_for_rekognition(temp_file_path)
+                    h264_file_path, h264_is_temp = video_converter.convert_for_rekognition(
+                        temp_file_path)
                 else:
                     h264_file_path = temp_file_path
                     h264_is_temp = False
@@ -141,8 +150,10 @@ class RingCamera(CameraBase):
                 if h264_is_temp and h264_file_path and os.path.exists(h264_file_path):
                     os.remove(h264_file_path)
         except Exception as e:
-            logger.warning(f"Error retrieving video URL for Ring event {event_id}: {e}")
-            raise ValueError(f"Error retrieving video URL for Ring event {event_id}: {e}")
+            logger.warning(
+                f"Error retrieving video URL for Ring event {event_id}: {e}")
+            raise ValueError(
+                f"Error retrieving video URL for Ring event {event_id}: {e}")
 
         # Update the event in the database with the video URL
         engine, session_factory = get_database_connection()
@@ -151,12 +162,15 @@ class RingCamera(CameraBase):
         with session_factory() as session:
             # Find the event by Ring event ID in metadata
             events = session.query(motion_event_repository.model).filter(
-                motion_event_repository.model.event_metadata.op('->>')('event_id') == str(event_id)
+                motion_event_repository.model.event_metadata.op(
+                    '->>')('event_id') == str(event_id)
             ).all()
 
             if not events or len(events) != 1:
-                logger.error(f"No database event found for Ring event ID {event_id}")
-                raise DatabaseEventNotFoundError(f"No database event found for Ring event ID {event_id}")
+                logger.error(
+                    f"No database event found for Ring event ID {event_id}")
+                raise DatabaseEventNotFoundError(
+                    f"No database event found for Ring event ID {event_id}")
 
             # Update the first matching event
             motion_event_repository.update_s3_url(
@@ -174,7 +188,8 @@ class RingCamera(CameraBase):
         """
         from connection_managers.ring_connection_manager import RingConnectionManager
         try:
-            connection_manager = cast(RingConnectionManager, registry.get_connection_manager(PluginType.RING))
+            connection_manager = cast(
+                RingConnectionManager, registry.get_connection_manager(PluginType.RING))
             connection_manager._ring.update_data()
             device_properties = await self.get_properties()
             return device_properties.get("connection_status") == "online"
@@ -191,7 +206,8 @@ class RingCamera(CameraBase):
         """
         from connection_managers.ring_connection_manager import RingConnectionManager
         try:
-            connection_manager = cast(RingConnectionManager, registry.get_connection_manager(PluginType.RING))
+            connection_manager = cast(
+                RingConnectionManager, registry.get_connection_manager(PluginType.RING))
             connection_manager._ring.update_data()
 
             # Access all properties in a single try block

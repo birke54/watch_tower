@@ -7,6 +7,7 @@ from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+
 class CameraBase(ABC):
     """Base interface for all camera types."""
 

@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 # State file for cross-process access
 STATE_FILE = "/tmp/watch_tower_business_logic_state.json"
 
+
 class BusinessLogicManager:
     """Manages the business logic loop lifecycle with file-based state persistence."""
 
@@ -45,7 +46,8 @@ class BusinessLogicManager:
             raise BusinessLogicError(f"Failed to save state file: {str(e)}")
         except Exception as e:
             logger.error(f"Unexpected error saving state: {e}")
-            raise BusinessLogicError(f"Unexpected error saving state: {str(e)}")
+            raise BusinessLogicError(
+                f"Unexpected error saving state: {str(e)}")
 
     def _load_state(self) -> Dict[str, Any]:
         """Load the current state from file."""
@@ -109,7 +111,8 @@ class BusinessLogicManager:
             elif isinstance(e, ConfigurationError):
                 raise
             else:
-                raise BusinessLogicError(f"Failed to start business logic loop: {str(e)}")
+                raise BusinessLogicError(
+                    f"Failed to start business logic loop: {str(e)}")
 
     async def stop(self) -> None:
         """Stop the business logic loop gracefully."""
@@ -134,7 +137,8 @@ class BusinessLogicManager:
                 try:
                     await asyncio.wait_for(self.task, timeout=30.0)
                 except asyncio.TimeoutError:
-                    logger.warning("Business logic loop did not stop gracefully, cancelling...")
+                    logger.warning(
+                        "Business logic loop did not stop gracefully, cancelling...")
                     self.task.cancel()
                     try:
                         await self.task
@@ -162,7 +166,8 @@ class BusinessLogicManager:
             elif isinstance(e, ConfigurationError):
                 raise
             else:
-                raise BusinessLogicError(f"Error stopping business logic loop: {str(e)}")
+                raise BusinessLogicError(
+                    f"Error stopping business logic loop: {str(e)}")
         finally:
             if not rollback:
                 self.running = False
@@ -182,7 +187,8 @@ class BusinessLogicManager:
 
             # Heartbeat counter - log every 5 minutes (300 seconds / 5 seconds = 60 iterations)
             heartbeat_counter = 0
-            heartbeat_interval = 60  # Log heartbeat every 60 iterations (5 minutes)
+            # Log heartbeat every 60 iterations (5 minutes)
+            heartbeat_interval = 60
 
             # Run the business logic loop until shutdown is requested
             while self.running and not self.shutdown_event.is_set():
@@ -190,7 +196,8 @@ class BusinessLogicManager:
                     # Add heartbeat log every 5 minutes
                     heartbeat_counter += 1
                     if heartbeat_counter >= heartbeat_interval:
-                        logger.info("[HEARTBEAT] Business logic loop is running inside the Docker container.")
+                        logger.info(
+                            "[HEARTBEAT] Business logic loop is running inside the Docker container.")
                         heartbeat_counter = 0
 
                     # Run one iteration of the business logic loop
@@ -213,7 +220,8 @@ class BusinessLogicManager:
                     await asyncio.sleep(5)
 
                 except BusinessLogicError as e:
-                    logger.error(f"Business logic error in loop iteration: {e}")
+                    logger.error(
+                        f"Business logic error in loop iteration: {e}")
                     # Continue running unless explicitly stopped
                     if self.running:
                         await asyncio.sleep(5)  # Wait before retrying
@@ -223,7 +231,8 @@ class BusinessLogicManager:
                     if self.running:
                         await asyncio.sleep(5)  # Wait before retrying
                 except Exception as e:
-                    logger.error(f"Unexpected error in business logic loop iteration: {e}")
+                    logger.error(
+                        f"Unexpected error in business logic loop iteration: {e}")
                     # Continue running unless explicitly stopped
                     if self.running:
                         await asyncio.sleep(5)  # Wait before retrying
@@ -237,7 +246,8 @@ class BusinessLogicManager:
             raise
         except Exception as e:
             logger.error(f"Unexpected error in business logic loop: {e}")
-            raise BusinessLogicError(f"Unexpected error in business logic loop: {str(e)}")
+            raise BusinessLogicError(
+                f"Unexpected error in business logic loop: {str(e)}")
         finally:
             self.running = False
             self._save_state()
@@ -266,7 +276,8 @@ class BusinessLogicManager:
                     start_time = datetime.fromisoformat(state['start_time'])
                     # Use last_updated as the stop time if available, otherwise use current time
                     if state.get('last_updated'):
-                        stop_time = datetime.fromisoformat(state['last_updated'])
+                        stop_time = datetime.fromisoformat(
+                            state['last_updated'])
                     else:
                         stop_time = datetime.now(timezone.utc)
                     uptime = f"{str(stop_time - start_time)} (stopped)"
@@ -286,7 +297,9 @@ class BusinessLogicManager:
             }
         except Exception as e:
             logger.error(f"Failed to get business logic status: {e}")
-            raise BusinessLogicError(f"Failed to get business logic status: {str(e)}")
+            raise BusinessLogicError(
+                f"Failed to get business logic status: {str(e)}")
+
 
 # Create a singleton instance
 business_logic_manager = BusinessLogicManager()

@@ -10,6 +10,7 @@ from utils.aws_client_factory import AWSClientFactory
 
 logger = get_logger(__name__)
 
+
 class S3Service:
     def __init__(self) -> None:
         """Initialize the S3 service with AWS credentials."""
@@ -44,7 +45,8 @@ class S3Service:
             return AWSClientFactory.create_s3_client()
         except Exception as e:
             logger.error(f"Failed to initialize S3 client: {e}")
-            raise ClientInitializationError(f"Error initializing S3 client: {e}")
+            raise ClientInitializationError(
+                f"Error initializing S3 client: {e}")
 
     def check_bucket_exists(self, bucket_name: str) -> bool:
         """
@@ -67,7 +69,8 @@ class S3Service:
             error_code = e.response['Error']['Code']
             if error_code == '404':
                 logger.warning(f"Bucket {bucket_name} does not exist")
-                raise S3ResourceNotFoundException(f"Bucket {bucket_name} not found")
+                raise S3ResourceNotFoundException(
+                    f"Bucket {bucket_name} not found")
             logger.error(f"Error checking bucket {bucket_name}: {e}")
             raise S3Error(f"Error checking bucket {bucket_name}: {e}")
 
@@ -100,16 +103,19 @@ class S3Service:
                 if obj['Key'].startswith(prefix)
             ]
 
-            logger.info(f"Found {len(file_paths)} files with prefix {prefix} in bucket {bucket_name}")
+            logger.info(
+                f"Found {len(file_paths)} files with prefix {prefix} in bucket {bucket_name}")
             return file_paths
 
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == '404':
                 logger.error(f"Bucket {bucket_name} not found")
-                raise S3ResourceNotFoundException(f"Bucket {bucket_name} not found")
+                raise S3ResourceNotFoundException(
+                    f"Bucket {bucket_name} not found")
             logger.error(f"Error listing objects in bucket {bucket_name}: {e}")
-            raise S3Error(f"Error listing objects in bucket {bucket_name}: {e}")
+            raise S3Error(
+                f"Error listing objects in bucket {bucket_name}: {e}")
 
     def download_file(self, bucket_name: str, object_key: str, local_path: str) -> None:
         """
@@ -132,15 +138,20 @@ class S3Service:
 
             # Download the file
             self.client.download_file(bucket_name, object_key, local_path)
-            logger.info(f"Successfully downloaded s3://{bucket_name}/{object_key} to {local_path}")
+            logger.info(
+                f"Successfully downloaded s3://{bucket_name}/{object_key} to {local_path}")
 
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == '404':
-                logger.error(f"Object {object_key} not found in bucket {bucket_name}")
-                raise S3ResourceNotFoundException(f"Object {object_key} not found in bucket {bucket_name}")
-            logger.error(f"Error downloading file from s3://{bucket_name}/{object_key}: {e}")
-            raise S3Error(f"Error downloading file from s3://{bucket_name}/{object_key}: {e}")
+                logger.error(
+                    f"Object {object_key} not found in bucket {bucket_name}")
+                raise S3ResourceNotFoundException(
+                    f"Object {object_key} not found in bucket {bucket_name}")
+            logger.error(
+                f"Error downloading file from s3://{bucket_name}/{object_key}: {e}")
+            raise S3Error(
+                f"Error downloading file from s3://{bucket_name}/{object_key}: {e}")
 
     def upload_file(self, local_path: str, bucket_name: str, object_key: str) -> None:
         """
@@ -164,14 +175,19 @@ class S3Service:
 
         try:
             self.client.upload_file(local_path, bucket_name, object_key)
-            logger.info(f"Successfully uploaded {local_path} to s3://{bucket_name}/{object_key}")
+            logger.info(
+                f"Successfully uploaded {local_path} to s3://{bucket_name}/{object_key}")
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == '404':
                 logger.error(f"Bucket {bucket_name} not found")
-                raise S3ResourceNotFoundException(f"Bucket {bucket_name} not found")
-            logger.error(f"Error uploading file to s3://{bucket_name}/{object_key}: {e}")
-            raise S3Error(f"Error uploading file to s3://{bucket_name}/{object_key}: {e}")
+                raise S3ResourceNotFoundException(
+                    f"Bucket {bucket_name} not found")
+            logger.error(
+                f"Error uploading file to s3://{bucket_name}/{object_key}: {e}")
+            raise S3Error(
+                f"Error uploading file to s3://{bucket_name}/{object_key}: {e}")
+
 
 # Create a singleton instance
 s3_service = S3Service()

@@ -6,6 +6,7 @@ from ring_doorbell import Ring, RingDoorBell
 
 logger = get_logger(__name__)
 
+
 def find_device(connection_manager: 'RingConnectionManager', device_name: str) -> Optional[Any]:
     """Find a Ring device by name.
 
@@ -25,6 +26,7 @@ def find_device(connection_manager: 'RingConnectionManager', device_name: str) -
             return device
     return None
 
+
 async def get_video_device_object(ring: Ring, device_name: str) -> Optional[RingDoorBell]:
     """Get video device object from Ring."""
     try:
@@ -37,6 +39,7 @@ async def get_video_device_object(ring: Ring, device_name: str) -> Optional[Ring
     except Exception as e:
         logger.error(f"Failed to get video devices: {e}")
         raise
+
 
 def get_camera_name(self: Any, camera_id: str) -> Optional[str]:
     """

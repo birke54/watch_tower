@@ -3,6 +3,7 @@ import boto3
 from aws.exceptions import ClientError, ConfigError, NoCredentialsError, SecretsManagerError
 from watch_tower.config import config
 
+
 def get_db_secret(secret_name: str) -> dict:
     """
     Retrieve credentials from AWS Secrets Manager.
