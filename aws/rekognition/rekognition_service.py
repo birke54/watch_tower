@@ -135,7 +135,8 @@ class RekognitionService:
 
         return response['JobId']
 
-    async def start_face_search(self, source_video_path: str) -> Tuple[List[Dict[str, Any]], bool]:
+    async def start_face_search(
+            self, source_video_path: str) -> Tuple[List[Dict[str, Any]], bool]:
         """
         Start a face search job on a video.
 
