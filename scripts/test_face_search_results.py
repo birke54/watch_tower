@@ -16,6 +16,7 @@ from aws.rekognition.rekognition_service import RekognitionService
 # Load environment variables
 load_dotenv()
 
+
 async def test_get_face_search_results(job_id: str):
     """
     Test the get_face_search_results function with a given job ID.
@@ -55,6 +56,7 @@ async def test_get_face_search_results(job_id: str):
         print(f"Error: {e}")
         import traceback
         traceback.print_exc()
+
 
 async def test_start_face_search_and_get_results(video_s3_url: str):
     """
@@ -96,6 +98,7 @@ async def test_start_face_search_and_get_results(video_s3_url: str):
         import traceback
         traceback.print_exc()
 
+
 def main():
     """Main function to run the test."""
     if len(sys.argv) < 2:
@@ -115,6 +118,7 @@ def main():
         # Test just getting results for existing job
         job_id = sys.argv[1]
         asyncio.run(test_get_face_search_results(job_id))
+
 
 if __name__ == "__main__":
     main()

@@ -10,6 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from db.connection import get_database_connection
 
+
 def insert_test_events():
     engine, session_factory = get_database_connection()
 
@@ -93,6 +94,7 @@ def insert_test_events():
 
         session.commit()
         print("Successfully inserted test events")
+
 
 if __name__ == "__main__":
     insert_test_events()

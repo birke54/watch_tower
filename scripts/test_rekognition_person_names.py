@@ -20,6 +20,7 @@ from db.repositories.visitor_log_repository import VisitorLogRepository
 # Load environment variables
 load_dotenv()
 
+
 async def test_rekognition_person_names(video_s3_url: str):
     """
     Test that person names are taken directly from Rekognition results.
@@ -67,10 +68,16 @@ async def test_rekognition_person_names(video_s3_url: str):
                 "camera_name": "test_camera",
                 "motion_detected": datetime.datetime.now(),
                 "uploaded_to_s3": datetime.datetime.now(),
-                "facial_recognition_processed": datetime.datetime(9999, 12, 31, 23, 59, 59),
+                "facial_recognition_processed": datetime.datetime(
+                    9999,
+                    12,
+                    31,
+                    23,
+                    59,
+                    59),
                 "s3_url": video_s3_url,
-                "event_metadata": {"test": True}
-            }
+                "event_metadata": {
+                    "test": True}}
             test_event = motion_event_repository.create(session, test_event_data)
 
             print(f"Created test motion event ID: {test_event.id}")
@@ -98,6 +105,7 @@ async def test_rekognition_person_names(video_s3_url: str):
         import traceback
         traceback.print_exc()
 
+
 async def create_visitor_logs_from_rekognition(
     face_search_results: list,
     db_event: any,
@@ -124,12 +132,14 @@ async def create_visitor_logs_from_rekognition(
                 }
 
                 visitor_log_repository.create(session, visitor_log_data)
-                print(f"Created visitor log for person '{person_name}' with confidence {confidence_score}")
+                print(
+                    f"Created visitor log for person '{person_name}' with confidence {confidence_score}")
 
     except Exception as e:
         print(f"Error creating visitor logs: {e}")
         import traceback
         traceback.print_exc()
+
 
 def main():
     """Main function to run the test."""
@@ -142,6 +152,7 @@ def main():
 
     video_url = sys.argv[1]
     asyncio.run(test_rekognition_person_names(video_url))
+
 
 if __name__ == "__main__":
     main()

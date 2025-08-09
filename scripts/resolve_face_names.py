@@ -17,6 +17,7 @@ from aws.rekognition.rekognition_service import RekognitionService
 # Load environment variables
 load_dotenv()
 
+
 def resolve_face_names_from_search_results(face_matches: list):
     """
     Resolve face names from face search results.
@@ -48,11 +49,13 @@ def resolve_face_names_from_search_results(face_matches: list):
         traceback.print_exc()
         return {}
 
+
 def main():
     """Main function to run the name resolution."""
     if len(sys.argv) < 2:
         print("Usage:")
-        print("  python resolve_face_names.py <match_type> <face_id> <external_image_id> [match_type2] [face_id2] [external_image_id2] ...")
+        print(
+            "  python resolve_face_names.py <match_type> <face_id> <external_image_id> [match_type2] [face_id2] [external_image_id2] ...")
         print("\nExample:")
         print("  python resolve_face_names.py FaceId abc123def456 john_doe FaceId xyz789ghi012 jane_smith")
         print("\nNote: This script requires the ExternalImageId from face search results.")
@@ -75,6 +78,7 @@ def main():
 
     # Resolve names
     resolve_face_names_from_search_results(face_matches)
+
 
 if __name__ == "__main__":
     main()
