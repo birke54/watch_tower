@@ -31,7 +31,10 @@ class CameraBase(ABC):
         """Get the name of this camera."""
 
     @abstractmethod
-    async def retrieve_motion_events(self, from_time: datetime, to_time: datetime) -> List[MotionEvent]:
+    async def retrieve_motion_events(
+            self,
+            from_time: datetime,
+            to_time: datetime) -> List[MotionEvent]:
         """Retrieve motion events from the camera within a specified time range.
 
         Args:
@@ -43,7 +46,8 @@ class CameraBase(ABC):
         """
 
     @abstractmethod
-    async def retrieve_video_from_event_and_upload_to_s3(self, event: MotionEvent) -> None:
+    async def retrieve_video_from_event_and_upload_to_s3(
+            self, event: MotionEvent) -> None:
         """Retrieve the video and upload it to S3."""
 
     @abstractmethod

@@ -54,7 +54,10 @@ class RingCamera(CameraBase):
         """Get the name of this camera."""
         return self.device_object.name
 
-    async def retrieve_motion_events(self, from_time: datetime, to_time: datetime) -> List[MotionEvent]:
+    async def retrieve_motion_events(
+            self,
+            from_time: datetime,
+            to_time: datetime) -> List[MotionEvent]:
         """Retrieve motion events from the camera within a specified time range.
 
         Args:
@@ -95,7 +98,8 @@ class RingCamera(CameraBase):
             logger.exception("Full traceback:")
             return []
 
-    async def retrieve_video_from_event_and_upload_to_s3(self, event: MotionEvent) -> None:
+    async def retrieve_video_from_event_and_upload_to_s3(
+            self, event: MotionEvent) -> None:
         """Retrieve the video and upload it to S3.
 
         Args:
@@ -134,7 +138,8 @@ class RingCamera(CameraBase):
                 temp_file.close()  # Close so S3 can read it
 
                 # If file is not already H.264, convert it to H.264 for Rekognition
-                if not video_converter.get_video_info(temp_file_path).get('codec') == 'h264':
+                if not video_converter.get_video_info(
+                        temp_file_path).get('codec') == 'h264':
                     h264_file_path, h264_is_temp = video_converter.convert_for_rekognition(
                         temp_file_path)
                 else:

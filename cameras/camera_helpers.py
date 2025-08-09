@@ -7,7 +7,9 @@ from ring_doorbell import Ring, RingDoorBell
 logger = get_logger(__name__)
 
 
-def find_device(connection_manager: 'RingConnectionManager', device_name: str) -> Optional[Any]:
+def find_device(
+        connection_manager: 'RingConnectionManager',
+        device_name: str) -> Optional[Any]:
     """Find a Ring device by name.
 
     Args:
@@ -27,7 +29,8 @@ def find_device(connection_manager: 'RingConnectionManager', device_name: str) -
     return None
 
 
-async def get_video_device_object(ring: Ring, device_name: str) -> Optional[RingDoorBell]:
+async def get_video_device_object(ring: Ring,
+                                  device_name: str) -> Optional[RingDoorBell]:
     """Get video device object from Ring."""
     try:
         ring.update_data()
