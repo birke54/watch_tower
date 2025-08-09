@@ -17,6 +17,7 @@ from connection_managers.connection_manager_base import ConnectionManagerBase
 # Configure logger for this module
 logger = logging.getLogger(__name__)
 
+
 class RingConnectionManager(ConnectionManagerBase):
     """
     Manager for handling authentication and session management with the
@@ -50,24 +51,29 @@ class RingConnectionManager(ConnectionManagerBase):
         try:
             engine, session_factory = get_database_connection()
             with session_factory() as session:
-                vendor = self._vendor_repository.get_by_field(session, 'plugin_type', self._plugin_type)
+                vendor = self._vendor_repository.get_by_field(
+                    session, 'plugin_type', self._plugin_type)
 
                 # Try authentication with existing token first
                 try:
                     if await self._authenticate_with_existing_token():
                         return
                 except Exception as e:
-                    logger.error(f"Failed to authenticate with existing token: {e}\n Moving on to credential-based authentication")
+                    logger.error(
+                        f"Failed to authenticate with existing token: {e}\n Moving on to credential-based authentication")
 
                 # Fall back to credential-based authentication
                 try:
                     if await self._authenticate_with_credentials(vendor):
-                    # Update vendor status to active after successful authentication
-                        self._vendor_repository.update_status(session, vendor.vendor_id, DBVendorStatus.ACTIVE)
-                        logger.info(f"Updated vendor status to active for {self._plugin_type}")
+                        # Update vendor status to active after successful authentication
+                        self._vendor_repository.update_status(
+                            session, vendor.vendor_id, DBVendorStatus.ACTIVE)
+                        logger.info(
+                            f"Updated vendor status to active for {self._plugin_type}")
                         return
                 except Exception as e:
-                    logger.error(f"Failed to authenticate with credentials: {e}\n Moving on to new authentication")
+                    logger.error(
+                        f"Failed to authenticate with credentials: {e}\n Moving on to new authentication")
 
             raise
         except Exception as e:
@@ -128,7 +134,8 @@ class RingConnectionManager(ConnectionManagerBase):
             logger.exception("Full traceback:")
             return None
 
-    def token_updated(self, token: Dict[str, Any], vendor_id: Optional[int] = None) -> None:
+    def token_updated(self, token: Dict[str, Any],
+                      vendor_id: Optional[int] = None) -> None:
         """Callback for when token is updated."""
         expire_dt = datetime.fromtimestamp(token['expires_at'])
         # Update in-memory registry
@@ -161,14 +168,16 @@ class RingConnectionManager(ConnectionManagerBase):
         """Authenticate using an existing token from the database."""
         engine, session_factory = get_database_connection()
         with session_factory() as session:
-            vendor = self._vendor_repository.get_by_field(session, 'plugin_type', self._plugin_type)
+            vendor = self._vendor_repository.get_by_field(
+                session, 'plugin_type', self._plugin_type)
             logger.info(f"Found vendor in database: {vendor}")
             if vendor and vendor.token:
                 logger.info("Loading token from database")
                 # Convert memoryview to string before parsing JSON
                 token_str = vendor.token.tobytes().decode('utf-8')
                 token = json.loads(token_str)
-                logger.info(f"Token expiration: {token['expires_at']}, Current time: {datetime.now().timestamp()}")
+                logger.info(
+                    f"Token expiration: {token['expires_at']}, Current time: {datetime.now().timestamp()}")
                 if token:
                     self._auth = Auth(
                         self._user_agent,
@@ -184,7 +193,8 @@ class RingConnectionManager(ConnectionManagerBase):
                     # Update in-memory registry
                     registry.connection_managers[self._plugin_type]['status'] = RegistryVendorStatus.ACTIVE
                     registry.connection_managers[self._plugin_type]['token'] = token
-                    registry.connection_managers[self._plugin_type]['expires_at'] = datetime.fromtimestamp(token['expires_at'])
+                    registry.connection_managers[self._plugin_type]['expires_at'] = datetime.fromtimestamp(
+                        token['expires_at'])
 
                     logger.info("Successfully connected to Ring using database token")
                     return True
@@ -196,7 +206,8 @@ class RingConnectionManager(ConnectionManagerBase):
 
     async def _authenticate_with_credentials(self, vendor: Any) -> bool:
         """Authenticate using stored credentials."""
-        logger.info("No valid or expired token found in database, performing new authentication")
+        logger.info(
+            "No valid or expired token found in database, performing new authentication")
         username = vendor.username
         password = decrypt(vendor.password_enc)
         self._auth = self.perform_auth(username, password, vendor.vendor_id)
@@ -213,7 +224,7 @@ class RingConnectionManager(ConnectionManagerBase):
         """
         try:
             # Create a lambda that captures vendor_id for the callback
-            token_callback = lambda token: self.token_updated(token, vendor_id)
+            def token_callback(token): return self.token_updated(token, vendor_id)
             auth = Auth(self._user_agent, None, token_callback)
             try:
                 auth.fetch_token(username, password)
