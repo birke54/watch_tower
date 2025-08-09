@@ -9,6 +9,7 @@ logger = get_logger(__name__)
 # SQLite database file path
 CAMERA_STATE_DB_PATH = "/tmp/camera_state.db"
 
+
 def init_camera_state_db() -> None:
     """Initialize the camera state SQLite database."""
     try:
@@ -32,7 +33,8 @@ def init_camera_state_db() -> None:
         # Create indexes for better performance
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_status ON camera_states(status)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_vendor ON camera_states(vendor)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_name_vendor ON camera_states(name, vendor)')
+        cursor.execute(
+            'CREATE INDEX IF NOT EXISTS idx_name_vendor ON camera_states(name, vendor)')
 
         conn.commit()
         conn.close()
@@ -41,6 +43,7 @@ def init_camera_state_db() -> None:
     except Exception as e:
         logger.error(f"Failed to initialize camera state database: {e}")
         raise
+
 
 def save_camera_states(camera_states: List[Dict[str, Any]]) -> None:
     """Save camera states to SQLite database."""
@@ -72,6 +75,7 @@ def save_camera_states(camera_states: List[Dict[str, Any]]) -> None:
     except Exception as e:
         logger.error(f"Failed to save camera states to database: {e}")
         raise
+
 
 def load_camera_states() -> List[Dict[str, Any]]:
     """Load camera states from SQLite database."""
@@ -108,6 +112,7 @@ def load_camera_states() -> List[Dict[str, Any]]:
         logger.error(f"Failed to load camera states from database: {e}")
         return []
 
+
 def get_camera_state(camera_name: str, vendor: str) -> Dict[str, Any]:
     """Get a specific camera state from the database."""
     try:
@@ -137,6 +142,7 @@ def get_camera_state(camera_name: str, vendor: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to get camera state for {camera_name}: {e}")
         return {}
+
 
 def update_camera_status(camera_name: str, vendor: str, status: str) -> None:
     """Update the status of a specific camera."""

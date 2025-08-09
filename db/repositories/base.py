@@ -4,6 +4,7 @@ from db.models import Base
 
 ModelType = TypeVar("ModelType", bound=Base)
 
+
 class BaseRepository(Generic[ModelType]):
     def __init__(self, model: Type[ModelType]):
         self.model = model
@@ -12,7 +13,11 @@ class BaseRepository(Generic[ModelType]):
 
     def get(self, db: Session, id: int) -> Optional[ModelType]:
         """Get a single record by ID"""
-        return db.query(self.model).filter(getattr(self.model, self.pk_name) == id).first()
+        return db.query(
+            self.model).filter(
+            getattr(
+                self.model,
+                self.pk_name) == id).first()
 
     def get_all(self, db: Session, skip: int = 0, limit: int = 100) -> List[ModelType]:
         """Get all records with pagination"""
@@ -26,7 +31,8 @@ class BaseRepository(Generic[ModelType]):
         db.refresh(db_obj)
         return db_obj
 
-    def update(self, db: Session, id: int, obj_in: Dict[str, Any]) -> Optional[ModelType]:
+    def update(self, db: Session, id: int,
+               obj_in: Dict[str, Any]) -> Optional[ModelType]:
         """Update a record"""
         db_obj = self.get(db, id)
         if db_obj:
@@ -59,7 +65,11 @@ class BaseRepository(Generic[ModelType]):
 
     def exists(self, db: Session, id: int) -> bool:
         """Check if a record exists by ID"""
-        return db.query(self.model).filter(getattr(self.model, self.pk_name) == id).first() is not None
+        return db.query(
+            self.model).filter(
+            getattr(
+                self.model,
+                self.pk_name) == id).first() is not None
 
     def exists_by_field(self, db: Session, field: str, value: Any) -> bool:
         """Check if a record exists by field value"""

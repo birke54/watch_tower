@@ -5,6 +5,7 @@ from sqlalchemy import and_, func
 from db.models import VisitorLogs
 from db.repositories.base import BaseRepository
 
+
 class VisitorLogRepository(BaseRepository[VisitorLogs]):
     def __init__(self):
         super().__init__(VisitorLogs)

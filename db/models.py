@@ -10,6 +10,7 @@ from connection_managers.plugin_type import PluginType
 
 Base = declarative_base()
 
+
 class Vendors(Base):
     __tablename__ = 'vendors'
 
@@ -21,8 +22,18 @@ class Vendors(Base):
     token = Column(LargeBinary)  # bytea type in PostgreSQL
     token_expires = Column(DateTime(timezone=True))
     auth_data = Column(JSON, nullable=False, default={})
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(
+            timezone=True),
+        server_default=func.now(),
+        nullable=False)
+    updated_at = Column(
+        DateTime(
+            timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False)
+
 
 class MotionEvent(Base):
     __tablename__ = 'motion_events'
@@ -32,15 +43,26 @@ class MotionEvent(Base):
     motion_detected = Column(DateTime(timezone=True), nullable=False)
     uploaded_to_s3 = Column(DateTime(timezone=True), nullable=False)
     facial_recognition_processed = Column(DateTime(timezone=True), nullable=False)
-    s3_url = Column(String, nullable=True)  # Can be null as shown in database screenshot
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    # Can be null as shown in database screenshot
+    s3_url = Column(String, nullable=True)
+    created_at = Column(
+        DateTime(
+            timezone=True),
+        server_default=func.now(),
+        nullable=False)
+    updated_at = Column(
+        DateTime(
+            timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False)
     event_metadata = Column(JSON, nullable=False, default={})
 
     # Indexes
     __table_args__ = (
         Index('idx_motion_events_camera_time', 'camera_name', 'motion_detected'),
     )
+
 
 class VisitorLogs(Base):
     __tablename__ = 'visitor_logs'
@@ -50,4 +72,8 @@ class VisitorLogs(Base):
     persons_name = Column(String, nullable=False)
     confidence_score = Column(Float, nullable=False)
     visited_at = Column(DateTime(timezone=True), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(
+            timezone=True),
+        server_default=func.now(),
+        nullable=False)

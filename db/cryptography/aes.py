@@ -25,6 +25,7 @@ SALT_SIZE = config.cryptography.salt_size
 IV_SIZE = config.cryptography.iv_size
 ITERATIONS = config.cryptography.iterations
 
+
 def get_encryption_key() -> bytes:
     """
     Get the encryption key from AWS Secrets Manager.
@@ -50,6 +51,7 @@ def get_encryption_key() -> bytes:
     except Exception as e:
         raise CryptographyError(f"Failed to get encryption key: {str(e)}")
 
+
 def derive_key(key: bytes, salt: bytes) -> bytes:
     """
     Derive an encryption key using PBKDF2.
@@ -69,6 +71,7 @@ def derive_key(key: bytes, salt: bytes) -> bytes:
         backend=default_backend()
     )
     return kdf.derive(key)
+
 
 def encrypt(data: Union[str, bytes], key: bytes = None) -> str:
     """
@@ -132,6 +135,7 @@ def encrypt(data: Union[str, bytes], key: bytes = None) -> str:
     except Exception as e:
         raise CryptographyError(f"Encryption failed: {str(e)}")
 
+
 def decrypt(data: str, key: bytes = None) -> str:
     r"""
     Decrypt data that was encrypted using AES-256-CBC.
@@ -190,8 +194,7 @@ def decrypt(data: str, key: bytes = None) -> str:
         if len(encrypted_data) % 16 != 0:
             raise CryptographyError(
                 f"Encrypted data length ({len(encrypted_data)}) is not a multiple of block size (16). "
-                f"This suggests the data may be truncated or corrupted."
-            )
+                f"This suggests the data may be truncated or corrupted.")
 
         # Derive the key using the stored salt
         derived_key = derive_key(key, salt)

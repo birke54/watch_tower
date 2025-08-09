@@ -12,6 +12,7 @@ logger = get_logger(__name__)
 engine = None
 SessionLocal = None
 
+
 @lru_cache()
 def get_engine():
     """
@@ -51,6 +52,7 @@ def get_engine():
     except Exception as e:
         raise DatabaseConnectionError(f"Failed to create database engine: {str(e)}")
 
+
 def get_session_factory():
     """
     Get or create the session factory.
@@ -70,6 +72,7 @@ def get_session_factory():
         )
     except Exception as e:
         raise DatabaseConnectionError(f"Failed to create session factory: {str(e)}")
+
 
 def get_database_connection():
     """
