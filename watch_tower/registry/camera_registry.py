@@ -7,8 +7,7 @@ from connection_managers.plugin_type import PluginType
 from utils.logging_config import get_logger
 from db.camera_state_db import save_camera_states, load_camera_states
 
-logger = get_logger(__name__)
-
+LOGGER = get_logger(__name__)
 
 class CameraStatus(Enum):
     """Enum representing the status of a camera in the registry."""
@@ -57,7 +56,7 @@ class CameraRegistry:
 
         self.cameras: Dict[Tuple[PluginType, str], CameraEntry] = {}
         self._initialized = True
-        logger.debug("Camera registry initialized")
+        LOGGER.debug("Camera registry initialized")
 
     async def add(self, camera: CameraBase) -> None:
         """Add a camera to the registry.
@@ -85,13 +84,13 @@ class CameraRegistry:
                 last_polled=datetime.datetime.now(datetime.timezone.utc),
                 status_last_updated=datetime.datetime.now(datetime.timezone.utc)
             )
-            logger.debug(f"Added camera {camera_name} to registry")
+            LOGGER.debug("Added camera %s to registry", camera_name)
 
             # Save state to database for cross-process access
             self._save_camera_state_to_database()
 
         except Exception as e:
-            logger.error(f"Error adding camera to registry: {e}")
+            LOGGER.error("Error adding camera to registry: %s", e)
             raise
 
     def remove(self, vendor: PluginType, camera_name: str) -> None:
@@ -110,13 +109,13 @@ class CameraRegistry:
                 raise KeyError(f"Camera {camera_name} not found in registry")
 
             del self.cameras[camera_key]
-            logger.debug(f"Removed camera {camera_name} from registry")
+            LOGGER.debug("Removed camera %s from registry", camera_name)
 
             # Save state to database for cross-process access
             self._save_camera_state_to_database()
 
         except Exception as e:
-            logger.error(f"Error removing camera from registry: {e}")
+            LOGGER.error("Error removing camera from registry: %s", e)
             raise
 
     def get(self, vendor: PluginType, camera_name: str) -> Optional[CameraBase]:
@@ -132,13 +131,13 @@ class CameraRegistry:
         try:
             camera_key = (vendor, camera_name)
             if camera_key not in self.cameras:
-                logger.warning(f"Camera {camera_name} not found in registry")
+                LOGGER.warning("Camera %s not found in registry", camera_name)
                 return None
 
             return self.cameras[camera_key].camera
 
         except Exception as e:
-            logger.error(f"Error getting camera from registry: {e}")
+            LOGGER.error("Error getting camera from registry: %s", e)
             return None
 
     def get_all(self) -> List[CameraBase]:
@@ -193,13 +192,13 @@ class CameraRegistry:
             self.cameras[camera_key].status = status
             self.cameras[camera_key].status_last_updated = datetime.datetime.now(
                 datetime.timezone.utc)
-            logger.debug(f"Updated status of camera {camera_name} to {status.name}")
+            LOGGER.debug("Updated status of camera %s to %s", camera_name, status.name)
 
             # Save state to database for cross-process access
             self._save_camera_state_to_database()
 
         except Exception as e:
-            logger.error(f"Error updating camera status: {e}")
+            LOGGER.error("Error updating camera status: %s", e)
             raise
 
     def _save_camera_state_to_database(self) -> None:
@@ -216,17 +215,17 @@ class CameraRegistry:
                 })
 
             save_camera_states(camera_states)
-            logger.debug(f"Saved {len(camera_states)} camera states to database")
+            LOGGER.debug("Saved %d camera states to database", len(camera_states))
 
         except Exception as e:
-            logger.error(f"Failed to save camera state to database: {e}")
+            LOGGER.error("Failed to save camera state to database: %s", e)
 
     def _load_camera_state_from_database(self) -> List[Dict[str, Any]]:
         """Load camera states from SQLite database for cross-process access."""
         try:
             return load_camera_states()
         except Exception as e:
-            logger.error(f"Failed to load camera state from database: {e}")
+            LOGGER.error("Failed to load camera state from database: %s", e)
             return []
 
 

@@ -25,7 +25,7 @@ except ImportError:
     import pytz
     ZoneInfo = pytz.timezone
 
-logger = get_logger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class RingCamera(CameraBase):
@@ -74,10 +74,10 @@ class RingCamera(CameraBase):
 
             # Get more events to ensure we don't miss any within our time window
             events = self.device_object.history(limit=5)
-            logger.debug(f"Events: {events}")
-            logger.debug(f"Retrieved {len(events)} events from Ring history")
-            logger.debug(
-                f"Looking for new {self.device_object.name} events between {from_time} and {to_time}")
+            LOGGER.debug("Events: %r", events)
+            LOGGER.debug("Retrieved %d events from Ring history", len(events))
+            LOGGER.debug(
+                "Looking for new %s events between %s and %s", self.device_object.name, from_time, to_time)
 
             matching_events = []
             for event in events:
@@ -91,11 +91,11 @@ class RingCamera(CameraBase):
                         motion_event = MotionEvent.from_ring_event(event)
                         matching_events.append(motion_event)
 
-            logger.debug(f"Found {len(matching_events)} matching events")
+            LOGGER.debug("Found %d matching events", len(matching_events))
             return matching_events
         except Exception as e:
-            logger.error(f"Error retrieving motion videos: {e}")
-            logger.exception("Full traceback:")
+            LOGGER.error("Error retrieving motion videos: %s", e)
+            LOGGER.exception("Full traceback:")
             return []
 
     async def retrieve_video_from_event_and_upload_to_s3(
@@ -109,8 +109,8 @@ class RingCamera(CameraBase):
         # Get the event ID from the event metadata
         event_id = event.event_metadata.get("event_id")
         if not event_id:
-            logger.error(
-                f"No event ID found in metadata for event {event.event_id}")
+            LOGGER.error(
+                "No event ID found in metadata for event %s", event.event_id)
             raise ValueError(
                 f"No event ID found in metadata for event {event.event_id}")
 
@@ -122,7 +122,7 @@ class RingCamera(CameraBase):
         try:
             video_url = self.device_object.recording_url(event_id)
             if video_url is None:
-                logger.warning(f"No video URL found for Ring event {event_id}")
+                LOGGER.warning("No video URL found for Ring event %s", event_id)
                 raise ValueError(
                     f"No video URL found for Ring event {event_id}")
             object_key = f'ring_{event_id}.mp4'
@@ -155,8 +155,8 @@ class RingCamera(CameraBase):
                 if h264_is_temp and h264_file_path and os.path.exists(h264_file_path):
                     os.remove(h264_file_path)
         except Exception as e:
-            logger.warning(
-                f"Error retrieving video URL for Ring event {event_id}: {e}")
+            LOGGER.warning(
+                "Error retrieving video URL for Ring event %s: %s", event_id, e)
             raise ValueError(
                 f"Error retrieving video URL for Ring event {event_id}: {e}")
 
@@ -172,8 +172,8 @@ class RingCamera(CameraBase):
             ).all()
 
             if not events or len(events) != 1:
-                logger.error(
-                    f"No database event found for Ring event ID {event_id}")
+                LOGGER.error(
+                    "No database event found for Ring event ID %s", event_id)
                 raise DatabaseEventNotFoundError(
                     f"No database event found for Ring event ID {event_id}")
 
@@ -199,8 +199,8 @@ class RingCamera(CameraBase):
             device_properties = await self.get_properties()
             return device_properties.get("connection_status") == "online"
         except Exception as e:
-            logger.error(f"Error checking camera health: {e}")
-            logger.exception("Full traceback:")
+            LOGGER.error("Error checking camera health: %s", e)
+            LOGGER.exception("Full traceback:")
             return False
 
     async def get_properties(self) -> Dict[str, Any]:
@@ -234,6 +234,6 @@ class RingCamera(CameraBase):
                 "firmware": firmware
             }
         except Exception as e:
-            logger.error(f"Error getting camera properties: {e}")
-            logger.exception("Full traceback:")
+            LOGGER.error("Error getting camera properties: %s", e)
+            LOGGER.exception("Full traceback:")
             return {}

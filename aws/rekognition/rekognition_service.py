@@ -10,7 +10,7 @@ from watch_tower.config import config
 from utils.logging_config import get_logger
 from utils.aws_client_factory import AWSClientFactory
 
-logger = get_logger(__name__)
+LOGGER = get_logger(__name__)
 
 # Constants
 JOB_STATUS_SUCCEEDED = 'SUCCEEDED'
@@ -65,7 +65,7 @@ class RekognitionService:
         try:
             return AWSClientFactory.create_rekognition_client()
         except Exception as e:
-            logger.error(f"Failed to initialize Rekognition client: {e}")
+            LOGGER.error("Failed to initialize Rekognition client: %s", e)
             raise ClientInitializationError(
                 f"Error initializing Rekognition client: {e}")
 
@@ -82,7 +82,7 @@ class RekognitionService:
         """
         try:
             self.client.describe_collection(CollectionId=collection_id)
-            logger.info(f"Collection {collection_id} exists")
+            LOGGER.info("Collection %d exists", collection_id)
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 raise RekognitionResourceNotFoundException(
@@ -128,10 +128,10 @@ class RekognitionService:
                     }
                 )
                 returned_job_ids.append(response['JobId'])
-                logger.info(f"Indexed faces for {person_id} from {file_path}")
+                LOGGER.info("Indexed faces for %s from %s", person_id, file_path)
         except ClientError as e:
-            logger.error(f"Error indexing faces: {e}")
-            raise RekognitionError(f"Error indexing faces: {e}")
+            LOGGER.error("Error indexing faces: %s", e)
+            raise RekognitionError("Error indexing faces: %s", e)
 
         return response['JobId']
 
@@ -159,8 +159,8 @@ class RekognitionService:
         """
         # Check if a job is already running for this video
         if source_video_path in _running_face_search_jobs:
-            logger.warning(
-                f"Face search job already running for video: {source_video_path}")
+            LOGGER.warning(
+                "Face search job already running for video: %s", source_video_path)
             return [], True  # Return empty list and flag indicating job was skipped
 
         try:
@@ -194,8 +194,8 @@ class RekognitionService:
                 bucket_name = config.event_recordings_bucket
                 object_key = source_video_path
 
-            logger.info(
-                f"Starting face search for bucket: {bucket_name}, object: {object_key}")
+            LOGGER.info(
+                "Starting face search for bucket: %s, object: %s", bucket_name, object_key)
 
             response = self.client.start_face_search(
                 CollectionId=self.collection_id,
@@ -210,14 +210,14 @@ class RekognitionService:
                     'RoleArn': self.role_arn
                 }
             )
-            logger.info(
-                f"Started face search job {response['JobId']} for video {source_video_path}")
+            LOGGER.info(
+                "Started face search job {response['JobId']} for video %s", source_video_path)
             face_search_results = await self.get_face_search_results(response['JobId'])
 
             # Return results and flag indicating job was executed
             return face_search_results, False
         except ClientError as e:
-            logger.error(f"Error starting face search: {e}")
+            LOGGER.error("Error starting face search: %s", e)
             raise RekognitionError(f"Error starting face search: {e}")
         finally:
             # Always remove from running jobs set
@@ -245,23 +245,23 @@ class RekognitionService:
         while True:
             try:
                 result = self.client.get_face_search(JobId=job_id)
-                logger.info(f"Job {job_id} status: {result['JobStatus']}")
+                LOGGER.info("Job %s status: {result['JobStatus']}", job_id)
 
                 if result['JobStatus'] in [JOB_STATUS_SUCCEEDED, JOB_STATUS_FAILED]:
                     break
 
-                logger.info("Waiting for job {job_id} to complete...")
+                LOGGER.info("Waiting for job %s to complete...", job_id)
                 await asyncio.sleep(polling_interval)
 
             except ClientError as e:
-                logger.error(
-                    f"Error getting face search results for job {job_id}: {e}")
+                LOGGER.error(
+                    "Error getting face search results for job %s: %s", job_id, e)
                 raise RekognitionError(
-                    f"Error getting face search results for job {job_id}: {e}")
+                    "Error getting face search results for job %s: %s", job_id, e)
 
         matches: List[Dict[str, Any]] = []
         if result['JobStatus'] == JOB_STATUS_SUCCEEDED:
-            logger.info(f"Face search job {job_id} succeeded")
+            LOGGER.info("Face search job %s succeeded", job_id)
 
             for person in result.get('Persons', []):
                 timestamp = person.get('Timestamp', 0)
@@ -281,11 +281,11 @@ class RekognitionService:
                             'timestamp': timestamp
                         })
         else:
-            logger.error(
-                f"Face search job {job_id} failed with status: {result['JobStatus']}")
-            logger.error(f"Full failure response: {result}")
+            LOGGER.error(
+                "Face search job %s failed with status: %s", job_id, result['JobStatus'])
+            LOGGER.error(f"Full failure response: {result}")
             if 'StatusMessage' in result:
-                logger.error(f"Failure reason: {result['StatusMessage']}")
+                LOGGER.error("Failure reason: %s", result['StatusMessage'])
 
         return matches
 

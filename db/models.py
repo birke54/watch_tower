@@ -11,6 +11,12 @@ from connection_managers.plugin_type import PluginType
 Base = declarative_base()
 
 
+class VendorStatus(enum.Enum):
+    """Vendor status enumeration."""
+    ACTIVE = 1
+    INACTIVE = 2
+
+
 class Vendors(Base):
     __tablename__ = 'vendors'
 
@@ -21,6 +27,7 @@ class Vendors(Base):
     password_enc = Column(String, nullable=False)
     token = Column(LargeBinary)  # bytea type in PostgreSQL
     token_expires = Column(DateTime(timezone=True))
+    status = Column(Enum(VendorStatus), nullable=True)
     auth_data = Column(JSON, nullable=False, default={})
     created_at = Column(
         DateTime(

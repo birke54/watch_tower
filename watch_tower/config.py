@@ -7,13 +7,13 @@ This module provides a single source of truth for all application configuration
 import os
 from typing import Optional
 from dataclasses import dataclass
-from dotenv import load_dotenv
 import logging
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass

@@ -5,7 +5,7 @@ from connection_managers.plugin_type import PluginType
 from data_models.motion_event import MotionEvent
 from utils.logging_config import get_logger
 
-logger = get_logger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class CameraBase(ABC):

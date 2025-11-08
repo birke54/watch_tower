@@ -8,12 +8,13 @@ import asyncio
 import signal
 import sys
 
-from watch_tower.core.bootstrap import bootstrap
-from utils.logging_config import setup_logging
+import uvicorn
+
 from watch_tower.config import config
+from watch_tower.core.bootstrap import bootstrap
 from watch_tower.core.business_logic_manager import business_logic_manager
 from watch_tower.core.management_api import create_management_app
-import uvicorn
+from utils.logging_config import setup_logging
 
 
 def setup_signal_handlers(loop, business_logic_manager):
@@ -60,9 +61,9 @@ def main() -> None:
                 config,
                 'logging',
                 None) and getattr(
-                config.logging,
-                'level',
-                None),
+                    config.logging,
+                    'level',
+                    None),
             log_file=getattr(
                 config,
                 'logging',
@@ -74,16 +75,16 @@ def main() -> None:
                 config,
                 'logging',
                 None) and getattr(
-                config.logging,
-                'format',
-                None),
+                    config.logging,
+                    'format',
+                    None),
             max_files=getattr(
                 config,
                 'logging',
                 None) and getattr(
-                config.logging,
-                'max_files',
-                5))
+                    config.logging,
+                    'max_files',
+                    5))
         # Setup event loop and signal handlers
         loop = asyncio.get_event_loop()
         setup_signal_handlers(loop, business_logic_manager)
@@ -107,7 +108,8 @@ async def _run_main_application_loop() -> None:
         # Start the management server
         management_server_task = asyncio.create_task(start_management_server())
         print(
-            f"Management API server started on http://{config.management.host}:{config.management.port}")
+            f"""Management API server started on http://{config.management.host}:
+            {config.management.port}""")
 
         # Start the business logic loop
         await business_logic_manager.start()
@@ -121,7 +123,8 @@ async def _run_main_application_loop() -> None:
                 state = business_logic_manager._load_state()
                 if state.get("running", False) and not business_logic_manager.running:
                     print(
-                        "[DEBUG] Detected running=True in state file, restarting business logic loop...")
+                        """[DEBUG] Detected running=True in state file,
+                        restarting business logic loop...""")
                     await business_logic_manager.start()
     except KeyboardInterrupt:
         print("Received keyboard interrupt, shutting down...")

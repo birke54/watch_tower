@@ -4,7 +4,7 @@ from utils.logging_config import get_logger
 
 from ring_doorbell import Ring, RingDoorBell
 
-logger = get_logger(__name__)
+LOGGER = get_logger(__name__)
 
 
 def find_device(
@@ -40,7 +40,7 @@ async def get_video_device_object(ring: Ring,
                 return device
         return None
     except Exception as e:
-        logger.error(f"Failed to get video devices: {e}")
+        logger.error("Failed to get video devices: %s", e)
         raise
 
 
@@ -64,11 +64,11 @@ def get_camera_name(self: Any, camera_id: str) -> Optional[str]:
         cameras = self._ring.video_devices()
         for camera in cameras:
             if str(camera.id) == str(camera_id):
-                logger.info(f"Found camera name: {camera.name}")
+                logger.info("Found camera name: %s", camera.name)
                 return str(camera.name)  # Explicitly convert to str
-        logger.warning(f"No camera found with ID {camera_id}")
+        logger.warning("No camera found with ID %d", camera_id)
         return None
     except Exception as e:
-        logger.error(f"Error retrieving camera name: {e}")
+        logger.error("Error retrieving camera name: %s", e)
         logger.exception("Full traceback:")
         return None

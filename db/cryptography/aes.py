@@ -18,7 +18,7 @@ from db.exceptions import CryptographyError
 from watch_tower.config import config
 from utils.logging_config import get_logger
 
-logger = get_logger(__name__)
+LOGGER = get_logger(__name__)
 
 KEY_SIZE = config.cryptography.key_size
 SALT_SIZE = config.cryptography.salt_size

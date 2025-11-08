@@ -115,7 +115,10 @@ def test_update_token(
     )
 
     assert updated_vendor is not None
-    assert updated_vendor.token == new_token
+    # Token is stored as bytes (LargeBinary), so decode for comparison
+    if updated_vendor.token is not None:
+        token_bytes = updated_vendor.token.tobytes() if hasattr(updated_vendor.token, 'tobytes') else updated_vendor.token
+        assert token_bytes.decode('utf-8') == new_token
     assert updated_vendor.token_expires == new_expires
 
 

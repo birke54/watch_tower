@@ -1,4 +1,5 @@
 from typing import Optional, List
+from datetime import datetime
 from sqlalchemy.orm import Session
 from db.models import Vendors, VendorStatus
 from db.repositories.base import BaseRepository
@@ -24,10 +25,12 @@ class VendorsRepository(BaseRepository[Vendors]):
         return self.get_all_by_field(db, "plugin_type", plugin_type)
 
     def update_token(self, db: Session, vendor_id: int, token: str,
-                     token_expires: str) -> Optional[Vendors]:
+                     token_expires: datetime) -> Optional[Vendors]:
         """Update vendor's token and expiration"""
+        # Convert token string to bytes for LargeBinary field
+        token_bytes = token.encode('utf-8') if isinstance(token, str) else token
         return self.update(db, vendor_id, {
-            "token": token,
+            "token": token_bytes,
             "token_expires": token_expires
         })
 
