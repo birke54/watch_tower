@@ -1,7 +1,9 @@
 from typing import Optional, List
+from datetime import datetime
 from sqlalchemy.orm import Session
 from db.models import Vendors, VendorStatus
 from db.repositories.base import BaseRepository
+
 
 class VendorsRepository(BaseRepository[Vendors]):
     def __init__(self):
@@ -15,17 +17,24 @@ class VendorsRepository(BaseRepository[Vendors]):
         """Get all vendors since status is no longer used"""
         return self.get_all(db)
 
-    def get_vendors_by_plugin_type(self, db: Session, plugin_type: str) -> List[Vendors]:
+    def get_vendors_by_plugin_type(
+            self,
+            db: Session,
+            plugin_type: str) -> List[Vendors]:
         """Get all vendors of a specific plugin type"""
         return self.get_all_by_field(db, "plugin_type", plugin_type)
 
-    def update_token(self, db: Session, vendor_id: int, token: str, token_expires: str) -> Optional[Vendors]:
+    def update_token(self, db: Session, vendor_id: int, token: str,
+                     token_expires: datetime) -> Optional[Vendors]:
         """Update vendor's token and expiration"""
+        # Convert token string to bytes for LargeBinary field
+        token_bytes = token.encode('utf-8') if isinstance(token, str) else token
         return self.update(db, vendor_id, {
-            "token": token,
+            "token": token_bytes,
             "token_expires": token_expires
         })
 
-    def update_status(self, db: Session, vendor_id: int, status: VendorStatus) -> Optional[Vendors]:
+    def update_status(self, db: Session, vendor_id: int,
+                      status: VendorStatus) -> Optional[Vendors]:
         """Update vendor's status"""
-        return self.update(db, vendor_id, {"status": status}) 
+        return self.update(db, vendor_id, {"status": status})

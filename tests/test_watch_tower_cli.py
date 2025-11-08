@@ -42,8 +42,9 @@ class TestHelperFunctions:
 
     def test_create_validation_result(self) -> None:
         """Test _create_validation_result function."""
-        result = create_validation_result('✅', 'test_field', 'test_value', 'test_message')
-        
+        result = create_validation_result(
+            '✅', 'test_field', 'test_value', 'test_message')
+
         assert result['status'] == '✅'
         assert result['field'] == 'test_field'
         assert result['value'] == 'test_value'
@@ -52,7 +53,7 @@ class TestHelperFunctions:
     def test_create_validation_result_no_message(self) -> None:
         """Test _create_validation_result function without message."""
         result = create_validation_result('❌', 'test_field', None)
-        
+
         assert result['status'] == '❌'
         assert result['field'] == 'test_field'
         assert result['value'] is None
@@ -62,7 +63,7 @@ class TestHelperFunctions:
         """Test _create_error_status_response function."""
         error_msg = "Test error message"
         response = create_error_status_response(error_msg)
-        
+
         assert response['running'] is False
         assert response['start_time'] == 'Unknown'
         assert response['uptime'] == 'Unknown'
@@ -92,7 +93,8 @@ class TestHelperFunctions:
         formatted = format_timestamp(dt)
         # Should contain the date and time (accounting for timezone conversion)
         assert '2023-01-01' in formatted
-        # The time will be converted to local timezone, so we just check it contains time
+        # The time will be converted to local timezone, so we just check it
+        # contains time
         assert ':' in formatted  # Contains time separator
 
     def test_format_timestamp_none(self) -> None:
@@ -116,9 +118,9 @@ class TestHelperFunctions:
         entry.confidence_score = 0.95
         entry.visited_at = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         entry.created_at = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        
+
         json_entry = create_json_entry(entry)
-        
+
         assert json_entry['visitor_log_id'] == 1
         assert json_entry['camera_name'] == 'Test Camera'
         assert json_entry['persons_name'] == 'John Doe'
@@ -135,9 +137,9 @@ class TestHelperFunctions:
         entry.confidence_score = None
         entry.visited_at = None
         entry.created_at = None
-        
+
         json_entry = create_json_entry(entry)
-        
+
         assert json_entry['visitor_log_id'] == 1
         assert json_entry['camera_name'] is None
         assert json_entry['persons_name'] is None
@@ -162,7 +164,8 @@ class TestWatchTowerService:
             os.unlink(self.temp_state_file.name)
 
     @patch('cli.services.watch_tower_service.asyncio.run')
-    def test_get_status_success_with_business_logic(self, mock_asyncio_run: Mock) -> None:
+    def test_get_status_success_with_business_logic(
+            self, mock_asyncio_run: Mock) -> None:
         """Test get_status with business_logic data."""
         mock_health_data = {
             'business_logic': {
@@ -172,9 +175,9 @@ class TestWatchTowerService:
             }
         }
         mock_asyncio_run.return_value = mock_health_data
-        
+
         result = self.service.get_status()
-        
+
         assert result['running'] is True
         assert result['start_time'] == '2023-01-01T12:00:00Z'
         assert result['uptime'] == '1h 30m'
@@ -192,9 +195,9 @@ class TestWatchTowerService:
             }
         }
         mock_asyncio_run.return_value = mock_health_data
-        
+
         result = self.service.get_status()
-        
+
         assert result['running'] is False
         assert result['start_time'] == '2023-01-01T12:00:00Z'
         assert result['uptime'] == '2h 15m'
@@ -206,9 +209,9 @@ class TestWatchTowerService:
         """Test get_status with no business logic data."""
         mock_health_data = {'other_data': 'value'}
         mock_asyncio_run.return_value = mock_health_data
-        
+
         result = self.service.get_status()
-        
+
         assert result['running'] is False
         assert result['error'] == "No business logic status found in health data"
 
@@ -216,9 +219,9 @@ class TestWatchTowerService:
     def test_get_status_dependency_error(self, mock_asyncio_run: Mock) -> None:
         """Test get_status with dependency error."""
         mock_asyncio_run.side_effect = DependencyError("aiohttp", "pip install aiohttp")
-        
+
         result = self.service.get_status()
-        
+
         assert result['running'] is False
         assert "aiohttp" in result['error']
 
@@ -226,9 +229,9 @@ class TestWatchTowerService:
     def test_get_status_management_api_error(self, mock_asyncio_run: Mock) -> None:
         """Test get_status with management API error."""
         mock_asyncio_run.side_effect = ManagementAPIError("API error", status_code=500)
-        
+
         result = self.service.get_status()
-        
+
         assert result['running'] is False
         assert "API error" in result['error']
 
@@ -236,9 +239,9 @@ class TestWatchTowerService:
     def test_get_status_general_exception(self, mock_asyncio_run: Mock) -> None:
         """Test get_status with general exception."""
         mock_asyncio_run.side_effect = Exception("Unexpected error")
-        
+
         result = self.service.get_status()
-        
+
         assert result['running'] is False
         assert "Unexpected error" in result['error']
 
@@ -247,10 +250,10 @@ class TestWatchTowerService:
     def test_start_business_logic(self, mock_file: Mock, mock_json_dump: Mock) -> None:
         """Test start_business_logic method."""
         self.service.start_business_logic()
-        
+
         mock_file.assert_called_once_with(self.temp_state_file.name, 'w')
         mock_json_dump.assert_called_once()
-        
+
         # Check that the dumped data has the expected structure
         call_args = mock_json_dump.call_args[0]
         state_data = call_args[0]
@@ -275,9 +278,9 @@ class TestConfigurationValidation:
         mock_config.aws_region = 'us-west-2'
         mock_config.aws_access_key_id = 'AKIA1234567890EXAMPLE'
         mock_config.aws_secret_access_key = 'secret_key'
-        
+
         results = validate_aws_config()
-        
+
         assert len(results) == 3
         assert all(result['status'] == '✅' for result in results)
         assert results[0]['field'] == 'aws_region'
@@ -290,9 +293,9 @@ class TestConfigurationValidation:
         mock_config.aws_region = None
         mock_config.aws_access_key_id = None
         mock_config.aws_secret_access_key = None
-        
+
         results = validate_aws_config()
-        
+
         assert len(results) == 3
         assert all(result['status'] == '❌' for result in results)
         assert all('environment variable' in result['message'] for result in results)
@@ -302,9 +305,9 @@ class TestConfigurationValidation:
         """Test validate_database_config with all valid values."""
         mock_config.db_secret_name = 'db-secret'
         mock_config.encryption_key_secret_name = 'encryption-key-secret'
-        
+
         results = validate_database_config()
-        
+
         assert len(results) == 2
         assert all(result['status'] == '✅' for result in results)
         assert results[0]['field'] == 'db_secret_name'
@@ -315,9 +318,9 @@ class TestConfigurationValidation:
         """Test validate_database_config with missing values."""
         mock_config.db_secret_name = None
         mock_config.encryption_key_secret_name = None
-        
+
         results = validate_database_config()
-        
+
         assert len(results) == 2
         assert all(result['status'] == '❌' for result in results)
         assert all('environment variable' in result['message'] for result in results)
@@ -325,7 +328,7 @@ class TestConfigurationValidation:
     def test_validate_ring_config(self) -> None:
         """Test validate_ring_config function."""
         results = validate_ring_config()
-        
+
         assert len(results) == 1
         assert results[0]['status'] == '✅'
         assert results[0]['field'] == 'ring_credentials'
@@ -341,9 +344,9 @@ class TestConfigurationValidation:
         mock_config.rekognition_video_service_role_arn = 'service-role-arn'
         mock_config.environment = 'production'
         mock_config.debug = False
-        
+
         results = validate_app_config()
-        
+
         assert len(results) == 7
         # Check that required fields are valid
         required_fields = [
@@ -356,7 +359,7 @@ class TestConfigurationValidation:
         for field in required_fields:
             field_result = next(r for r in results if r['field'] == field)
             assert field_result['status'] == '✅'
-        
+
         # Check info fields
         info_fields = ['environment', 'debug']
         for field in info_fields:
@@ -373,9 +376,9 @@ class TestConfigurationValidation:
         mock_config.rekognition_video_service_role_arn = None
         mock_config.environment = 'development'
         mock_config.debug = True
-        
+
         results = validate_app_config()
-        
+
         assert len(results) == 7
         # Check that required fields are invalid
         required_fields = [
@@ -389,7 +392,7 @@ class TestConfigurationValidation:
             field_result = next(r for r in results if r['field'] == field)
             assert field_result['status'] == '❌'
             assert 'environment variable' in field_result['message']
-        
+
         # Check info fields are still present
         info_fields = ['environment', 'debug']
         for field in info_fields:
@@ -405,10 +408,10 @@ class TestCLIErrorHandling:
         ctx = click.Context(click.Command('test'))
         ctx.obj = {'verbose': False}
         error = Exception('Test error')
-        
+
         with pytest.raises(SystemExit) as exc_info:
             handle_cli_error(error, 'Test error message', ctx)
-        
+
         assert exc_info.value.code == 1
         assert 'Test error message' in caplog.text
 
@@ -417,10 +420,10 @@ class TestCLIErrorHandling:
         ctx = click.Context(click.Command('test'))
         ctx.obj = {'verbose': True}
         error = Exception('Test error')
-        
+
         with pytest.raises(SystemExit) as exc_info:
             handle_cli_error(error, 'Test error message', ctx)
-        
+
         assert exc_info.value.code == 1
         assert 'Test error message' in caplog.text
         assert 'Full traceback:' in caplog.text
@@ -462,18 +465,22 @@ class TestCLICommands:
             'start_time': '2023-01-01T12:00:00Z',
             'uptime': '1h 30m'
         }
-        
+
         with patch('cli.commands.status.validate_aws_config') as mock_aws:
             with patch('cli.commands.status.validate_database_config') as mock_db:
                 with patch('cli.commands.status.validate_ring_config') as mock_ring:
                     with patch('cli.commands.status.validate_app_config') as mock_app:
-                        mock_aws.return_value = [{'status': '✅', 'field': 'test', 'value': 'ok'}]
-                        mock_db.return_value = [{'status': '✅', 'field': 'test', 'value': 'ok'}]
-                        mock_ring.return_value = [{'status': '✅', 'field': 'test', 'value': 'ok'}]
-                        mock_app.return_value = [{'status': '✅', 'field': 'test', 'value': 'ok'}]
-                        
+                        mock_aws.return_value = [
+                            {'status': '✅', 'field': 'test', 'value': 'ok'}]
+                        mock_db.return_value = [
+                            {'status': '✅', 'field': 'test', 'value': 'ok'}]
+                        mock_ring.return_value = [
+                            {'status': '✅', 'field': 'test', 'value': 'ok'}]
+                        mock_app.return_value = [
+                            {'status': '✅', 'field': 'test', 'value': 'ok'}]
+
                         result = self.runner.invoke(cli, ['status'])
-                        
+
                         assert result.exit_code == 0
                         assert '🏰 Watch Tower System Status' in result.output
                         assert '🟢 Running' in result.output
@@ -488,18 +495,22 @@ class TestCLICommands:
             'start_time': '2023-01-01T12:00:00Z',
             'uptime': '0h 0m'
         }
-        
+
         with patch('cli.commands.status.validate_aws_config') as mock_aws:
             with patch('cli.commands.status.validate_database_config') as mock_db:
                 with patch('cli.commands.status.validate_ring_config') as mock_ring:
                     with patch('cli.commands.status.validate_app_config') as mock_app:
-                        mock_aws.return_value = [{'status': '❌', 'field': 'test', 'value': None, 'message': 'error'}]
-                        mock_db.return_value = [{'status': '✅', 'field': 'test', 'value': 'ok'}]
-                        mock_ring.return_value = [{'status': '✅', 'field': 'test', 'value': 'ok'}]
-                        mock_app.return_value = [{'status': '✅', 'field': 'test', 'value': 'ok'}]
-                        
+                        mock_aws.return_value = [
+                            {'status': '❌', 'field': 'test', 'value': None, 'message': 'error'}]
+                        mock_db.return_value = [
+                            {'status': '✅', 'field': 'test', 'value': 'ok'}]
+                        mock_ring.return_value = [
+                            {'status': '✅', 'field': 'test', 'value': 'ok'}]
+                        mock_app.return_value = [
+                            {'status': '✅', 'field': 'test', 'value': 'ok'}]
+
                         result = self.runner.invoke(cli, ['status', '--format', 'json'])
-                        
+
                         assert result.exit_code == 0
                         output_data = json.loads(result.output)
                         assert output_data['overall_status'] == '❌ Unhealthy'
@@ -514,18 +525,22 @@ class TestCLICommands:
             'start_time': '2023-01-01T12:00:00Z',
             'uptime': '1h 30m'
         }
-        
+
         with patch('cli.commands.status.validate_aws_config') as mock_aws:
             with patch('cli.commands.status.validate_database_config') as mock_db:
                 with patch('cli.commands.status.validate_ring_config') as mock_ring:
                     with patch('cli.commands.status.validate_app_config') as mock_app:
-                        mock_aws.return_value = [{'status': '✅', 'field': 'aws_region', 'value': 'us-west-2'}]
-                        mock_db.return_value = [{'status': '✅', 'field': 'db_secret_name', 'value': 'db-secret'}]
-                        mock_ring.return_value = [{'status': '✅', 'field': 'ring_credentials', 'value': 'database_stored'}]
-                        mock_app.return_value = [{'status': '✅', 'field': 'environment', 'value': 'production'}]
-                        
+                        mock_aws.return_value = [
+                            {'status': '✅', 'field': 'aws_region', 'value': 'us-west-2'}]
+                        mock_db.return_value = [
+                            {'status': '✅', 'field': 'db_secret_name', 'value': 'db-secret'}]
+                        mock_ring.return_value = [
+                            {'status': '✅', 'field': 'ring_credentials', 'value': 'database_stored'}]
+                        mock_app.return_value = [
+                            {'status': '✅', 'field': 'environment', 'value': 'production'}]
+
                         result = self.runner.invoke(cli, ['status', '--detailed'])
-                        
+
                         assert result.exit_code == 0
                         assert '📋 Configuration Details:' in result.output
                         assert 'aws_region' in result.output
@@ -538,7 +553,7 @@ class TestCLICommands:
             'running': False,
             'error': 'Service unavailable'
         }
-        
+
         with patch('cli.commands.status.validate_aws_config') as mock_aws:
             with patch('cli.commands.status.validate_database_config') as mock_db:
                 with patch('cli.commands.status.validate_ring_config') as mock_ring:
@@ -547,9 +562,9 @@ class TestCLICommands:
                         mock_db.return_value = []
                         mock_ring.return_value = []
                         mock_app.return_value = []
-                        
+
                         result = self.runner.invoke(cli, ['status'])
-                        
+
                         assert result.exit_code == 0
                         assert '🔴 Stopped' in result.output
                         assert 'Service unavailable' in result.output
@@ -558,19 +573,20 @@ class TestCLICommands:
     def test_business_logic_start_success(self, mock_asyncio_run: Mock) -> None:
         """Test business logic start command success."""
         mock_asyncio_run.return_value = {'status': 'started'}
-        
+
         result = self.runner.invoke(cli, ['business-logic', 'start'])
-        
+
         assert result.exit_code == 0
         assert '✅ Business logic loop started successfully' in result.output
 
     @patch('cli.commands.business_logic.asyncio.run')
-    def test_business_logic_start_dependency_error(self, mock_asyncio_run: Mock) -> None:
+    def test_business_logic_start_dependency_error(
+            self, mock_asyncio_run: Mock) -> None:
         """Test business logic start command with dependency error."""
         mock_asyncio_run.side_effect = DependencyError("aiohttp", "pip install aiohttp")
-        
+
         result = self.runner.invoke(cli, ['business-logic', 'start'])
-        
+
         assert result.exit_code == 1
         assert '❌' in result.output
         assert 'aiohttp' in result.output
@@ -579,19 +595,21 @@ class TestCLICommands:
     def test_business_logic_start_api_error(self, mock_asyncio_run: Mock) -> None:
         """Test business logic start command with API error."""
         mock_asyncio_run.side_effect = ManagementAPIError("API error", status_code=500)
-        
+
         result = self.runner.invoke(cli, ['business-logic', 'start'])
-        
+
         assert result.exit_code == 1
         assert '❌ Failed to start business logic loop' in result.output
 
     @patch('cli.commands.business_logic.asyncio.run')
-    def test_business_logic_start_custom_host_port(self, mock_asyncio_run: Mock) -> None:
+    def test_business_logic_start_custom_host_port(
+            self, mock_asyncio_run: Mock) -> None:
         """Test business logic start command with custom host and port."""
         mock_asyncio_run.return_value = {'status': 'started'}
-        
-        result = self.runner.invoke(cli, ['business-logic', 'start', '--host', '192.168.1.100', '--port', '9000'])
-        
+
+        result = self.runner.invoke(
+            cli, ['business-logic', 'start', '--host', '192.168.1.100', '--port', '9000'])
+
         assert result.exit_code == 0
         assert '✅ Business logic loop started successfully' in result.output
 
@@ -599,9 +617,9 @@ class TestCLICommands:
     def test_business_logic_stop_success(self, mock_asyncio_run: Mock) -> None:
         """Test business logic stop command success."""
         mock_asyncio_run.return_value = {'status': 'stopped'}
-        
+
         result = self.runner.invoke(cli, ['business-logic', 'stop'])
-        
+
         assert result.exit_code == 0
         assert '✅ Business logic loop stopped successfully' in result.output
 
@@ -609,29 +627,32 @@ class TestCLICommands:
     def test_business_logic_stop_api_error(self, mock_asyncio_run: Mock) -> None:
         """Test business logic stop command with API error."""
         mock_asyncio_run.side_effect = ManagementAPIError("API error", status_code=500)
-        
+
         result = self.runner.invoke(cli, ['business-logic', 'stop'])
-        
+
         assert result.exit_code == 1
         assert '❌ Failed to stop business logic loop' in result.output
 
     @patch('db.connection.get_database_connection')
     @patch('db.repositories.visitor_log_repository.VisitorLogRepository')
-    def test_visitor_log_recent_text_format(self, mock_repo_class: Mock, mock_db_connection: Mock) -> None:
+    def test_visitor_log_recent_text_format(
+            self,
+            mock_repo_class: Mock,
+            mock_db_connection: Mock) -> None:
         """Test visitor_log recent command with text format."""
         # Mock database connection
         mock_engine = Mock()
         mock_session_factory = MagicMock()
         mock_db_connection.return_value = (mock_engine, mock_session_factory)
-        
+
         # Mock session
         mock_session = Mock()
         mock_session_factory.__enter__.return_value = mock_session
-        
+
         # Mock repository and entries
         mock_repo = Mock()
         mock_repo_class.return_value = mock_repo
-        
+
         mock_entry = Mock()
         mock_entry.visitor_log_id = 1
         mock_entry.camera_name = 'Front Door'
@@ -639,11 +660,11 @@ class TestCLICommands:
         mock_entry.confidence_score = 0.95
         mock_entry.visited_at = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         mock_entry.created_at = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        
+
         mock_repo.get_recent_entries.return_value = [mock_entry]
-        
+
         result = self.runner.invoke(cli, ['visitor-log', 'recent'])
-        
+
         assert result.exit_code == 0
         assert '📋 Recent Visitor Log Entries' in result.output
         assert 'John Doe' in result.output
@@ -652,21 +673,24 @@ class TestCLICommands:
 
     @patch('db.connection.get_database_connection')
     @patch('db.repositories.visitor_log_repository.VisitorLogRepository')
-    def test_visitor_log_recent_json_format(self, mock_repo_class: Mock, mock_db_connection: Mock) -> None:
+    def test_visitor_log_recent_json_format(
+            self,
+            mock_repo_class: Mock,
+            mock_db_connection: Mock) -> None:
         """Test visitor_log recent command with JSON format."""
         # Mock database connection
         mock_engine = Mock()
         mock_session_factory = MagicMock()
         mock_db_connection.return_value = (mock_engine, mock_session_factory)
-        
+
         # Mock session
         mock_session = Mock()
         mock_session_factory.__enter__.return_value = mock_session
-        
+
         # Mock repository and entries
         mock_repo = Mock()
         mock_repo_class.return_value = mock_repo
-        
+
         mock_entry = Mock()
         mock_entry.visitor_log_id = 1
         mock_entry.camera_name = 'Front Door'
@@ -674,11 +698,11 @@ class TestCLICommands:
         mock_entry.confidence_score = 0.95
         mock_entry.visited_at = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         mock_entry.created_at = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        
+
         mock_repo.get_recent_entries.return_value = [mock_entry]
-        
+
         result = self.runner.invoke(cli, ['visitor-log', 'recent', '--format', 'json'])
-        
+
         assert result.exit_code == 0
         entries = json.loads(result.output)
         assert len(entries) == 1
@@ -688,47 +712,53 @@ class TestCLICommands:
 
     @patch('db.connection.get_database_connection')
     @patch('db.repositories.visitor_log_repository.VisitorLogRepository')
-    def test_visitor_log_recent_no_entries(self, mock_repo_class: Mock, mock_db_connection: Mock) -> None:
+    def test_visitor_log_recent_no_entries(
+            self,
+            mock_repo_class: Mock,
+            mock_db_connection: Mock) -> None:
         """Test visitor_log recent command with no entries."""
         # Mock database connection
         mock_engine = Mock()
         mock_session_factory = MagicMock()
         mock_db_connection.return_value = (mock_engine, mock_session_factory)
-        
+
         # Mock session
         mock_session = Mock()
         mock_session_factory.__enter__.return_value = mock_session
-        
+
         # Mock repository with no entries
         mock_repo = Mock()
         mock_repo_class.return_value = mock_repo
         mock_repo.get_recent_entries.return_value = []
-        
+
         result = self.runner.invoke(cli, ['visitor-log', 'recent'])
-        
+
         assert result.exit_code == 0
         assert '📋 No visitor log entries found' in result.output
 
     @patch('db.connection.get_database_connection')
     @patch('db.repositories.visitor_log_repository.VisitorLogRepository')
-    def test_visitor_log_recent_custom_limit(self, mock_repo_class: Mock, mock_db_connection: Mock) -> None:
+    def test_visitor_log_recent_custom_limit(
+            self,
+            mock_repo_class: Mock,
+            mock_db_connection: Mock) -> None:
         """Test visitor_log recent command with custom limit."""
         # Mock database connection
         mock_engine = Mock()
         mock_session_factory = MagicMock()
         mock_db_connection.return_value = (mock_engine, mock_session_factory)
-        
+
         # Mock session
         mock_session = Mock()
         mock_session_factory.__enter__.return_value = mock_session
-        
+
         # Mock repository
         mock_repo = Mock()
         mock_repo_class.return_value = mock_repo
         mock_repo.get_recent_entries.return_value = []
-        
+
         result = self.runner.invoke(cli, ['visitor-log', 'recent', '--limit', '5'])
-        
+
         assert result.exit_code == 0
         mock_repo.get_recent_entries.assert_called_once_with(ANY, limit=5)
 

@@ -1,3 +1,3 @@
 """
 AWS Rekognition package initialization.
-""" 
+"""

@@ -9,6 +9,7 @@ from ring_doorbell import RingDoorBell
 
 from data_models.motion_event import MotionEvent
 
+
 @pytest.fixture
 def mock_device_object() -> Mock:
     """Create a mock Ring doorbell device object."""
@@ -24,6 +25,7 @@ def mock_device_object() -> Mock:
     device.history = Mock(return_value=[])
     return device
 
+
 @pytest.fixture
 def mock_connection_manager() -> Mock:
     """Create a mock connection manager."""
@@ -32,6 +34,7 @@ def mock_connection_manager() -> Mock:
     manager._ring.update_data = Mock()
     return manager
 
+
 @pytest.fixture
 def mock_registry(mock_connection_manager: Mock) -> Generator[Mock, None, None]:
     """Mock the connection manager registry."""
@@ -39,10 +42,12 @@ def mock_registry(mock_connection_manager: Mock) -> Generator[Mock, None, None]:
         mock.get_connection_manager.return_value = mock_connection_manager
         yield mock
 
+
 @pytest.fixture
 def ring_camera(mock_device_object: Mock) -> RingCamera:
     """Create a RingCamera instance with mocked dependencies."""
     return RingCamera(mock_device_object)
+
 
 class TestRingCamera:
     """Test cases for RingCamera."""
@@ -62,7 +67,7 @@ class TestRingCamera:
         # Setup
         from_time = datetime.now(timezone.utc) - timedelta(hours=1)
         to_time = datetime.now(timezone.utc)
-        
+
         # Create mock events with raw data structure
         event1 = {
             "id": "1",
@@ -88,12 +93,12 @@ class TestRingCamera:
                 "description": "Front Door"
             }
         }
-        
+
         mock_device_object.history.return_value = [event1, event2, event3]
-        
+
         # Execute
         result = await ring_camera.retrieve_motion_events(from_time, to_time)
-        
+
         # Verify
         assert len(result) == 2
         assert all(isinstance(event, MotionEvent) for event in result)
@@ -109,13 +114,13 @@ class TestRingCamera:
         """Test error handling in motion video retrieval."""
         # Setup
         mock_device_object.history.side_effect = Exception("Test error")
-        
+
         # Execute
         result = await ring_camera.retrieve_motion_events(
             datetime.now(timezone.utc),
             datetime.now(timezone.utc) + timedelta(hours=1)
         )
-        
+
         # Verify
         assert result == []
 
@@ -126,13 +131,14 @@ class TestRingCamera:
         """Test health check when camera is online."""
         # Setup
         mock_device_object.connection_status = "online"
-        
+
         # Execute
         result = await ring_camera.is_healthy()
-        
+
         # Verify
         assert result is True
-        # Don't verify get_connection_manager calls since it's called in both is_healthy and get_properties
+        # Don't verify get_connection_manager calls since it's called in both
+        # is_healthy and get_properties
 
     @pytest.mark.asyncio
     async def test_is_healthy_offline(
@@ -141,10 +147,10 @@ class TestRingCamera:
         """Test health check when camera is offline."""
         # Setup
         mock_device_object.connection_status = "offline"
-        
+
         # Execute
         result = await ring_camera.is_healthy()
-        
+
         # Verify
         assert result is False
 
@@ -155,10 +161,10 @@ class TestRingCamera:
         """Test health check error handling."""
         # Setup
         mock_device_object.connection_status = Mock(side_effect=Exception("Test error"))
-        
+
         # Execute
         result = await ring_camera.is_healthy()
-        
+
         # Verify
         assert result is False
 
@@ -169,7 +175,7 @@ class TestRingCamera:
         """Test successful retrieval of camera properties."""
         # Execute
         result = await ring_camera.get_properties()
-        
+
         # Verify
         expected_properties = {
             "name": "Test Camera",
@@ -197,7 +203,7 @@ class TestRingCamera:
             timestamp=datetime.now(timezone.utc),
             event_metadata={}  # Empty metadata, no event_id
         )
-        
+
         # Execute - should raise ValueError for missing event_id
         with pytest.raises(ValueError, match="No event ID found in metadata for event test-event-123"):
             await ring_camera.retrieve_video_from_event_and_upload_to_s3(event)
@@ -215,10 +221,10 @@ class TestRingCamera:
             timestamp=datetime.now(timezone.utc),
             event_metadata={"event_id": "ring-event-456"}
         )
-        
+
         # Mock the recording_url method
         mock_device_object.recording_url.return_value = "https://example.com/video.mp4"
-        
+
         # Mock the config
         with patch('cameras.ring_camera.config') as mock_config:
             mock_config.event_recordings_bucket = 'test-bucket'
@@ -230,30 +236,33 @@ class TestRingCamera:
                     mock_response.raise_for_status.return_value = None
                     mock_response.iter_content.return_value = [b"fake video data"]
                     mock_get.return_value.__enter__.return_value = mock_response
-                    
+
                     # Mock video converter
                     with patch('cameras.ring_camera.video_converter') as mock_converter:
                         mock_converter.get_video_info.return_value = {'codec': 'h264'}
                         # Mock the database session and repository
                         with patch('cameras.ring_camera.get_database_connection') as mock_get_db_conn, \
-                             patch('cameras.ring_camera.MotionEventRepository') as mock_repo_class:
+                                patch('cameras.ring_camera.MotionEventRepository') as mock_repo_class:
                             mock_engine = Mock()
                             mock_session_factory = MagicMock()
                             mock_session = Mock()
-                            mock_get_db_conn.return_value = (mock_engine, mock_session_factory)
+                            mock_get_db_conn.return_value = (
+                                mock_engine, mock_session_factory)
                             mock_session_factory.return_value.__enter__.return_value = mock_session
                             mock_repo = Mock()
                             mock_repo_class.return_value = mock_repo
                             # Mock the query to return a matching event
                             mock_event_model = Mock()
                             mock_event_model.id = 123
-                            mock_session.query.return_value.filter.return_value.all.return_value = [mock_event_model]
+                            mock_session.query.return_value.filter.return_value.all.return_value = [
+                                mock_event_model]
                             # Mock update_s3_url to do nothing
                             mock_repo.update_s3_url.return_value = None
                             # Execute
                             await ring_camera.retrieve_video_from_event_and_upload_to_s3(event)
                             # Verify
-                            mock_device_object.recording_url.assert_called_once_with("ring-event-456")
+                            mock_device_object.recording_url.assert_called_once_with(
+                                "ring-event-456")
                             mock_s3_service.upload_file.assert_called_once()
                             mock_repo.update_s3_url.assert_called_once()
 
@@ -270,13 +279,13 @@ class TestRingCamera:
             timestamp=datetime.now(timezone.utc),
             event_metadata={"event_id": "ring-event-456"}
         )
-        
+
         # Mock the recording_url method to return None
         mock_device_object.recording_url.return_value = None
-        
+
         # Execute - should raise ValueError for missing video URL
         with pytest.raises(ValueError, match="No video URL found for Ring event ring-event-456"):
             await ring_camera.retrieve_video_from_event_and_upload_to_s3(event)
-        
+
         # Verify
         mock_device_object.recording_url.assert_called_once_with("ring-event-456")

@@ -6,6 +6,7 @@ from watch_tower.registry.camera_registry import CameraRegistry, CameraStatus, C
 from cameras.camera_base import CameraBase
 from connection_managers.plugin_type import PluginType
 
+
 @pytest.fixture
 def mock_camera() -> Mock:
     """Create a mock camera instance."""
@@ -14,12 +15,14 @@ def mock_camera() -> Mock:
     camera.get_properties = AsyncMock(return_value={"name": "Test Camera"})
     return camera
 
+
 @pytest.fixture
 def registry() -> CameraRegistry:
     """Create a fresh registry instance for each test."""
     # Clear the singleton instance
     CameraRegistry._instance = None
     return CameraRegistry()
+
 
 class TestCameraRegistry:
     """Test cases for CameraRegistry."""
@@ -31,7 +34,10 @@ class TestCameraRegistry:
         assert registry1 is registry2
 
     @pytest.mark.asyncio
-    async def test_add_camera_success(self, registry: CameraRegistry, mock_camera: Mock) -> None:
+    async def test_add_camera_success(
+            self,
+            registry: CameraRegistry,
+            mock_camera: Mock) -> None:
         """Test successful camera addition."""
         await registry.add(mock_camera)
         assert len(registry.cameras) == 1
@@ -42,20 +48,29 @@ class TestCameraRegistry:
         assert isinstance(camera_entry.status_last_updated, datetime)
 
     @pytest.mark.asyncio
-    async def test_add_camera_duplicate(self, registry: CameraRegistry, mock_camera: Mock) -> None:
+    async def test_add_camera_duplicate(
+            self,
+            registry: CameraRegistry,
+            mock_camera: Mock) -> None:
         """Test adding a duplicate camera."""
         await registry.add(mock_camera)
         with pytest.raises(ValueError, match="Camera Test Camera is already registered"):
             await registry.add(mock_camera)
 
     @pytest.mark.asyncio
-    async def test_add_camera_missing_name(self, registry: CameraRegistry, mock_camera: Mock) -> None:
+    async def test_add_camera_missing_name(
+            self,
+            registry: CameraRegistry,
+            mock_camera: Mock) -> None:
         """Test adding a camera with missing name property."""
         mock_camera.get_properties.return_value = {}
         with pytest.raises(KeyError, match="Camera name not found in properties"):
             await registry.add(mock_camera)
 
-    def test_remove_camera_success(self, registry: CameraRegistry, mock_camera: Mock) -> None:
+    def test_remove_camera_success(
+            self,
+            registry: CameraRegistry,
+            mock_camera: Mock) -> None:
         """Test successful camera removal."""
         registry.cameras[(PluginType.RING, "Test Camera")] = CameraEntry(
             camera=mock_camera,
@@ -71,7 +86,10 @@ class TestCameraRegistry:
         with pytest.raises(KeyError, match="Camera Test Camera not found in registry"):
             registry.remove(PluginType.RING, "Test Camera")
 
-    def test_get_camera_success(self, registry: CameraRegistry, mock_camera: Mock) -> None:
+    def test_get_camera_success(
+            self,
+            registry: CameraRegistry,
+            mock_camera: Mock) -> None:
         """Test successful camera retrieval."""
         registry.cameras[(PluginType.RING, "Test Camera")] = CameraEntry(
             camera=mock_camera,
@@ -99,7 +117,10 @@ class TestCameraRegistry:
         assert len(cameras) == 1
         assert cameras[0] == mock_camera
 
-    def test_get_all_active_cameras(self, registry: CameraRegistry, mock_camera: Mock) -> None:
+    def test_get_all_active_cameras(
+            self,
+            registry: CameraRegistry,
+            mock_camera: Mock) -> None:
         """Test retrieving all active cameras."""
         # Add an active camera
         registry.cameras[(PluginType.RING, "Active Camera")] = CameraEntry(
@@ -121,7 +142,10 @@ class TestCameraRegistry:
         assert len(active_cameras) == 1
         assert active_cameras[0] == mock_camera
 
-    def test_update_status_success(self, registry: CameraRegistry, mock_camera: Mock) -> None:
+    def test_update_status_success(
+            self,
+            registry: CameraRegistry,
+            mock_camera: Mock) -> None:
         """Test successful status update."""
         registry.cameras[(PluginType.RING, "Test Camera")] = CameraEntry(
             camera=mock_camera,
@@ -130,9 +154,13 @@ class TestCameraRegistry:
             status_last_updated=datetime.now(timezone.utc)
         )
         registry.update_status(PluginType.RING, "Test Camera", CameraStatus.INACTIVE)
-        assert registry.cameras[(PluginType.RING, "Test Camera")].status == CameraStatus.INACTIVE
+        assert registry.cameras[(PluginType.RING, "Test Camera")
+                                ].status == CameraStatus.INACTIVE
 
     def test_update_status_not_found(self, registry: CameraRegistry) -> None:
         """Test updating status of non-existent camera."""
         with pytest.raises(KeyError, match="Camera Test Camera not found in registry"):
-            registry.update_status(PluginType.RING, "Test Camera", CameraStatus.INACTIVE) 
+            registry.update_status(
+                PluginType.RING,
+                "Test Camera",
+                CameraStatus.INACTIVE)

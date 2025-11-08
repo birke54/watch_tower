@@ -11,6 +11,6 @@ from .visitor_log import visitor_log_group
 
 __all__ = [
     "status_command",
-    "business_logic_group", 
+    "business_logic_group",
     "visitor_log_group",
-] 
+]

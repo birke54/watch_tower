@@ -33,16 +33,16 @@ __all__ = [
     "business_logic_manager",
     "bootstrap",
     "create_management_app",
-    
+
     # Registries
     "camera_registry",
     "connection_manager_registry",
-    
+
     # Configuration and exceptions
     "config",
     "WatchTowerError",
-    "BusinessLogicError", 
+    "BusinessLogicError",
     "ConfigurationError",
     "DependencyError",
     "ManagementAPIError",
-] 
+]

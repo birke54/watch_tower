@@ -14,7 +14,8 @@ import click
 logger = logging.getLogger(__name__)
 
 
-def create_validation_result(status: str, field: str, value: Any, message: str = "") -> Dict[str, Any]:
+def create_validation_result(status: str, field: str,
+                             value: Any, message: str = "") -> Dict[str, Any]:
     """Create a standardized validation result."""
     return {
         'status': status,
@@ -42,4 +43,4 @@ def handle_cli_error(error: Exception, error_msg: str, ctx: click.Context) -> No
     if ctx.obj.get('verbose'):
         logger.exception("Full traceback:")
     click.echo(f"❌ {error_msg}")
-    sys.exit(1) 
+    sys.exit(1)

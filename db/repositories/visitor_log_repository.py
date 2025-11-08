@@ -5,6 +5,7 @@ from sqlalchemy import and_, func
 from db.models import VisitorLogs
 from db.repositories.base import BaseRepository
 
+
 class VisitorLogRepository(BaseRepository[VisitorLogs]):
     def __init__(self):
         super().__init__(VisitorLogs)
@@ -18,9 +19,9 @@ class VisitorLogRepository(BaseRepository[VisitorLogs]):
         return self.get_all_by_field(db, "camera_name", camera_name)
 
     def get_by_time_range(
-        self, 
-        db: Session, 
-        start_time: datetime, 
+        self,
+        db: Session,
+        start_time: datetime,
         end_time: datetime
     ) -> List[VisitorLogs]:
         """Get all visitor logs within a time range"""
@@ -32,9 +33,9 @@ class VisitorLogRepository(BaseRepository[VisitorLogs]):
         ).all()
 
     def get_visitor_stats(
-        self, 
-        db: Session, 
-        start_time: datetime, 
+        self,
+        db: Session,
+        start_time: datetime,
         end_time: datetime
     ) -> List[Dict]:
         """Get visitor statistics within a time range"""
@@ -52,9 +53,9 @@ class VisitorLogRepository(BaseRepository[VisitorLogs]):
         ).all()
 
     def get_camera_stats(
-        self, 
-        db: Session, 
-        start_time: datetime, 
+        self,
+        db: Session,
+        start_time: datetime,
         end_time: datetime
     ) -> List[Dict]:
         """Get camera statistics within a time range"""
@@ -72,8 +73,8 @@ class VisitorLogRepository(BaseRepository[VisitorLogs]):
         ).all()
 
     def get_high_confidence_visits(
-        self, 
-        db: Session, 
+        self,
+        db: Session,
         confidence_threshold: float
     ) -> List[VisitorLogs]:
         """Get all visitor logs with confidence score above threshold"""
@@ -85,4 +86,4 @@ class VisitorLogRepository(BaseRepository[VisitorLogs]):
         """Get the most recent visitor log entries"""
         return db.query(self.model).order_by(
             self.model.visited_at.desc()
-        ).limit(limit).all() 
+        ).limit(limit).all()

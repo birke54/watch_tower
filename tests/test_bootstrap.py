@@ -16,12 +16,12 @@ def mock_vendors() -> List[Vendors]:
     vendor1.vendor_id = 1
     vendor1.name = "Test Vendor 1"
     vendor1.plugin_type = PluginType.RING
-    
+
     vendor2 = Mock(spec=Vendors)
     vendor2.vendor_id = 2
     vendor2.name = "Test Vendor 2"
     vendor2.plugin_type = PluginType.RING
-    
+
     return [vendor1, vendor2]
 
 
@@ -59,18 +59,18 @@ class TestBootstrap:
     """Test the bootstrap module."""
 
     def test_retrieve_vendors_success(
-        self, 
-        mock_session_factory: Mock, 
+        self,
+        mock_session_factory: Mock,
         mock_vendors: List[Vendors]
     ) -> None:
         """Test successful vendor retrieval."""
         # Setup
         mock_session = mock_session_factory.return_value.__enter__.return_value
         mock_session.query.return_value.all.return_value = mock_vendors
-        
+
         # Execute
         result = bootstrap_module.retrieve_vendors()
-        
+
         # Verify
         assert result == mock_vendors
         mock_session.query.assert_called_once_with(Vendors)
@@ -80,17 +80,17 @@ class TestBootstrap:
         # Setup
         mock_session = mock_session_factory.return_value.__enter__.return_value
         mock_session.query.return_value.all.return_value = []
-        
+
         # Execute
         result = bootstrap_module.retrieve_vendors()
-        
+
         # Verify
         assert result == []
 
     @patch.object(bootstrap_module, 'ConnectionManagerFactory')
     def test_register_connection_managers(
-        self, 
-        mock_factory: Mock, 
+        self,
+        mock_factory: Mock,
         mock_vendors: List[Vendors]
     ) -> None:
         """Test connection manager registration."""
@@ -98,16 +98,16 @@ class TestBootstrap:
         mock_factory_instance = Mock()
         mock_factory.create.return_value = mock_factory_instance
         mock_factory.return_value = mock_factory_instance
-        
+
         # Execute
         bootstrap_module.register_connection_managers(mock_vendors)
-        
+
         # Verify
         assert mock_factory.create.call_count == len(mock_vendors)
 
     @pytest.mark.asyncio
     async def test_login_to_vendors_success(
-        self, 
+        self,
         mock_connection_manager_registry: Mock
     ) -> None:
         """Test successful vendor login."""
@@ -115,23 +115,24 @@ class TestBootstrap:
         mock_connection_manager = Mock()
         mock_connection_manager.login = AsyncMock()
         mock_connection_manager._plugin_type = PluginType.RING
-        
+
         mock_connection_manager_registry.get_all_connection_managers.return_value = [
             {
                 'connection_manager': mock_connection_manager,
                 'status': VendorStatus.ACTIVE
             }
         ]
-        
+
         # Execute
-        await bootstrap_module.login_to_vendors([])  # vendors list not used in current implementation
-        
+        # vendors list not used in current implementation
+        await bootstrap_module.login_to_vendors([])
+
         # Verify
         mock_connection_manager.login.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_login_to_vendors_failure(
-        self, 
+        self,
         mock_connection_manager_registry: Mock
     ) -> None:
         """Test vendor login with failure."""
@@ -139,17 +140,17 @@ class TestBootstrap:
         mock_connection_manager = Mock()
         mock_connection_manager.login = AsyncMock(side_effect=Exception("Login failed"))
         mock_connection_manager._plugin_type = PluginType.RING
-        
+
         mock_connection_manager_registry.get_all_connection_managers.return_value = [
             {
                 'connection_manager': mock_connection_manager,
                 'status': VendorStatus.ACTIVE
             }
         ]
-        
+
         # Execute
         await bootstrap_module.login_to_vendors([])
-        
+
         # Verify
         mock_connection_manager.login.assert_called_once()
         # Accept either the enum or its value
@@ -159,7 +160,7 @@ class TestBootstrap:
 
     @pytest.mark.asyncio
     async def test_retrieve_cameras_success(
-        self, 
+        self,
         mock_connection_manager_registry: Mock
     ) -> None:
         """Test successful camera retrieval."""
@@ -167,17 +168,17 @@ class TestBootstrap:
         mock_connection_manager = Mock()
         mock_connection_manager.get_cameras = AsyncMock(return_value=[Mock(), Mock()])
         mock_connection_manager._plugin_type = PluginType.RING
-        
+
         mock_connection_manager_registry.get_all_connection_managers.return_value = [
             {
                 'connection_manager': mock_connection_manager,
                 'status': VendorStatus.ACTIVE
             }
         ]
-        
+
         # Execute
         result = await bootstrap_module.retrieve_cameras([])
-        
+
         # Verify
         assert len(result) == 2
         assert all(isinstance(camera, tuple) for camera in result)
@@ -186,7 +187,7 @@ class TestBootstrap:
     @pytest.mark.asyncio
     @patch.object(bootstrap_module, 'camera_registry')
     async def test_add_cameras_to_registry(
-        self, 
+        self,
         mock_registry,
         mock_camera_registry: Mock
     ) -> None:
@@ -195,10 +196,10 @@ class TestBootstrap:
         mock_camera = Mock()
         mock_registry.add = AsyncMock()
         cameras = [(PluginType.RING, mock_camera)]
-        
+
         # Execute
         await bootstrap_module.add_cameras_to_registry(cameras)
-        
+
         # Verify
         mock_registry.add.assert_awaited()
 
@@ -210,7 +211,7 @@ class TestBootstrap:
     @patch.object(bootstrap_module, 'retrieve_cameras')
     @patch.object(bootstrap_module, 'add_cameras_to_registry')
     async def test_bootstrap_integration(
-        self, 
+        self,
         mock_add_cameras,
         mock_retrieve_cameras,
         mock_login_to_vendors,
@@ -229,13 +230,13 @@ class TestBootstrap:
         mock_login_to_vendors.return_value = None
         mock_register_connection_managers.return_value = None
         mock_add_cameras.return_value = None
-        
+
         # Execute
         await bootstrap_module.bootstrap()
-        
+
         # Verify
         mock_retrieve_vendors.assert_called_once()
         mock_register_connection_managers.assert_called_once_with(mock_vendors)
         mock_login_to_vendors.assert_awaited_once_with(mock_vendors)
         mock_retrieve_cameras.assert_awaited_once_with(mock_vendors)
-        mock_add_cameras.assert_awaited_once() 
+        mock_add_cameras.assert_awaited_once()

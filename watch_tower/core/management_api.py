@@ -15,9 +15,12 @@ from watch_tower.exceptions import BusinessLogicError, ConfigurationError
 from db.exceptions import DatabaseConnectionError
 from aws.exceptions import ConfigError, ClientError
 
+
 def create_management_app():
     """Create and return the FastAPI management application."""
-    app = FastAPI(title="Watch Tower Management API", description="API for managing and monitoring the Watch Tower application")
+    app = FastAPI(
+        title="Watch Tower Management API",
+        description="API for managing and monitoring the Watch Tower application")
     logger = logging.getLogger(__name__)
 
     @app.get("/health")
@@ -117,11 +120,11 @@ def create_management_app():
                 'healthy': aws_healthy,
                 'error': aws_error
             },
-            'business_logic': business_logic_status, 
-            'event_loop': business_logic_status, 
+            'business_logic': business_logic_status,
+            'event_loop': business_logic_status,
             'cameras': cameras
         }
-        
+
         if camera_error:
             response['camera_error'] = camera_error
 
@@ -184,7 +187,8 @@ def create_management_app():
                 status_code=500,
                 detail=f"Internal server error: {str(e)}"
             )
-    
+
     return app
 
-app = create_management_app() 
+
+app = create_management_app()

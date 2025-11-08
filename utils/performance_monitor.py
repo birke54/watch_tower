@@ -16,6 +16,7 @@ from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+
 @dataclass
 class PerformanceMetrics:
     """Container for performance metrics."""
@@ -27,20 +28,21 @@ class PerformanceMetrics:
     error: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
+
 class PerformanceMonitor:
     """Performance monitoring utility."""
-    
+
     def __init__(self):
         self.metrics: Dict[str, PerformanceMetrics] = {}
-    
+
     def start_operation(self, operation: str, **metadata: Any) -> str:
         """
         Start monitoring an operation.
-        
+
         Args:
             operation: Operation name
             **metadata: Additional metadata
-            
+
         Returns:
             Operation ID
         """
@@ -51,11 +53,15 @@ class PerformanceMonitor:
             metadata=metadata
         )
         return operation_id
-    
-    def end_operation(self, operation_id: str, success: bool = True, error: Optional[str] = None) -> None:
+
+    def end_operation(
+            self,
+            operation_id: str,
+            success: bool = True,
+            error: Optional[str] = None) -> None:
         """
         End monitoring an operation.
-        
+
         Args:
             operation_id: Operation ID from start_operation
             success: Whether the operation succeeded
@@ -67,34 +73,37 @@ class PerformanceMonitor:
             metric.duration = (metric.end_time - metric.start_time).total_seconds()
             metric.success = success
             metric.error = error
-            
+
             # Log performance metrics
             if success:
-                logger.info(f"Operation '{metric.operation}' completed in {metric.duration:.3f}s")
+                logger.info(
+                    f"Operation '{metric.operation}' completed in {metric.duration:.3f}s")
             else:
-                logger.error(f"Operation '{metric.operation}' failed after {metric.duration:.3f}s: {error}")
-    
-    def get_metrics(self, operation: Optional[str] = None) -> Dict[str, PerformanceMetrics]:
+                logger.error(
+                    f"Operation '{metric.operation}' failed after {metric.duration:.3f}s: {error}")
+
+    def get_metrics(self, operation: Optional[str]
+                    = None) -> Dict[str, PerformanceMetrics]:
         """
         Get performance metrics.
-        
+
         Args:
             operation: Optional operation name filter
-            
+
         Returns:
             Dictionary of metrics
         """
         if operation:
             return {k: v for k, v in self.metrics.items() if v.operation == operation}
         return self.metrics.copy()
-    
+
     def get_average_duration(self, operation: str) -> Optional[float]:
         """
         Get average duration for an operation.
-        
+
         Args:
             operation: Operation name
-            
+
         Returns:
             Average duration in seconds, or None if no metrics
         """
@@ -104,16 +113,18 @@ class PerformanceMonitor:
         ]
         return sum(durations) / len(durations) if durations else None
 
+
 # Global performance monitor instance
 performance_monitor = PerformanceMonitor()
+
 
 def monitor_performance(operation: str):
     """
     Decorator to monitor function performance.
-    
+
     Args:
         operation: Operation name for monitoring
-        
+
     Returns:
         Decorated function
     """
@@ -126,18 +137,20 @@ def monitor_performance(operation: str):
                 performance_monitor.end_operation(operation_id, success=True)
                 return result
             except Exception as e:
-                performance_monitor.end_operation(operation_id, success=False, error=str(e))
+                performance_monitor.end_operation(
+                    operation_id, success=False, error=str(e))
                 raise
         return wrapper
     return decorator
 
+
 def monitor_async_performance(operation: str):
     """
     Decorator to monitor async function performance.
-    
+
     Args:
         operation: Operation name for monitoring
-        
+
     Returns:
         Decorated async function
     """
@@ -150,20 +163,22 @@ def monitor_async_performance(operation: str):
                 performance_monitor.end_operation(operation_id, success=True)
                 return result
             except Exception as e:
-                performance_monitor.end_operation(operation_id, success=False, error=str(e))
+                performance_monitor.end_operation(
+                    operation_id, success=False, error=str(e))
                 raise
         return wrapper
     return decorator
+
 
 @contextmanager
 def performance_context(operation: str, **metadata: Any):
     """
     Context manager for performance monitoring.
-    
+
     Args:
         operation: Operation name
         **metadata: Additional metadata
-        
+
     Yields:
         None
     """
@@ -175,20 +190,21 @@ def performance_context(operation: str, **metadata: Any):
         performance_monitor.end_operation(operation_id, success=False, error=str(e))
         raise
 
+
 def log_performance_summary() -> None:
     """Log a summary of performance metrics."""
     metrics = performance_monitor.get_metrics()
     if not metrics:
         logger.info("No performance metrics available")
         return
-    
+
     # Group by operation
     operation_stats: Dict[str, list] = {}
     for metric in metrics.values():
         if metric.operation not in operation_stats:
             operation_stats[metric.operation] = []
         operation_stats[metric.operation].append(metric)
-    
+
     logger.info("Performance Summary:")
     for operation, stats in operation_stats.items():
         durations = [s.duration for s in stats if s.duration is not None]
@@ -198,11 +214,11 @@ def log_performance_summary() -> None:
             max_duration = max(durations)
             success_count = sum(1 for s in stats if s.success)
             total_count = len(stats)
-            
+
             logger.info(
                 f"  {operation}: "
                 f"avg={avg_duration:.3f}s, "
                 f"min={min_duration:.3f}s, "
                 f"max={max_duration:.3f}s, "
                 f"success={success_count}/{total_count}"
-            ) 
+            )

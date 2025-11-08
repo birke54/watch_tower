@@ -19,7 +19,9 @@ def format_confidence_score(score: Optional[float]) -> str:
     return f"{(score * 100):.1f}%"
 
 
-def format_timestamp(timestamp: Optional[datetime], timezone_name: str = DEFAULT_TIMEZONE) -> str:
+def format_timestamp(
+        timestamp: Optional[datetime],
+        timezone_name: str = DEFAULT_TIMEZONE) -> str:
     """Format timestamp for display."""
     if timestamp is None:
         return 'Unknown'
@@ -35,7 +37,8 @@ def create_json_entry(entry: Any) -> Dict[str, Any]:
         'visitor_log_id': entry.visitor_log_id,
         'camera_name': entry.camera_name,
         'persons_name': entry.persons_name,
-        'confidence_score': round(entry.confidence_score * 100, 1) if entry.confidence_score else None,
+        'confidence_score': round(
+            entry.confidence_score * 100,
+            1) if entry.confidence_score else None,
         'visited_at': entry.visited_at.isoformat() if entry.visited_at else None,
-        'created_at': entry.created_at.isoformat() if entry.created_at else None
-    } 
+        'created_at': entry.created_at.isoformat() if entry.created_at else None}

@@ -30,25 +30,28 @@ HEALTH_CHECK_TIMEOUT = 5
 
 class WatchTowerService:
     """Service layer for Watch Tower CLI operations."""
-    
+
     def __init__(self):
         self.state_file = config.cli.state_file_path
-    
+
     def get_status(self) -> Dict[str, Any]:
         """Get the current status of the business logic loop."""
         try:
             health_data = asyncio.run(self.check_management_api())
-            
+
             # Try new field name first, fall back to old for backward compatibility
             if 'business_logic' in health_data:
                 business_logic = health_data['business_logic']
                 return {
-                    "running": business_logic.get('running', False),
+                    "running": business_logic.get(
+                        'running',
+                        False),
                     "start_time": business_logic.get('start_time'),
                     "uptime": business_logic.get('uptime'),
-                    "business_logic_completed": not business_logic.get('running', False),
-                    "business_logic_cancelled": False
-                }
+                    "business_logic_completed": not business_logic.get(
+                        'running',
+                        False),
+                    "business_logic_cancelled": False}
             elif 'event_loop' in health_data:
                 event_loop = health_data['event_loop']
                 return {
@@ -59,8 +62,9 @@ class WatchTowerService:
                     "business_logic_cancelled": False
                 }
             else:
-                return create_error_status_response("No business logic status found in health data")
-                
+                return create_error_status_response(
+                    "No business logic status found in health data")
+
         except DependencyError as e:
             logger.error(f"Dependency error: {e}")
             return create_error_status_response(str(e))
@@ -70,14 +74,15 @@ class WatchTowerService:
         except Exception as e:
             logger.error(f"Failed to get business logic loop status: {e}")
             return create_error_status_response(str(e))
-    
-    async def start_business_logic_api(self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> Dict[str, Any]:
+
+    async def start_business_logic_api(
+            self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> Dict[str, Any]:
         """Start the business logic loop via HTTP API."""
         try:
             import aiohttp
         except ImportError:
             raise DependencyError("aiohttp", "pip install aiohttp")
-        
+
         url = f"http://{host}:{port}/start"
         try:
             async with aiohttp.ClientSession() as session:
@@ -92,15 +97,17 @@ class WatchTowerService:
         except ManagementAPIError:
             raise
         except Exception as e:
-            raise ManagementAPIError(f"Failed to connect to start API: {e}", original_error=e)
-    
-    async def stop_business_logic_api(self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> Dict[str, Any]:
+            raise ManagementAPIError(
+                f"Failed to connect to start API: {e}", original_error=e)
+
+    async def stop_business_logic_api(
+            self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> Dict[str, Any]:
         """Stop the business logic loop via HTTP API."""
         try:
             import aiohttp
         except ImportError:
             raise DependencyError("aiohttp", "pip install aiohttp")
-        
+
         url = f"http://{host}:{port}/stop"
         try:
             async with aiohttp.ClientSession() as session:
@@ -115,8 +122,9 @@ class WatchTowerService:
         except ManagementAPIError:
             raise
         except Exception as e:
-            raise ManagementAPIError(f"Failed to connect to stop API: {e}", original_error=e)
-    
+            raise ManagementAPIError(
+                f"Failed to connect to stop API: {e}", original_error=e)
+
     def start_business_logic(self) -> None:
         """Start the business logic loop by updating the state file."""
         state = {
@@ -126,19 +134,21 @@ class WatchTowerService:
             "business_logic_cancelled": False,
             "last_updated": datetime.now(timezone.utc).isoformat()
         }
-        
+
         with open(self.state_file, "w") as f:
             json.dump(state, f)
-        
-        logger.info("Business logic loop start requested - main process will pick this up")
-    
-    async def check_management_api(self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> Dict[str, Any]:
+
+        logger.info(
+            "Business logic loop start requested - main process will pick this up")
+
+    async def check_management_api(
+            self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> Dict[str, Any]:
         """Check the management API endpoint."""
         try:
             import aiohttp
         except ImportError:
             raise DependencyError("aiohttp", "pip install aiohttp")
-        
+
         url = f"http://{host}:{port}/health"
         try:
             async with aiohttp.ClientSession() as session:
@@ -153,8 +163,9 @@ class WatchTowerService:
         except ManagementAPIError:
             raise
         except Exception as e:
-            raise ManagementAPIError(f"Failed to connect to management API: {e}", original_error=e)
-    
+            raise ManagementAPIError(
+                f"Failed to connect to management API: {e}", original_error=e)
+
     def validate_config(self) -> None:
         """Validate the current configuration."""
-        config.validate() 
+        config.validate()

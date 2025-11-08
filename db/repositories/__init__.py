@@ -1,3 +1,3 @@
 """
 DB repositories package initialization.
-""" 
+"""

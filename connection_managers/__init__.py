@@ -1,3 +1,3 @@
 """
 Connection managers package initialization.
-""" 
+"""

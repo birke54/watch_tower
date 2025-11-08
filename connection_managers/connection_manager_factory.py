@@ -6,6 +6,7 @@ from utils.logging_config import get_logger
 # Configure Logger for this file
 logger = get_logger(__name__)
 
+
 class ConnectionManagerFactory:
     """
     Factory for creating connection managers.
@@ -31,7 +32,6 @@ class ConnectionManagerFactory:
         if plugin_type == PluginType.RING:
             from connection_managers.ring_connection_manager import RingConnectionManager
             return RingConnectionManager()
-        
+
         logger.error(f"Unsupported plugin type: {plugin_type}")
         raise ValueError(f"Unsupported plugin type: {plugin_type}")
-    

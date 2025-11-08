@@ -14,6 +14,7 @@ from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+
 def handle_errors(
     error_types: Optional[Union[Type[Exception], Tuple[Type[Exception], ...]]] = None,
     default_return: Any = None,
@@ -22,13 +23,13 @@ def handle_errors(
 ) -> Callable:
     """
     Decorator for consistent error handling.
-    
+
     Args:
         error_types: Exception types to catch (default: all exceptions)
         default_return: Value to return on error
         log_error: Whether to log the error
         reraise: Whether to re-raise the exception after handling
-        
+
     Returns:
         Decorated function
     """
@@ -44,7 +45,7 @@ def handle_errors(
                             f"Error in {func.__name__}: {str(e)}",
                             exc_info=True
                         )
-                    
+
                     if reraise:
                         raise
                     return default_return
@@ -54,6 +55,7 @@ def handle_errors(
         return wrapper
     return decorator
 
+
 def handle_async_errors(
     error_types: Optional[Union[Type[Exception], Tuple[Type[Exception], ...]]] = None,
     default_return: Any = None,
@@ -62,13 +64,13 @@ def handle_async_errors(
 ) -> Callable:
     """
     Decorator for consistent async error handling.
-    
+
     Args:
         error_types: Exception types to catch (default: all exceptions)
         default_return: Value to return on error
         log_error: Whether to log the error
         reraise: Whether to re-raise the exception after handling
-        
+
     Returns:
         Decorated async function
     """
@@ -84,7 +86,7 @@ def handle_async_errors(
                             f"Error in async {func.__name__}: {str(e)}",
                             exc_info=True
                         )
-                    
+
                     if reraise:
                         raise
                     return default_return
@@ -93,6 +95,7 @@ def handle_async_errors(
                     raise
         return wrapper
     return decorator
+
 
 @contextmanager
 def error_context(
@@ -103,13 +106,13 @@ def error_context(
 ):
     """
     Context manager for error handling.
-    
+
     Args:
         operation: Description of the operation being performed
         error_types: Exception types to catch (default: all exceptions)
         log_error: Whether to log the error
         reraise: Whether to re-raise the exception after handling
-        
+
     Yields:
         None
     """
@@ -122,12 +125,13 @@ def error_context(
                     f"Error during {operation}: {str(e)}",
                     exc_info=True
                 )
-            
+
             if reraise:
                 raise
         else:
             # Re-raise if it's not the type we're handling
             raise
+
 
 def log_and_raise(
     error: Exception,
@@ -136,7 +140,7 @@ def log_and_raise(
 ) -> None:
     """
     Log an error and re-raise it with additional context.
-    
+
     Args:
         error: The exception to log and re-raise
         message: Additional context message
@@ -145,6 +149,7 @@ def log_and_raise(
     log = logger_instance or logger
     log.error(f"{message}: {str(error)}", exc_info=True)
     raise error
+
 
 def safe_execute(
     func: Callable,
@@ -155,14 +160,14 @@ def safe_execute(
 ) -> Any:
     """
     Safely execute a function with error handling.
-    
+
     Args:
         func: Function to execute
         *args: Positional arguments for the function
         error_message: Message to log on error
         default_return: Value to return on error
         **kwargs: Keyword arguments for the function
-        
+
     Returns:
         Function result or default_return on error
     """
@@ -171,6 +176,7 @@ def safe_execute(
     except Exception as e:
         logger.error(f"{error_message}: {str(e)}", exc_info=True)
         return default_return
+
 
 async def safe_execute_async(
     func: Callable,
@@ -181,14 +187,14 @@ async def safe_execute_async(
 ) -> Any:
     """
     Safely execute an async function with error handling.
-    
+
     Args:
         func: Async function to execute
         *args: Positional arguments for the function
         error_message: Message to log on error
         default_return: Value to return on error
         **kwargs: Keyword arguments for the function
-        
+
     Returns:
         Function result or default_return on error
     """
@@ -196,4 +202,4 @@ async def safe_execute_async(
         return await func(*args, **kwargs)
     except Exception as e:
         logger.error(f"{error_message}: {str(e)}", exc_info=True)
-        return default_return 
+        return default_return

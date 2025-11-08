@@ -12,6 +12,7 @@ from db.repositories.visitor_log_repository import VisitorLogRepository
 # Test database URL
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
+
 @pytest.fixture(scope="session")
 def engine() -> Generator[Engine, None, None]:
     """Create a test database engine"""
@@ -24,6 +25,7 @@ def engine() -> Generator[Engine, None, None]:
     yield engine
     Base.metadata.drop_all(engine)
 
+
 @pytest.fixture(scope="function")
 def db_session(engine: Engine) -> Generator[Session, None, None]:
     """Create a new database session for a test"""
@@ -31,7 +33,7 @@ def db_session(engine: Engine) -> Generator[Session, None, None]:
     transaction = connection.begin()
     Session = sessionmaker(bind=connection)
     session = Session()
-    
+
     try:
         yield session
     finally:
@@ -39,20 +41,24 @@ def db_session(engine: Engine) -> Generator[Session, None, None]:
         transaction.rollback()
         connection.close()
 
+
 @pytest.fixture
 def vendor_repository() -> VendorsRepository:
     """Create a vendor repository instance"""
     return VendorsRepository()
+
 
 @pytest.fixture
 def motion_event_repository() -> MotionEventRepository:
     """Create a motion event repository instance"""
     return MotionEventRepository()
 
+
 @pytest.fixture
 def visitor_log_repository() -> VisitorLogRepository:
     """Create a visitor log repository instance"""
     return VisitorLogRepository()
+
 
 @pytest.fixture
 def sample_vendor(db_session: Session, vendor_repository: VendorsRepository) -> Vendors:
@@ -65,8 +71,11 @@ def sample_vendor(db_session: Session, vendor_repository: VendorsRepository) -> 
     }
     return vendor_repository.create(db_session, vendor_data)
 
+
 @pytest.fixture
-def sample_motion_event(db_session: Session, motion_event_repository: MotionEventRepository) -> MotionEvent:
+def sample_motion_event(
+        db_session: Session,
+        motion_event_repository: MotionEventRepository) -> MotionEvent:
     """Create a sample motion event for testing"""
     now = datetime.utcnow()
     event_data: Dict[str, Any] = {
@@ -78,8 +87,11 @@ def sample_motion_event(db_session: Session, motion_event_repository: MotionEven
     }
     return motion_event_repository.create(db_session, event_data)
 
+
 @pytest.fixture
-def sample_visitor_log(db_session: Session, visitor_log_repository: VisitorLogRepository) -> VisitorLogs:
+def sample_visitor_log(
+        db_session: Session,
+        visitor_log_repository: VisitorLogRepository) -> VisitorLogs:
     """Create a sample visitor log for testing"""
     log_data: Dict[str, Any] = {
         "camera_name": "Test Camera",

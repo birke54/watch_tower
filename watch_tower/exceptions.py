@@ -28,27 +28,31 @@ from db.exceptions import (
 # General domain-specific errors
 from utils.errors import WatchTowerError, ConfigurationError, BusinessLogicError, DependencyError, ManagementAPIError
 
+
 class VideoProcessingError(WatchTowerError):
     """Raised when there's an error with video processing operations."""
+
 
 class CameraError(WatchTowerError):
     """Raised when there's an error with camera operations."""
 
+
 class ConnectionManagerError(WatchTowerError):
     """Raised when there's an error with connection manager operations."""
+
 
 # Re-export all exceptions
 __all__ = [
     # AWS exceptions
     'RekognitionResourceNotFoundException',
-    'S3ResourceNotFoundException', 
+    'S3ResourceNotFoundException',
     'SecretsManagerError',
     'ConfigError',
     'NoCredentialsError',
     'ClientError',
     'S3Error',
     'RekognitionError',
-    
+
     # Database exceptions
     'DatabaseConfigError',
     'DatabaseConnectionError',
@@ -62,4 +66,4 @@ __all__ = [
     'ManagementAPIError',
     'VideoProcessingError',
     'CameraError',
-] 
+]

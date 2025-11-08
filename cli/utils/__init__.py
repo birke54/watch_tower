@@ -25,7 +25,7 @@ from .errors import (
 __all__ = [
     # Formatters
     "format_confidence_score",
-    "format_timestamp", 
+    "format_timestamp",
     "create_json_entry",
     # Validators
     "validate_aws_config",
@@ -36,4 +36,4 @@ __all__ = [
     "create_validation_result",
     "create_error_status_response",
     "handle_cli_error",
-] 
+]
