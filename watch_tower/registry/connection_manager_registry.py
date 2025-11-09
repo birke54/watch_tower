@@ -76,4 +76,4 @@ class ConnectionManagerRegistry:
 
 
 # Singleton instance of the registry
-registry = ConnectionManagerRegistry()
+REGISTRY = ConnectionManagerRegistry()

@@ -7,7 +7,7 @@ the Watch Tower application.
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from watch_tower.registry.camera_registry import registry as camera_registry
+from watch_tower.registry.camera_registry import REGISTRY as camera_registry
 from watch_tower.config import config
 import logging
 from watch_tower.core.business_logic_manager import business_logic_manager

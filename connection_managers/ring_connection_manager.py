@@ -2,7 +2,7 @@ import json
 from typing import Any, Dict, Optional, Sequence
 
 from watch_tower.exceptions import ConnectionManagerError
-from watch_tower.registry.connection_manager_registry import registry, VendorStatus as RegistryVendorStatus
+from watch_tower.registry.connection_manager_registry import REGISTRY as connection_manager_registry, VendorStatus as RegistryVendorStatus
 from connection_managers.plugin_type import PluginType
 import logging
 from ring_doorbell import Ring, Auth, Requires2FAError, RingDoorBell
@@ -139,8 +139,8 @@ class RingConnectionManager(ConnectionManagerBase):
         """Callback for when token is updated."""
         expire_dt = datetime.fromtimestamp(token['expires_at'])
         # Update in-memory registry
-        registry.connection_managers[self._plugin_type]['token'] = token
-        registry.connection_managers[self._plugin_type]['expires_at'] = expire_dt
+        connection_manager_registry.connection_managers[self._plugin_type]['token'] = token
+        connection_manager_registry.connection_managers[self._plugin_type]['expires_at'] = expire_dt
 
         # Update database
         engine, session_factory = get_database_connection()
@@ -191,9 +191,9 @@ class RingConnectionManager(ConnectionManagerBase):
                     self._is_authenticated = True
 
                     # Update in-memory registry
-                    registry.connection_managers[self._plugin_type]['status'] = RegistryVendorStatus.ACTIVE
-                    registry.connection_managers[self._plugin_type]['token'] = token
-                    registry.connection_managers[self._plugin_type]['expires_at'] = datetime.fromtimestamp(
+                    connection_manager_registry.connection_managers[self._plugin_type]['status'] = RegistryVendorStatus.ACTIVE
+                    connection_manager_registry.connection_managers[self._plugin_type]['token'] = token
+                    connection_manager_registry.connection_managers[self._plugin_type]['expires_at'] = datetime.fromtimestamp(
                         token['expires_at'])
 
                     logger.info("Successfully connected to Ring using database token")
@@ -212,7 +212,7 @@ class RingConnectionManager(ConnectionManagerBase):
         password = decrypt(vendor.password_enc)
         self._auth = self.perform_auth(username, password, vendor.vendor_id)
         self._ring = Ring(self._auth)
-        registry.connection_managers[self._plugin_type]['status'] = RegistryVendorStatus.ACTIVE
+        connection_manager_registry.connection_managers[self._plugin_type]['status'] = RegistryVendorStatus.ACTIVE
         self._is_authenticated = True
         return True
 

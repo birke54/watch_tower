@@ -78,7 +78,7 @@ def mock_db_connection(mock_session_factory: MagicMock) -> Generator[Mock, None,
 @pytest.fixture
 def mock_registry() -> Generator[Mock, None, None]:
     """Mock the connection manager registry."""
-    with patch('connection_managers.ring_connection_manager.registry') as mock:
+    with patch('connection_managers.ring_connection_manager.connection_manager_registry') as mock:
         mock.connection_managers = {
             PluginType.RING: {
                 'status': None,

@@ -15,8 +15,8 @@ from .core.bootstrap import bootstrap
 from .core.management_api import create_management_app
 
 # Registry exports
-from .registry.camera_registry import registry as camera_registry
-from .registry.connection_manager_registry import registry as connection_manager_registry
+from .registry.camera_registry import REGISTRY as camera_registry
+from .registry.connection_manager_registry import REGISTRY as connection_manager_registry
 
 # Configuration and exceptions
 from .config import config

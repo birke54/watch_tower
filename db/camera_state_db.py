@@ -1,10 +1,12 @@
+"""Database module for managing camera state cross-process."""
+
 import sqlite3
 import os
 from datetime import datetime
 from typing import List, Dict, Any
 from utils.logging_config import get_logger
 
-logger = get_logger(__name__)
+LOGGER = get_logger(__name__)
 
 # SQLite database file path
 CAMERA_STATE_DB_PATH = "/tmp/camera_state.db"
@@ -30,18 +32,12 @@ def init_camera_state_db() -> None:
             )
         ''')
 
-        # Create indexes for better performance
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_status ON camera_states(status)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_vendor ON camera_states(vendor)')
-        cursor.execute(
-            'CREATE INDEX IF NOT EXISTS idx_name_vendor ON camera_states(name, vendor)')
-
         conn.commit()
         conn.close()
-        logger.debug("Camera state database initialized successfully")
+        LOGGER.debug("Camera state database initialized successfully")
 
     except Exception as e:
-        logger.error(f"Failed to initialize camera state database: {e}")
+        LOGGER.error("Failed to initialize camera state database: %s", e)
         raise
 
 
@@ -57,7 +53,7 @@ def save_camera_states(camera_states: List[Dict[str, Any]]) -> None:
         # Insert current states
         for camera_state in camera_states:
             cursor.execute('''
-                INSERT OR REPLACE INTO camera_states
+                INSERT INTO camera_states
                 (name, vendor, status, last_polled, status_last_updated)
                 VALUES (?, ?, ?, ?, ?)
             ''', (
@@ -70,10 +66,10 @@ def save_camera_states(camera_states: List[Dict[str, Any]]) -> None:
 
         conn.commit()
         conn.close()
-        logger.debug(f"Saved {len(camera_states)} camera states to database")
+        LOGGER.debug("Saved %d camera states to database", len(camera_states))
 
     except Exception as e:
-        logger.error(f"Failed to save camera states to database: {e}")
+        LOGGER.error("Failed to save camera states to database: %s", e)
         raise
 
 
@@ -81,7 +77,7 @@ def load_camera_states() -> List[Dict[str, Any]]:
     """Load camera states from SQLite database."""
     try:
         if not os.path.exists(CAMERA_STATE_DB_PATH):
-            logger.debug("Camera state database does not exist, returning empty list")
+            LOGGER.debug("Camera state database does not exist, returning empty list")
             return []
 
         conn = sqlite3.connect(CAMERA_STATE_DB_PATH)
@@ -105,11 +101,11 @@ def load_camera_states() -> List[Dict[str, Any]]:
             })
 
         conn.close()
-        logger.debug(f"Loaded {len(camera_states)} camera states from database")
+        LOGGER.debug("Loaded %d camera states from database", len(camera_states))
         return camera_states
 
     except Exception as e:
-        logger.error(f"Failed to load camera states from database: {e}")
+        LOGGER.error("Failed to load camera states from database: %s", e)
         return []
 
 
@@ -136,11 +132,10 @@ def get_camera_state(camera_name: str, vendor: str) -> Dict[str, Any]:
                 'last_polled': row[3],
                 'status_last_updated': row[4]
             }
-        else:
-            return {}
+        return {}
 
     except Exception as e:
-        logger.error(f"Failed to get camera state for {camera_name}: {e}")
+        LOGGER.error("Failed to get camera state for %s: %s", camera_name, e)
         return {}
 
 
@@ -158,8 +153,8 @@ def update_camera_status(camera_name: str, vendor: str, status: str) -> None:
 
         conn.commit()
         conn.close()
-        logger.debug(f"Updated camera {camera_name} status to {status}")
+        LOGGER.debug("Updated camera %s status to %s", camera_name, status)
 
     except Exception as e:
-        logger.error(f"Failed to update camera status for {camera_name}: {e}")
+        LOGGER.error("Failed to update camera status for %s: %s", camera_name, e)
         raise

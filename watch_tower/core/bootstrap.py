@@ -1,7 +1,7 @@
 import asyncio
 from typing import List, Tuple, Any, cast
-from watch_tower.registry.camera_registry import registry as camera_registry
-from watch_tower.registry.connection_manager_registry import VendorStatus, registry
+from watch_tower.registry.camera_registry import REGISTRY as camera_registry
+from watch_tower.registry.connection_manager_registry import VendorStatus, REGISTRY as connection_manager_registry
 from connection_managers.connection_manager_factory import ConnectionManagerFactory
 from connection_managers.plugin_type import PluginType
 from db.connection import get_database_connection
@@ -59,21 +59,21 @@ def register_connection_managers(vendors: List[Vendors]) -> None:
     for vendor in vendors:
         plugin_type = PluginType(vendor.plugin_type)
         connection_manager = ConnectionManagerFactory.create(plugin_type)
-        registry.register_connection_manager(plugin_type, connection_manager)
+        connection_manager_registry.register_connection_manager(plugin_type, connection_manager)
         logger.debug(f"Registered connection manager for {vendor.plugin_type}")
     logger.info(f"Registered {len(vendors)} connection managers")
 
 
 async def login_to_vendors(vendors: List[Vendors]) -> None:
     """Login to vendors."""
-    for connection_manager in registry.get_all_connection_managers():
+    for connection_manager in connection_manager_registry.get_all_connection_managers():
         logger.debug(
             f"Attempting to login to {connection_manager['connection_manager'].__class__.__name__}")
         try:
             await connection_manager['connection_manager'].login()
             plugin_type = cast(PluginType,
                                connection_manager['connection_manager']._plugin_type)
-            registry.update_status(plugin_type, VendorStatus.ACTIVE)
+            connection_manager_registry.update_status(plugin_type, VendorStatus.ACTIVE)
             logger.info(
                 f"Logged in to {connection_manager['connection_manager'].__class__.__name__}")
         except Exception as e:
@@ -81,14 +81,14 @@ async def login_to_vendors(vendors: List[Vendors]) -> None:
                 f"Failed to login to {connection_manager['connection_manager'].__class__.__name__}: {e}")
             plugin_type = cast(PluginType,
                                connection_manager['connection_manager']._plugin_type)
-            registry.update_status(plugin_type, VendorStatus.INACTIVE)
+            connection_manager_registry.update_status(plugin_type, VendorStatus.INACTIVE)
 
 
 async def retrieve_cameras(vendors: List[Vendors]) -> List[Tuple[PluginType, Any]]:
     """Retrieve active connection managers and retrieve cameras from them."""
     cameras: List[Tuple[PluginType, Any]] = []
     logger.info("Starting camera retrieval process")
-    for connection_manager in registry.get_all_connection_managers():
+    for connection_manager in connection_manager_registry.get_all_connection_managers():
         logger.debug(
             f"Checking connection manager: {connection_manager['connection_manager'].__class__.__name__}, status: {connection_manager['status']}")
         if connection_manager['status'] == VendorStatus.ACTIVE:
