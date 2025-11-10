@@ -10,7 +10,7 @@ import tempfile
 from cameras.camera_base import CameraBase
 from connection_managers.plugin_type import PluginType
 from connection_managers.ring_connection_manager import RingConnectionManager
-from watch_tower.registry.connection_manager_registry import registry
+from watch_tower.registry.connection_manager_registry import REGISTRY as connection_manager_registry
 from data_models.motion_event import MotionEvent
 from db.connection import get_database_connection
 from db.repositories.motion_event_repository import MotionEventRepository
@@ -69,7 +69,7 @@ class RingCamera(CameraBase):
         """
         try:
             connection_manager = cast(
-                RingConnectionManager, registry.get_connection_manager(PluginType.RING))
+                RingConnectionManager, connection_manager_registry.get_connection_manager(PluginType.RING))
             connection_manager._ring.update_data()
 
             # Get more events to ensure we don't miss any within our time window
@@ -194,7 +194,7 @@ class RingCamera(CameraBase):
         from connection_managers.ring_connection_manager import RingConnectionManager
         try:
             connection_manager = cast(
-                RingConnectionManager, registry.get_connection_manager(PluginType.RING))
+                RingConnectionManager, connection_manager_registry.get_connection_manager(PluginType.RING))
             connection_manager._ring.update_data()
             device_properties = await self.get_properties()
             return device_properties.get("connection_status") == "online"
@@ -212,7 +212,7 @@ class RingCamera(CameraBase):
         from connection_managers.ring_connection_manager import RingConnectionManager
         try:
             connection_manager = cast(
-                RingConnectionManager, registry.get_connection_manager(PluginType.RING))
+                RingConnectionManager, connection_manager_registry.get_connection_manager(PluginType.RING))
             connection_manager._ring.update_data()
 
             # Access all properties in a single try block

@@ -9,9 +9,9 @@ import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Set
-from watch_tower.registry.camera_registry import CameraStatus, registry as camera_registry
+from watch_tower.registry.camera_registry import CameraStatus, REGISTRY as camera_registry
 from cameras.camera_base import CameraBase
-from watch_tower.registry.connection_manager_registry import VendorStatus, registry as connection_manager_registry
+from watch_tower.registry.connection_manager_registry import VendorStatus, REGISTRY as connection_manager_registry
 from data_models.motion_event import MotionEvent
 from db.connection import get_database_connection
 from db.repositories.motion_event_repository import MotionEventRepository

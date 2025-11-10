@@ -45,7 +45,7 @@ def mock_camera_registry() -> Generator[Mock, None, None]:
 @pytest.fixture
 def mock_connection_manager_registry() -> Generator[Mock, None, None]:
     """Mock the connection manager registry."""
-    with patch.object(bootstrap_module, 'registry') as mock_registry:
+    with patch.object(bootstrap_module, 'connection_manager_registry') as mock_registry:
         mock_registry.get_all_connection_managers.return_value = [
             {
                 'connection_manager': Mock(),

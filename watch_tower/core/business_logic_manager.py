@@ -180,7 +180,7 @@ class BusinessLogicManager:
         """Internal method to run the business logic loop with shutdown handling."""
         try:
             # Import the functions from events_loop
-            from watch_tower.registry.camera_registry import registry as camera_registry
+            from watch_tower.registry.camera_registry import REGISTRY as camera_registry
             from data_models.motion_event import MotionEvent
             import datetime
             from watch_tower.core.events_loop import poll_for_events, insert_events_into_db, start_video_retrieval_tasks, start_facial_recognition_tasks

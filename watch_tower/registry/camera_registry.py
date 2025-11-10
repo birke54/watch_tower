@@ -1,6 +1,8 @@
+"""Camera registry module for managing camera instances and their state."""
+
 import datetime
 from enum import Enum
-from typing import List, Dict, Tuple, Optional, Any, ClassVar
+from typing import List, Dict, Tuple, Optional, ClassVar
 from dataclasses import dataclass
 from cameras.camera_base import CameraBase
 from connection_managers.plugin_type import PluginType
@@ -8,6 +10,7 @@ from utils.logging_config import get_logger
 from db.camera_state_db import save_camera_states, load_camera_states
 
 LOGGER = get_logger(__name__)
+
 
 class CameraStatus(Enum):
     """Enum representing the status of a camera in the registry."""
@@ -220,14 +223,42 @@ class CameraRegistry:
         except Exception as e:
             LOGGER.error("Failed to save camera state to database: %s", e)
 
-    def _load_camera_state_from_database(self) -> List[Dict[str, Any]]:
-        """Load camera states from SQLite database for cross-process access."""
+    @staticmethod
+    def _load_camera_state_from_database() -> Dict[Tuple[PluginType, str], CameraEntry]:
+        """Load camera states from SQLite database and convert to registry format."""
+        camera_states: Dict[Tuple[PluginType, str], CameraEntry] = {}
         try:
-            return load_camera_states()
+            sqlite_camera_states = load_camera_states()
+            for entry in sqlite_camera_states:
+                try:
+                    vendor = PluginType(entry["vendor"])
+                    camera_name = entry["name"]
+                    status = CameraStatus[entry["status"]]
+                    last_polled = (
+                        datetime.datetime.fromisoformat(entry["last_polled"])
+                        if entry["last_polled"]
+                        else datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+                    )
+                    status_last_updated = (
+                        datetime.datetime.fromisoformat(entry["status_last_updated"])
+                        if entry["status_last_updated"]
+                        else datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+                    )
+
+                    camera_entry = CameraEntry(
+                        camera=None,  # Cannot restore CameraBase instance from DB
+                        status=status,
+                        last_polled=last_polled,
+                        status_last_updated=status_last_updated,
+                    )
+                    camera_states[(vendor, camera_name)] = camera_entry
+                except Exception as trans_e:
+                    LOGGER.error("Error transforming db entry %s: %s", entry, trans_e)
+            return camera_states
         except Exception as e:
             LOGGER.error("Failed to load camera state from database: %s", e)
-            return []
+            return {}
 
 
 # Singleton instance of the camera registry
-registry = CameraRegistry()
+REGISTRY = CameraRegistry()
