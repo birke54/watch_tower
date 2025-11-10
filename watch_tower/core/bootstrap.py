@@ -40,10 +40,9 @@ async def add_cameras_to_registry(cameras: List[Tuple[PluginType, Any]]) -> None
     registry = camera_registry  # Use the singleton instance
     LOGGER.info("Adding %d cameras to registry", len(cameras))
     for camera in cameras:
-        if camera[0] in PluginType:
-            camera_object = camera[1]
-            LOGGER.info("Adding camera: %s", camera_object)
-            await registry.add(RingCamera(camera_object))
+        camera_object = camera[1]
+        LOGGER.info("Adding camera: %s", camera_object)
+        await registry.add(RingCamera(camera_object))
     LOGGER.info("Camera registry now contains %d cameras", len(registry.cameras))
     LOGGER.info("Active cameras: %d", len(registry.get_all_active()))
     LOGGER.debug("Camera registry: %s", registry.cameras)
