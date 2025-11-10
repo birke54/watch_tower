@@ -3,7 +3,9 @@ from typing import List, Dict, Optional, TypedDict, cast
 from datetime import datetime
 from connection_managers.connection_manager_base import ConnectionManagerBase
 from connection_managers.plugin_type import PluginType
+from utils.logging_config import get_logger
 
+LOGGER = get_logger(__name__)
 
 class VendorStatus(Enum):
     ACTIVE = 1
@@ -39,12 +41,15 @@ class ConnectionManagerRegistry:
         """
         Register a connection manager for a plugin type.
         """
-        self.connection_managers[plugin_type] = {
-            'connection_manager': connection_manager,
-            'status': VendorStatus.INACTIVE,
-            'token': None,
-            'expires_at': None
-        }
+        if plugin_type not in self.connection_managers:
+            self.connection_managers[plugin_type] = {
+                'connection_manager': connection_manager,
+                'status': VendorStatus.INACTIVE,
+                'token': None,
+                'expires_at': None
+            }
+        else:
+            LOGGER.error("Connection manager for %s already registered.", plugin_type)
 
     def get_connection_manager(self, plugin_type: PluginType) -> ConnectionManagerBase:
         """

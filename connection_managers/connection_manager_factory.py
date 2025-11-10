@@ -2,9 +2,10 @@ from typing import Dict, Type
 from connection_managers.connection_manager_base import ConnectionManagerBase, PluginType
 from connection_managers.plugin_type import PluginType
 from utils.logging_config import get_logger
+from connection_managers.ring_connection_manager import RingConnectionManager
 
 # Configure Logger for this file
-logger = get_logger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class ConnectionManagerFactory:
@@ -28,10 +29,9 @@ class ConnectionManagerFactory:
         Raises:
             ValueError: If the plugin type is not supported.
         """
-        # Import here to avoid circular imports
+
         if plugin_type == PluginType.RING:
-            from connection_managers.ring_connection_manager import RingConnectionManager
             return RingConnectionManager()
 
-        logger.error(f"Unsupported plugin type: {plugin_type}")
+        LOGGER.error("Unsupported plugin type: %s", plugin_type)
         raise ValueError(f"Unsupported plugin type: {plugin_type}")
