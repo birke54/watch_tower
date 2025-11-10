@@ -17,7 +17,7 @@ class ConnectionManagerFactory:
     @classmethod
     def create(cls, plugin_type: PluginType) -> ConnectionManagerBase:
         """
-        Create a connection manager instance for the speciFIED plugin type.
+        Create a connection manager instance for the specified plugin type.
 
         Args:
             plugin_type: The type of plugin to create a connection manager for.
