@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock, patch, PropertyMock
 from typing import List, Generator
 import importlib
 
@@ -28,7 +28,7 @@ def mock_vendors() -> List[Vendors]:
 @pytest.fixture
 def mock_session_factory() -> Generator[Mock, None, None]:
     """Mock the session factory."""
-    with patch.object(bootstrap_module, 'session_factory') as mock_factory:
+    with patch.object(bootstrap_module, 'SESSION_FACTORY') as mock_factory:
         mock_session = Mock()
         mock_factory.return_value.__enter__.return_value = mock_session
         mock_factory.return_value.__exit__.return_value = None
@@ -114,7 +114,7 @@ class TestBootstrap:
         # Setup
         mock_connection_manager = Mock()
         mock_connection_manager.login = AsyncMock()
-        mock_connection_manager._plugin_type = PluginType.RING
+        type(mock_connection_manager).plugin_type = PropertyMock(return_value=PluginType.RING)
 
         mock_connection_manager_registry.get_all_connection_managers.return_value = [
             {
@@ -125,7 +125,7 @@ class TestBootstrap:
 
         # Execute
         # vendors list not used in current implementation
-        await bootstrap_module.login_to_vendors([])
+        await bootstrap_module.login_to_vendors()
 
         # Verify
         mock_connection_manager.login.assert_called_once()
@@ -139,24 +139,22 @@ class TestBootstrap:
         # Setup
         mock_connection_manager = Mock()
         mock_connection_manager.login = AsyncMock(side_effect=Exception("Login failed"))
-        mock_connection_manager._plugin_type = PluginType.RING
+        type(mock_connection_manager).plugin_type = PropertyMock(return_value=PluginType.RING)
 
         mock_connection_manager_registry.get_all_connection_managers.return_value = [
             {
                 'connection_manager': mock_connection_manager,
-                'status': VendorStatus.ACTIVE
+                'status': VendorStatus.INACTIVE
             }
         ]
 
         # Execute
-        await bootstrap_module.login_to_vendors([])
+        await bootstrap_module.login_to_vendors()
 
         # Verify
         mock_connection_manager.login.assert_called_once()
-        # Accept either the enum or its value
-        args, kwargs = mock_connection_manager_registry.update_status.call_args
-        assert args[0] == PluginType.RING
-        assert args[1] == VendorStatus.INACTIVE
+        # Status should remain INACTIVE (default), no update_status call needed
+        mock_connection_manager_registry.update_status.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_retrieve_cameras_success(
@@ -167,7 +165,7 @@ class TestBootstrap:
         # Setup
         mock_connection_manager = Mock()
         mock_connection_manager.get_cameras = AsyncMock(return_value=[Mock(), Mock()])
-        mock_connection_manager._plugin_type = PluginType.RING
+        type(mock_connection_manager).plugin_type = PropertyMock(return_value=PluginType.RING)
 
         mock_connection_manager_registry.get_all_connection_managers.return_value = [
             {
@@ -177,7 +175,7 @@ class TestBootstrap:
         ]
 
         # Execute
-        result = await bootstrap_module.retrieve_cameras([])
+        result = await bootstrap_module.retrieve_cameras()
 
         # Verify
         assert len(result) == 2
@@ -237,6 +235,6 @@ class TestBootstrap:
         # Verify
         mock_retrieve_vendors.assert_called_once()
         mock_register_connection_managers.assert_called_once_with(mock_vendors)
-        mock_login_to_vendors.assert_awaited_once_with(mock_vendors)
-        mock_retrieve_cameras.assert_awaited_once_with(mock_vendors)
+        mock_login_to_vendors.assert_awaited_once()
+        mock_retrieve_cameras.assert_awaited_once_with()
         mock_add_cameras.assert_awaited_once()

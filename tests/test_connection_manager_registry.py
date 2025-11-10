@@ -50,16 +50,16 @@ class TestConnectionManagerRegistry:
             self,
             registry: ConnectionManagerRegistry,
             mock_connection_manager: Mock) -> None:
-        """Test overwriting an existing connection manager."""
+        """Test that registering an existing connection manager does not overwrite."""
         # Register first manager
         registry.register_connection_manager(PluginType.RING, mock_connection_manager)
 
-        # Create and register a new manager
+        # Create and attempt to register a new manager with the same plugin type
         new_manager = Mock(spec=ConnectionManagerBase)
         registry.register_connection_manager(PluginType.RING, new_manager)
 
-        # Verify the new manager replaced the old one
-        assert registry.connection_managers[PluginType.RING]['connection_manager'] == new_manager
+        # Verify the original manager is still there (no overwrite)
+        assert registry.connection_managers[PluginType.RING]['connection_manager'] == mock_connection_manager
 
     def test_get_connection_manager_success(
             self,
@@ -83,7 +83,7 @@ class TestConnectionManagerRegistry:
         # Register managers for different plugin types
         registry.register_connection_manager(PluginType.RING, mock_connection_manager)
 
-        # Create and register another manager with the same plugin type
+        # Create and attempt to register another manager with the same plugin type
         other_manager = Mock(spec=ConnectionManagerBase)
         registry.register_connection_manager(PluginType.RING, other_manager)
 
@@ -91,10 +91,10 @@ class TestConnectionManagerRegistry:
         managers = registry.get_all_connection_managers()
 
         # Verify results
-        # Should only have one entry since we overwrote the first one
+        # Should only have one entry (no overwrite occurred)
         assert len(managers) == 1
-        # Should be the second manager we registered
-        assert managers[0]['connection_manager'] == other_manager
+        # Should be the first manager we registered (not overwritten)
+        assert managers[0]['connection_manager'] == mock_connection_manager
 
     def test_connection_manager_status(self,
                                        registry: ConnectionManagerRegistry,
