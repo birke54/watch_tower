@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from watch_tower.registry.camera_registry import REGISTRY as camera_registry
 from watch_tower.config import config
 import logging
-from watch_tower.core.business_logic_manager import business_logic_manager
+from watch_tower.core.business_logic_manager import BUSINESS_LOGIC_MANAGER as business_logic_manager
 from watch_tower.exceptions import BusinessLogicError, ConfigurationError
 from db.exceptions import DatabaseConnectionError
 from aws.exceptions import ConfigError, ClientError
