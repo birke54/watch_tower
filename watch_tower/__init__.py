@@ -10,7 +10,7 @@ __version__ = "3.0.0"
 __author__ = "Watch Tower Team"
 
 # Core exports
-from .core.business_logic_manager import business_logic_manager
+from .core.business_logic_manager import BUSINESS_LOGIC_MANAGER as business_logic_manager
 from .core.bootstrap import bootstrap
 from .core.management_api import create_management_app
 
