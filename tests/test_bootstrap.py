@@ -87,7 +87,7 @@ class TestBootstrap:
         # Verify
         assert result == []
 
-    @patch.object(bootstrap_module, 'ConnectionManagerFactory')
+    @patch('connection_managers.connection_manager_factory.ConnectionManagerFactory')
     def test_register_connection_managers(
         self,
         mock_factory: Mock,
