@@ -23,7 +23,7 @@ def insert_test_events():
 
         # Create a future date for unprocessed events
         now = datetime.datetime.now(datetime.timezone.utc)
-        future_date = datetime.datetime(9999, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
+        future_date = datetime.datetime(9998, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
 
         # Insert test events
         insert_query = text("""
