@@ -18,6 +18,7 @@ from db.repositories.motion_event_repository import MotionEventRepository
 from cameras.camera_base import PluginType
 from watch_tower.config import config
 from utils.error_handler import handle_async_errors
+from aws.rekognition.rekognition_service import RekognitionService
 
 logger = logging.getLogger(__name__)
 
@@ -80,8 +81,9 @@ def insert_events_into_db(events: List[MotionEvent]) -> None:
     motion_event_repository = MotionEventRepository()
 
     with session_factory() as session:
-        now = datetime.now(timezone.utc)
-        future_date = datetime(9999, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
+        pacific_tz = timezone(timedelta(hours=-8))
+        now = datetime.now(pacific_tz)
+        future_date = datetime(9998, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
 
         for event in events:
             event_data: Dict[str, Any] = {
@@ -100,7 +102,6 @@ async def process_video_retrieval(event: MotionEvent, camera: CameraBase) -> Non
     """Process a single video retrieval task"""
     async with upload_semaphore:
         try:
-            # Directly await the coroutine since it's not doing heavy I/O
             await camera.retrieve_video_from_event_and_upload_to_s3(event)
         except Exception as e:
             logger.error(f"Error processing video for event {event.event_id}: {e}")
@@ -110,18 +111,20 @@ async def process_video_retrieval(event: MotionEvent, camera: CameraBase) -> Non
 async def start_facial_recognition_tasks() -> None:
     """Start facial recognition tasks for unprocessed events"""
     try:
-        from aws.rekognition.rekognition_service import RekognitionService
         rekognition_service = RekognitionService()
         engine, session_factory = get_database_connection()
         with session_factory() as session:
             motion_event_repository = MotionEventRepository()
             unprocessed_events = motion_event_repository.get_unprocessed_events(session)
 
+            logger.info(f"Starting facial recognition for {len(unprocessed_events)} unprocessed events")
+            logger.info(f"Event IDs: {[event.id for event in unprocessed_events]}")
+
             for db_event in unprocessed_events:
                 # Convert DB event to MotionEvent
                 motion_event = MotionEvent(
                     event_id=str(db_event.id),
-                    camera_vendor=db_event.event_metadata.get('camera_vendor'),
+                    camera_vendor=PluginType(db_event.event_metadata.get('camera_vendor')),
                     camera_name=db_event.camera_name,
                     timestamp=db_event.motion_detected,
                     s3_url=db_event.s3_url if db_event.s3_url else None,
@@ -187,11 +190,12 @@ async def process_face_search_with_visitor_logs(
 
             # Mark the motion event as processed only if we got results
             with session_factory() as session:
+                pacific_tz = timezone(timedelta(hours=-8))
                 motion_event_repository = MotionEventRepository()
                 motion_event_repository.mark_as_processed(
                     session,
                     db_event.id,
-                    datetime.now(timezone.utc)
+                    datetime.now(pacific_tz)
                 )
         else:
             # Face search completed but found no faces
@@ -200,11 +204,12 @@ async def process_face_search_with_visitor_logs(
 
             # Mark the motion event as processed since the search completed
             with session_factory() as session:
+                pacific_tz = timezone(timedelta(hours=-8))
                 motion_event_repository = MotionEventRepository()
                 motion_event_repository.mark_as_processed(
                     session,
                     db_event.id,
-                    datetime.now(timezone.utc)
+                    datetime.now(pacific_tz)
                 )
 
     except Exception as e:
@@ -295,17 +300,3 @@ async def start_video_retrieval_tasks() -> None:
     except Exception as e:
         logger.error(f"Error starting video retrieval tasks: {e}")
         logger.exception("Full traceback:")
-
-
-async def events_loop() -> None:
-    """Main event loop for processing camera events"""
-    while True:
-        active_cameras = camera_registry.get_all_active()
-        current_time = datetime.now(timezone.utc)
-        new_events: List[MotionEvent] = []
-        for camera in active_cameras:
-            await poll_for_events(camera, current_time, new_events)
-        insert_events_into_db(new_events)
-        await start_video_retrieval_tasks()
-        await start_facial_recognition_tasks()
-        await asyncio.sleep(5)
