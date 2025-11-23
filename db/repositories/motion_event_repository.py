@@ -51,7 +51,7 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
         """Get all motion events that haven't been processed by facial recognition"""
         pacific_tz = timezone(timedelta(hours=-8))  # PST
         now = datetime.now(pacific_tz)
-        future_date = datetime(9999, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
+        future_date = datetime(9998, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
 
         try:
             # Use a single query to get all events at once
@@ -74,7 +74,7 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
         """Get all motion events that haven't been uploaded to S3 yet"""
         pacific_tz = timezone(timedelta(hours=-8))  # PST
         now = datetime.now(pacific_tz)
-        future_date = datetime(9999, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
+        future_date = datetime(9998, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
 
         try:
             # Use a single query to get all events at once

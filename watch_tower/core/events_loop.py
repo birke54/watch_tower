@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Keep track of running tasks
 running_upload_tasks: Set[asyncio.Task] = set()
-running_facial_recognition_tasks: Set[asyncio.Task] = set()
+enqueued_facial_recognition_tasks: Dict[str, asyncio.Task] = {}
 
 # Semaphores to limit concurrent operations using config
 upload_semaphore = asyncio.Semaphore(config.video.max_concurrent_uploads)
@@ -112,15 +112,15 @@ async def start_facial_recognition_tasks() -> None:
     """Start facial recognition tasks for unprocessed events"""
     try:
         rekognition_service = RekognitionService()
-        engine, session_factory = get_database_connection()
+        _, session_factory = get_database_connection()
         with session_factory() as session:
             motion_event_repository = MotionEventRepository()
             unprocessed_events = motion_event_repository.get_unprocessed_events(session)
 
-            logger.info(f"Starting facial recognition for {len(unprocessed_events)} unprocessed events")
-            logger.info(f"Event IDs: {[event.id for event in unprocessed_events]}")
-
             for db_event in unprocessed_events:
+                if db_event.s3_url in enqueued_facial_recognition_tasks or not db_event.s3_url:
+                    # Skip if a task is already running for this event
+                    continue
                 # Convert DB event to MotionEvent
                 motion_event = MotionEvent(
                     event_id=str(db_event.id),
@@ -140,8 +140,8 @@ async def start_facial_recognition_tasks() -> None:
                         session_factory
                     )
                 )
-                running_facial_recognition_tasks.add(task)
-                task.add_done_callback(running_facial_recognition_tasks.discard)
+                enqueued_facial_recognition_tasks[motion_event.s3_url] = task
+                task.add_done_callback(lambda t, key=motion_event.s3_url: enqueued_facial_recognition_tasks.pop(key, None))
 
                 # Add a small delay between tasks to prevent overwhelming the system
                 await asyncio.sleep(0.1)
@@ -171,11 +171,14 @@ async def process_face_search_with_visitor_logs(
 ) -> None:
     """Process face search and create visitor log entries for found people"""
     try:
-        # Start face search
+        # Task enqueued, and possibly running
+        if motion_event.s3_url in enqueued_facial_recognition_tasks:
+            face_search_results, was_skipped = [], True
+        
         face_search_results, was_skipped = await rekognition_service.start_face_search(motion_event.s3_url)
 
+        # If a rekognition task is already queued or running, skip processing
         if was_skipped:
-            # Job was skipped because it's already running
             logger.info(
                 f"Face search skipped for event {motion_event.event_id} - job already running")
             return
