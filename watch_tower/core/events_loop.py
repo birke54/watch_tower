@@ -18,9 +18,8 @@ from db.repositories.motion_event_repository import MotionEventRepository
 from cameras.camera_base import PluginType
 from watch_tower.config import config
 from utils.error_handler import handle_async_errors
-from aws.rekognition.rekognition_service import RekognitionService
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 # Keep track of running tasks
 enqueued_upload_tasks: Dict[int, asyncio.Task] = {}
@@ -50,8 +49,8 @@ async def handle_camera_error(camera: CameraBase) -> None:
                 CameraStatus.INACTIVE)
 
     except Exception as e:
-        logger.error(f"Error handling camera error: {e}")
-        logger.exception("Full traceback:")
+        LOGGER.error("Error handling camera error: %s", e)
+        LOGGER.exception("Full traceback:")
 
 
 async def poll_for_events(
@@ -68,8 +67,8 @@ async def poll_for_events(
             new_events.extend(await camera.retrieve_motion_events(from_time, current_time))
             camera_entry.last_polled = current_time
         except Exception as e:
-            logger.error(f"Error retrieving motion videos: {e}")
-            logger.exception("Full traceback:")
+            LOGGER.error("Error retrieving motion videos: %s", e)
+            LOGGER.exception("Full traceback:")
             await handle_camera_error(camera)
 
 
@@ -104,13 +103,14 @@ async def process_video_retrieval(event: MotionEvent, camera: CameraBase) -> Non
         try:
             await camera.retrieve_video_from_event_and_upload_to_s3(event)
         except Exception as e:
-            logger.error(f"Error processing video for event {event.event_id}: {e}")
-            logger.exception("Full traceback:")
+            LOGGER.error("Error processing video for event %s: %s", event.event_id, e)
+            LOGGER.exception("Full traceback:")
 
 
 async def start_facial_recognition_tasks() -> None:
     """Start facial recognition tasks for unprocessed events"""
     try:
+        from aws.rekognition.rekognition_service import RekognitionService
         rekognition_service = RekognitionService()
         _, session_factory = get_database_connection()
         with session_factory() as session:
@@ -146,8 +146,8 @@ async def start_facial_recognition_tasks() -> None:
                 # Add a small delay between tasks to prevent overwhelming the system
                 await asyncio.sleep(0.1)
     except Exception as e:
-        logger.error(f"Error starting facial recognition tasks: {e}")
-        logger.exception("Full traceback:")
+        LOGGER.error("Error starting facial recognition tasks: %s", e)
+        LOGGER.exception("Full traceback:")
 
 
 async def process_face_search_with_visitor_logs_with_semaphore(
@@ -179,8 +179,8 @@ async def process_face_search_with_visitor_logs(
 
         # If a rekognition task is already queued or running, skip processing
         if was_skipped:
-            logger.info(
-                f"Face search skipped for event {motion_event.event_id} - job already running")
+            LOGGER.info(
+                "Face search skipped for event %s - job already running", motion_event.event_id)
             return
 
         if face_search_results:
@@ -202,8 +202,8 @@ async def process_face_search_with_visitor_logs(
                 )
         else:
             # Face search completed but found no faces
-            logger.info(
-                f"Face search completed for event {motion_event.event_id} - no faces detected")
+            LOGGER.info(
+                "Face search completed for event %s - no faces detected", motion_event.event_id)
 
             # Mark the motion event as processed since the search completed
             with session_factory() as session:
@@ -216,9 +216,9 @@ async def process_face_search_with_visitor_logs(
                 )
 
     except Exception as e:
-        logger.error(
-            f"Error processing face search for event {motion_event.event_id}: {e}")
-        logger.exception("Full traceback:")
+        LOGGER.error(
+            "Error processing face search for event %s: %s", motion_event.event_id, e)
+        LOGGER.exception("Full traceback:")
 
 
 async def create_visitor_logs_from_face_search(
@@ -259,12 +259,12 @@ async def create_visitor_logs_from_face_search(
                 }
 
                 visitor_log_repository.create(session, visitor_log_data)
-                logger.info(
-                    f"Created consolidated visitor log for person '{person_name}' at event {db_event.id} with max confidence {max_confidence}")
+                LOGGER.info(
+                    "Created consolidated visitor log for person '%s' at event %d with max confidence %f", person_name, db_event.id, max_confidence)
 
     except Exception as e:
-        logger.error(f"Error creating visitor logs from face search results: {e}")
-        logger.exception("Full traceback:")
+        LOGGER.error("Error creating visitor logs from face search results: %s", e)
+        LOGGER.exception("Full traceback:")
 
 
 async def start_video_retrieval_tasks() -> None:
@@ -304,5 +304,5 @@ async def start_video_retrieval_tasks() -> None:
                     # Add a small delay between tasks to prevent overwhelming the system
                     await asyncio.sleep(0.1)
     except Exception as e:
-        logger.error(f"Error starting video retrieval tasks: {e}")
-        logger.exception("Full traceback:")
+        LOGGER.error(f"Error starting video retrieval tasks: %s", e)
+        LOGGER.exception("Full traceback:")

@@ -8,16 +8,33 @@ providing start/stop functionality and state management.
 import asyncio
 import json
 import logging
-import os
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
-from watch_tower.exceptions import BusinessLogicError, ConfigurationError
+from data_models.motion_event import MotionEvent
+from watch_tower.core.events_loop import (
+    insert_events_into_db,
+    poll_for_events,
+    start_facial_recognition_tasks,
+    start_video_retrieval_tasks,
+)
+from watch_tower.exceptions import BusinessLogicError
+from watch_tower.registry.camera_registry import REGISTRY as camera_registry
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 # State file for cross-process access
 STATE_FILE = "/tmp/watch_tower_business_logic_state.json"
+
+
+@dataclass
+class BusinessLogicState:
+    """Data class that stores business loop state information"""
+    running: bool
+    start_time: Optional[datetime]
+    task: Optional[asyncio.Task]
+    shutdown_event: bool
 
 
 class BusinessLogicManager:
@@ -29,162 +46,189 @@ class BusinessLogicManager:
         self.shutdown_event = asyncio.Event()
         self.start_time: Optional[datetime] = None
 
+
     def _save_state(self) -> None:
         """Save the current state to a file for cross-process access."""
+        state = {
+            "running": self.running,
+            "start_time": self.start_time.isoformat() if self.start_time else None,
+            "business_logic_completed": self.task.done() if self.task else None,
+            "business_logic_cancelled": self.task.cancelled() if self.task else None,
+            "last_updated": datetime.now(
+                timezone.utc).isoformat()}
         try:
-            state = {
-                "running": self.running,
-                "start_time": self.start_time.isoformat() if self.start_time else None,
-                "business_logic_completed": self.task.done() if self.task else None,
-                "business_logic_cancelled": self.task.cancelled() if self.task else None,
-                "last_updated": datetime.now(
-                    timezone.utc).isoformat()}
-            with open(STATE_FILE, 'w') as f:
-                json.dump(state, f)
+            with open(STATE_FILE, 'w') as state_file:
+                json.dump(state, state_file)
         except (OSError, IOError) as e:
-            logger.error(f"Failed to save state file: {e}")
+            LOGGER.error("Failed to save state file: %s", e)
             raise BusinessLogicError(f"Failed to save state file: {str(e)}")
         except Exception as e:
-            logger.error(f"Unexpected error saving state: {e}")
+            LOGGER.error("Unexpected error saving state: %s", e)
             raise BusinessLogicError(
                 f"Unexpected error saving state: {str(e)}")
 
-    def _load_state(self) -> Dict[str, Any]:
+
+    @staticmethod
+    def _load_state() -> Dict[str, Any]:
         """Load the current state from file."""
         try:
-            if os.path.exists(STATE_FILE):
-                with open(STATE_FILE, 'r') as f:
-                    return json.load(f)
+            with open(STATE_FILE, 'r') as state_file:
+                return json.load(state_file)
         except (OSError, IOError) as e:
-            logger.error(f"Failed to load state file: {e}")
+            LOGGER.error("Failed to load state file: %s", e)
+            raise
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse state file JSON: {e}")
+            LOGGER.error("Failed to parse state file JSON: %s", e)
+            raise
         except Exception as e:
-            logger.error(f"Unexpected error loading state: {e}")
+            LOGGER.error("Unexpected error loading state: %s", e)
+            raise
 
-        return {
-            "running": False,
-            "start_time": None,
-            "business_logic_completed": None,
-            "business_logic_cancelled": None
-        }
+
+    def _capture_state(self) -> BusinessLogicState:
+        """Capture the current state of the business logic loop."""
+        return BusinessLogicState(
+            running=self.running,
+            start_time=self.start_time,
+            task=self.task,
+            shutdown_event=self.shutdown_event.is_set()
+        )
+
+
+    def _restore_state(self, state: BusinessLogicState) -> None:
+        """Restore the business logic loop to a previous state."""
+        self.running = state.running
+        self.start_time = state.start_time
+        self.task = state.task
+        if state.shutdown_event:
+            self.shutdown_event.set()
+        else:
+            self.shutdown_event.clear()
+
+    async def _wait_for_task_completion(self, timeout: float) -> None:
+        """Wait for the task to complete gracefully, with timeout and cancellation handling.
+
+        Args:
+            timeout: Maximum time to wait before cancelling the task
+        """
+        task_status = f"done={self.task.done()}, cancelled={self.task.cancelled()}"
+        LOGGER.debug("Waiting for task to complete. Status: %s", task_status)
+
+        try:
+            await asyncio.wait_for(self.task, timeout=timeout)
+            LOGGER.info("Task completed gracefully")
+        except asyncio.TimeoutError:
+            LOGGER.warning(
+                "Business logic loop did not stop within %s seconds, cancelling...", timeout)
+            self.task.cancel()
+            await self._await_cancelled_task()
+
+    async def _await_cancelled_task(self) -> None:
+        """Await a cancelled task and handle any errors."""
+        try:
+            await self.task
+            LOGGER.info("Task cancelled successfully")
+        except asyncio.CancelledError:
+            LOGGER.debug("Task cancellation confirmed")
+        except Exception as cancel_error:
+            LOGGER.error("Error while waiting for cancelled task: %s", cancel_error)
+            raise BusinessLogicError(
+                f"Error during task cancellation: {str(cancel_error)}")
 
     async def start(self) -> None:
         """Start the business logic loop."""
         if self.running:
-            logger.warning("Business logic loop is already running")
+            LOGGER.warning("Business logic loop is already running")
             return
 
         # Store original state for rollback
-        original_running = self.running
-        original_start_time = self.start_time
-        original_task = self.task
-        original_shutdown_event_state = self.shutdown_event.is_set()
-        rollback = False
+        original_state = self._capture_state()
 
         try:
-            logger.info("Starting business logic loop...")
+            LOGGER.info("Starting business logic loop...")
             self.running = True
             self.start_time = datetime.now(timezone.utc)
             self.shutdown_event.clear()
             self.task = asyncio.create_task(self._run_business_logic_loop())
+
+            # Save state immediately to reflect shutdown signal
+            # If this fails, we'll rollback to maintain consistency
             self._save_state()
-            logger.info("Business logic loop started successfully")
+
+            LOGGER.info("Business logic loop started successfully")
         except Exception as e:
-            logger.error(f"Failed to start business logic loop: {e}")
-            # Rollback all state changes
-            self.running = original_running
-            self.start_time = original_start_time
-            self.task = original_task
-            if original_shutdown_event_state:
-                self.shutdown_event.set()
-            else:
-                self.shutdown_event.clear()
-            rollback = True
+            LOGGER.error("Failed to start business logic loop: %s", e)
+
+            # Rollback state changes to maintain consistency between in-memory and file state
+            self._restore_state(original_state)
+
             try:
                 self._save_state()  # Save the rolled back state
             except Exception as save_error:
-                logger.error(f"Failed to save rolled back state: {save_error}")
-            # Re-raise with appropriate error type
-            if isinstance(e, BusinessLogicError):
-                raise
-            elif isinstance(e, ConfigurationError):
-                raise
-            else:
+                # Error already logged in _save_state, but log rollback save failure separately
+                LOGGER.error(
+                    "Failed to save rolled back state: %s", save_error)
+                # Re-raise with appropriate error type
                 raise BusinessLogicError(
-                    f"Failed to start business logic loop: {str(e)}")
+                    f"Error stopping business logic loop: {str(e)}. "
+                    f"Additionally, failed to save rolled back state: {str(save_error)}"
+                ) from save_error
 
-    async def stop(self) -> None:
-        """Stop the business logic loop gracefully."""
+    async def stop(self, timeout: float = 30.0) -> None:
+        """Stop the business logic loop gracefully.
+
+        Args:
+            timeout: Maximum time to wait for graceful shutdown before cancelling (default: 30.0 seconds)
+        """
         if not self.running:
-            logger.warning("Business logic loop is not running")
+            LOGGER.warning("Business logic loop is not running")
             return
 
-        # Store original state for rollback
-        original_running = self.running
-        original_task = self.task
-        original_shutdown_event_state = self.shutdown_event.is_set()
-        rollback = False
+        # Store original state for rollback if state save fails
+        original_state = self._capture_state()
 
         try:
-            logger.info("Stopping business logic loop...")
+            LOGGER.info("Stopping business logic loop...")
+
+            # Signal shutdown first
             self.running = False
             self.shutdown_event.set()
+
+            # Save state immediately to reflect shutdown signal
+            # If this fails, we'll rollback to maintain consistency
             self._save_state()
 
+            # Wait for task to complete gracefully
             if self.task and not self.task.done():
-                # Wait for the task to complete with a timeout
-                try:
-                    await asyncio.wait_for(self.task, timeout=30.0)
-                except asyncio.TimeoutError:
-                    logger.warning(
-                        "Business logic loop did not stop gracefully, cancelling...")
-                    self.task.cancel()
-                    try:
-                        await self.task
-                    except asyncio.CancelledError:
-                        pass
+                await self._wait_for_task_completion(timeout)
+            elif self.task:
+                LOGGER.debug("Task already done: %s", self.task.done())
 
-            logger.info("Business logic loop stopped successfully")
+            # Clean up task reference
+            self.task = None
+
+            # Save final state after successful shutdown
+            self._save_state()
+            LOGGER.info("Business logic loop stopped successfully")
         except Exception as e:
-            logger.error(f"Error stopping business logic loop: {e}")
-            # Rollback state changes
-            self.running = original_running
-            self.task = original_task
-            if original_shutdown_event_state:
-                self.shutdown_event.set()
-            else:
-                self.shutdown_event.clear()
-            rollback = True
+            LOGGER.error("Error stopping business logic loop: %s", e)
+            # Rollback state changes to maintain consistency between in-memory and file state
+            self._restore_state(original_state)
             try:
                 self._save_state()  # Save the rolled back state
             except Exception as save_error:
-                logger.error(f"Failed to save rolled back state: {save_error}")
-            # Re-raise with appropriate error type
-            if isinstance(e, BusinessLogicError):
-                raise
-            elif isinstance(e, ConfigurationError):
-                raise
-            else:
+                # Error already logged in _save_state, but log rollback save failure separately
+                LOGGER.error(
+                    "Failed to save rolled back state: %s", save_error)
+                # Re-raise with appropriate error type
                 raise BusinessLogicError(
-                    f"Error stopping business logic loop: {str(e)}")
-        finally:
-            if not rollback:
-                self.running = False
-                try:
-                    self._save_state()
-                except Exception as save_error:
-                    logger.error(f"Failed to save final state: {save_error}")
+                    f"Error stopping business logic loop: {str(e)}. "
+                    f"Additionally, failed to save rolled back state: {str(save_error)}"
+                ) from save_error
 
     async def _run_business_logic_loop(self) -> None:
         """Internal method to run the business logic loop with shutdown handling."""
         try:
-            # Import the functions from events_loop
-            from watch_tower.registry.camera_registry import REGISTRY as camera_registry
-            from data_models.motion_event import MotionEvent
-            import datetime
-            from watch_tower.core.events_loop import poll_for_events, insert_events_into_db, start_video_retrieval_tasks, start_facial_recognition_tasks
-
             # Heartbeat counter - log every 5 minutes (300 seconds / 5 seconds = 60
             # iterations)
             heartbeat_counter = 0
@@ -197,18 +241,16 @@ class BusinessLogicManager:
                     # Add heartbeat log every 5 minutes
                     heartbeat_counter += 1
                     if heartbeat_counter >= heartbeat_interval:
-                        logger.info(
+                        LOGGER.info(
                             "[HEARTBEAT] Business logic loop is running inside the Docker container.")
                         heartbeat_counter = 0
 
                     # Run one iteration of the business logic loop
                     active_cameras = camera_registry.get_all_active()
-                    current_time = datetime.datetime.now(datetime.timezone.utc)
-                    new_events: list[MotionEvent] = []
+                    current_time = datetime.now(timezone.utc)
+                    new_events: List[MotionEvent] = []
 
                     for camera in active_cameras:
-                        if not self.running or self.shutdown_event.is_set():
-                            break
                         await poll_for_events(camera, current_time, new_events)
 
                     if new_events:
@@ -220,60 +262,41 @@ class BusinessLogicManager:
                     # Wait before next iteration, but check for shutdown
                     await asyncio.sleep(5)
 
-                except BusinessLogicError as e:
-                    logger.error(
-                        f"Business logic error in loop iteration: {e}")
-                    # Continue running unless explicitly stopped
-                    if self.running:
-                        await asyncio.sleep(5)  # Wait before retrying
-                except ConfigurationError as e:
-                    logger.error(f"Configuration error in loop iteration: {e}")
-                    # Continue running unless explicitly stopped
-                    if self.running:
-                        await asyncio.sleep(5)  # Wait before retrying
                 except Exception as e:
-                    logger.error(
-                        f"Unexpected error in business logic loop iteration: {e}")
-                    # Continue running unless explicitly stopped
+                    # Log error but continue running unless explicitly stopped
+                    error_type = type(e).__name__
+                    LOGGER.error("%s in loop iteration: %s", error_type, e)
                     if self.running:
                         await asyncio.sleep(5)  # Wait before retrying
         except asyncio.CancelledError:
-            logger.info("Business logic loop task cancelled")
-        except BusinessLogicError as e:
-            logger.error(f"Business logic error in main loop: {e}")
-            raise
-        except ConfigurationError as e:
-            logger.error(f"Configuration error in main loop: {e}")
-            raise
+            LOGGER.info("Business logic loop task cancelled")
         except Exception as e:
-            logger.error(f"Unexpected error in business logic loop: {e}")
+            LOGGER.error("Unexpected error in business logic loop: %s", e)
             raise BusinessLogicError(
                 f"Unexpected error in business logic loop: {str(e)}")
         finally:
             self.running = False
-            self._save_state()
+            try:
+                self._save_state()
+            except Exception as e:
+                LOGGER.error("Failed to save state in finally block: %s", e)
+                # Don't raise - we're already shutting down
 
-    def get_status(self) -> Dict[str, Any]:
+    @staticmethod
+    def get_status() -> Dict[str, Any]:
         """Get the current status of the business logic loop."""
         try:
             # Load state from file for cross-process access
-            state = self._load_state()
+            state = BusinessLogicManager._load_state()
 
             # Calculate uptime only if the business logic loop is running
             uptime = None
-            if state.get('running', False) and state.get('start_time'):
-                try:
+            try:
+                if state.get('running', False) and state.get('start_time'):
                     start_time = datetime.fromisoformat(state['start_time'])
                     uptime = str(datetime.now(timezone.utc) - start_time)
-                except ValueError as e:
-                    logger.error(f"Failed to parse start time: {e}")
-                    uptime = "Unknown (invalid start time)"
-                except Exception as e:
-                    logger.error(f"Failed to calculate uptime: {e}")
-                    uptime = "Unknown"
-            elif not state.get('running', False) and state.get('start_time'):
-                # If not running, show the total runtime before it stopped
-                try:
+                elif not state.get('running', False) and state.get('start_time'):
+                    # If not running, show the total runtime before it stopped
                     start_time = datetime.fromisoformat(state['start_time'])
                     # Use last_updated as the stop time if available, otherwise use
                     # current time
@@ -283,12 +306,12 @@ class BusinessLogicManager:
                     else:
                         stop_time = datetime.now(timezone.utc)
                     uptime = f"{str(stop_time - start_time)} (stopped)"
-                except ValueError as e:
-                    logger.error(f"Failed to parse timestamps: {e}")
-                    uptime = "Unknown (invalid timestamps)"
-                except Exception as e:
-                    logger.error(f"Failed to calculate total runtime: {e}")
-                    uptime = "Unknown"
+            except ValueError as e:
+                LOGGER.error("Failed to parse timestamps: %s", e)
+                uptime = "Unknown (invalid timestamps)"
+            except Exception as e:
+                LOGGER.error("Failed to calculate total runtime: %s", e)
+                uptime = "Unknown"
 
             return {
                 "running": state.get('running', False),
@@ -298,10 +321,10 @@ class BusinessLogicManager:
                 "business_logic_cancelled": state.get('business_logic_cancelled')
             }
         except Exception as e:
-            logger.error(f"Failed to get business logic status: {e}")
+            LOGGER.error("Failed to get business logic status: %s", e)
             raise BusinessLogicError(
                 f"Failed to get business logic status: {str(e)}")
 
 
 # Create a singleton instance
-business_logic_manager = BusinessLogicManager()
+BUSINESS_LOGIC_MANAGER = BusinessLogicManager()

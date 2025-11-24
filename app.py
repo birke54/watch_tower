@@ -12,7 +12,7 @@ import uvicorn
 
 from watch_tower.config import config
 from watch_tower.core.bootstrap import bootstrap
-from watch_tower.core.business_logic_manager import business_logic_manager
+from watch_tower.core.business_logic_manager import BUSINESS_LOGIC_MANAGER as business_logic_manager
 from watch_tower.core.management_api import create_management_app
 from utils.logging_config import setup_logging
 
@@ -120,7 +120,7 @@ async def _run_main_application_loop() -> None:
                 # Idle loop: periodically check if the business logic loop should be
                 # restarted
                 await asyncio.sleep(2)
-                state = business_logic_manager._load_state()
+                state = business_logic_manager.get_status()
                 if state.get("running", False) and not business_logic_manager.running:
                     print(
                         """[DEBUG] Detected running=True in state file,

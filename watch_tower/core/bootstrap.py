@@ -6,7 +6,6 @@ from typing import List, Tuple, Any
 
 from watch_tower.registry.camera_registry import REGISTRY as camera_registry
 from watch_tower.registry.connection_manager_registry import VendorStatus, REGISTRY as connection_manager_registry
-from connection_managers.connection_manager_factory import ConnectionManagerFactory
 from connection_managers.plugin_type import PluginType
 from db.connection import get_database_connection
 from db.models import Vendors
@@ -59,6 +58,7 @@ def retrieve_vendors() -> List[Vendors]:
 
 def register_connection_managers(vendors: List[Vendors]) -> List[Vendors]:
     """Register connection managers for each vendor."""
+    from connection_managers.connection_manager_factory import ConnectionManagerFactory
     for vendor in vendors:
         plugin_type = PluginType(vendor.plugin_type)
         connection_manager = ConnectionManagerFactory.create(plugin_type)
