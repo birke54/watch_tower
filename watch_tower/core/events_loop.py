@@ -23,7 +23,7 @@ from aws.rekognition.rekognition_service import RekognitionService
 logger = logging.getLogger(__name__)
 
 # Keep track of running tasks
-running_upload_tasks: Set[asyncio.Task] = set()
+enqueued_upload_tasks: Dict[int, asyncio.Task] = {}
 enqueued_facial_recognition_tasks: Dict[str, asyncio.Task] = {}
 
 # Semaphores to limit concurrent operations using config
@@ -118,7 +118,7 @@ async def start_facial_recognition_tasks() -> None:
             unprocessed_events = motion_event_repository.get_unprocessed_events(session)
 
             for db_event in unprocessed_events:
-                if db_event.s3_url in enqueued_facial_recognition_tasks or not db_event.s3_url:
+                if db_event.s3_url in enqueued_facial_recognition_tasks:
                     # Skip if a task is already running for this event
                     continue
                 # Convert DB event to MotionEvent
@@ -270,12 +270,15 @@ async def create_visitor_logs_from_face_search(
 async def start_video_retrieval_tasks() -> None:
     """Start video retrieval tasks for unprocessed events"""
     try:
-        engine, session_factory = get_database_connection()
+        _, session_factory = get_database_connection()
         with session_factory() as session:
             motion_event_repository = MotionEventRepository()
             unprocessed_events = motion_event_repository.get_unuploaded_events(session)
 
             for db_event in unprocessed_events:
+                if db_event.id in enqueued_upload_tasks:
+                    # Skip if a task is already running for this event
+                    continue
                 # Find the camera that created this event
                 camera_vendor = db_event.event_metadata.get('camera_vendor')
                 camera = camera_registry.get(
@@ -288,15 +291,15 @@ async def start_video_retrieval_tasks() -> None:
                         camera_name=db_event.camera_name,
                         timestamp=db_event.motion_detected,
                         s3_url=db_event.s3_url if db_event.s3_url else None,
-                        event_metadata=db_event.event_metadata  # Copy the event metadata
+                        event_metadata=db_event.event_metadata
                     )
 
                     # Create a task for this video retrieval
                     task = asyncio.create_task(
                         process_video_retrieval(
                             motion_event, camera))
-                    running_upload_tasks.add(task)
-                    task.add_done_callback(running_upload_tasks.discard)
+                    enqueued_upload_tasks[db_event.id] = task
+                    task.add_done_callback(lambda t, key=db_event.id: enqueued_upload_tasks.pop(key, None))
 
                     # Add a small delay between tasks to prevent overwhelming the system
                     await asyncio.sleep(0.1)
