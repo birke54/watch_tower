@@ -6,7 +6,7 @@ from db.models import MotionEvent
 from db.repositories.base import BaseRepository
 from utils.logging_config import get_logger
 
-logger = get_logger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class MotionEventRepository(BaseRepository[MotionEvent]):
@@ -67,8 +67,8 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
             return events
 
         except Exception as e:
-            logger.error(f"Error querying for unprocessed events: {e}")
-            logger.exception("Full traceback:")
+            LOGGER.error("Error querying for unprocessed events: %s", e)
+            LOGGER.exception("Full traceback:")
             raise
 
     def get_unuploaded_events(self, db: Session) -> List[MotionEvent]:
@@ -87,8 +87,8 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
             return events
 
         except Exception as e:
-            logger.error(f"Error querying for unuploaded events: {e}")
-            logger.exception("Full traceback:")
+            LOGGER.error("Error querying for unuploaded events: %s", e)
+            LOGGER.exception("Full traceback:")
             raise
 
     def mark_as_processed(
