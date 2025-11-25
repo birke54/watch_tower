@@ -65,7 +65,7 @@ async def poll_for_events(
         try:
             from_time = camera_entry.last_polled
             new_events.extend(await camera.retrieve_motion_events(from_time, current_time))
-            camera_entry.last_polled = current_time
+            camera_registry.update_last_polled(camera.plugin_type, properties["name"], current_time)
         except Exception as e:
             LOGGER.error("Error retrieving motion videos: %s", e)
             LOGGER.exception("Full traceback:")

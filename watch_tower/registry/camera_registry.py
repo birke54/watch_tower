@@ -171,6 +171,35 @@ class CameraRegistry:
             for entry in self.cameras.values()
             if entry.status == CameraStatus.ACTIVE
         ]
+    
+    def update_last_polled(
+        self,
+        vendor: PluginType,
+        camera_name: str,
+        polled_time: datetime.datetime) -> None:
+        """Update the last polled time of a camera in the registry.
+        Args:
+            vendor: The camera vendor
+            camera_name: The name of the camera
+            polled_time: The new last polled time to set
+        Raises:
+            KeyError: If the camera is not found in the registry
+        """
+        try:
+            camera_key = (vendor, camera_name)
+            if camera_key not in self.cameras:
+                raise KeyError(f"Camera {camera_name} not found in registry")
+
+            self.cameras[camera_key].last_polled = polled_time
+            LOGGER.debug("Updated last polled time of camera %s to %s",
+                         camera_name, polled_time.isoformat())
+
+            # Save state to database for cross-process access
+            self._save_camera_state_to_database()
+
+        except Exception as e:
+            LOGGER.error("Error updating last polled time: %s", e)
+            raise
 
     def update_status(
             self,
