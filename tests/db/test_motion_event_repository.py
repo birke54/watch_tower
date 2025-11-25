@@ -117,8 +117,9 @@ def test_get_unprocessed_events(
 ) -> None:
     """Test retrieving unprocessed motion events"""
     # Create an unprocessed event
-    pacific_tz = timezone(timedelta(hours=-8))  # PST
-    now = datetime.now(pacific_tz)
+    from watch_tower.config import get_timezone
+    tz = get_timezone()
+    now = datetime.now(tz)
     future_time = now + timedelta(days=1)  # Use a future time to indicate unprocessed
     unprocessed_event_data: Dict[str, Any] = {
         "camera_name": "Test Camera",

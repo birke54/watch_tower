@@ -6,7 +6,7 @@ from db.models import MotionEvent
 from db.repositories.base import BaseRepository
 from utils.logging_config import get_logger
 
-logger = get_logger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class MotionEventRepository(BaseRepository[MotionEvent]):
@@ -49,8 +49,9 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
 
     def get_unprocessed_events(self, db: Session) -> List[MotionEvent]:
         """Get all motion events that haven't been processed by facial recognition"""
-        pacific_tz = timezone(timedelta(hours=-8))  # PST
-        now = datetime.now(pacific_tz)
+        from watch_tower.config import get_timezone
+        tz = get_timezone()
+        now = datetime.now(tz)
         future_date = datetime(9998, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
 
         try:
@@ -66,14 +67,15 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
             return events
 
         except Exception as e:
-            logger.error(f"Error querying for unprocessed events: {e}")
-            logger.exception("Full traceback:")
+            LOGGER.error("Error querying for unprocessed events: %s", e)
+            LOGGER.exception("Full traceback:")
             raise
 
     def get_unuploaded_events(self, db: Session) -> List[MotionEvent]:
         """Get all motion events that haven't been uploaded to S3 yet"""
-        pacific_tz = timezone(timedelta(hours=-8))  # PST
-        now = datetime.now(pacific_tz)
+        from watch_tower.config import get_timezone
+        tz = get_timezone()
+        now = datetime.now(tz)
         future_date = datetime(9998, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
 
         try:
@@ -85,8 +87,8 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
             return events
 
         except Exception as e:
-            logger.error(f"Error querying for unuploaded events: {e}")
-            logger.exception("Full traceback:")
+            LOGGER.error("Error querying for unuploaded events: %s", e)
+            LOGGER.exception("Full traceback:")
             raise
 
     def mark_as_processed(

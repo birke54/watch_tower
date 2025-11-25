@@ -16,7 +16,7 @@ from data_models.motion_event import MotionEvent
 from db.connection import get_database_connection
 from db.repositories.motion_event_repository import MotionEventRepository
 from cameras.camera_base import PluginType
-from watch_tower.config import config
+from watch_tower.config import config, get_timezone
 from utils.error_handler import handle_async_errors
 
 LOGGER = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ async def poll_for_events(
         try:
             from_time = camera_entry.last_polled
             new_events.extend(await camera.retrieve_motion_events(from_time, current_time))
-            camera_entry.last_polled = current_time
+            camera_registry.update_last_polled(camera.plugin_type, properties["name"], current_time)
         except Exception as e:
             LOGGER.error("Error retrieving motion videos: %s", e)
             LOGGER.exception("Full traceback:")
@@ -80,8 +80,8 @@ def insert_events_into_db(events: List[MotionEvent]) -> None:
     motion_event_repository = MotionEventRepository()
 
     with session_factory() as session:
-        pacific_tz = timezone(timedelta(hours=-8))
-        now = datetime.now(pacific_tz)
+        tz = get_timezone()
+        now = datetime.now(tz)
         future_date = datetime(9998, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
 
         for event in events:
@@ -183,6 +183,7 @@ async def process_face_search_with_visitor_logs(
                 "Face search skipped for event %s - job already running", motion_event.event_id)
             return
 
+        tz = get_timezone()
         if face_search_results:
             # Process the results and create visitor log entries
             await create_visitor_logs_from_face_search(
@@ -193,12 +194,11 @@ async def process_face_search_with_visitor_logs(
 
             # Mark the motion event as processed only if we got results
             with session_factory() as session:
-                pacific_tz = timezone(timedelta(hours=-8))
                 motion_event_repository = MotionEventRepository()
                 motion_event_repository.mark_as_processed(
                     session,
                     db_event.id,
-                    datetime.now(pacific_tz)
+                    datetime.now(tz)
                 )
         else:
             # Face search completed but found no faces
@@ -207,12 +207,11 @@ async def process_face_search_with_visitor_logs(
 
             # Mark the motion event as processed since the search completed
             with session_factory() as session:
-                pacific_tz = timezone(timedelta(hours=-8))
                 motion_event_repository = MotionEventRepository()
                 motion_event_repository.mark_as_processed(
                     session,
                     db_event.id,
-                    datetime.now(pacific_tz)
+                    datetime.now(tz)
                 )
 
     except Exception as e:

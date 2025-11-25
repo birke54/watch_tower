@@ -26,14 +26,21 @@ def mock_camera_registry() -> Generator[Mock, None, None]:
     """Mock the camera registry."""
     with patch('watch_tower.core.events_loop.camera_registry') as mock:
         # Set last_polled to be older than motion_poll_interval
+        camera_entry = Mock(
+            last_polled=datetime.now(timezone.utc) -
+            timedelta(seconds=120),  # 2 minutes ago
+            status=CameraStatus.ACTIVE
+        )
         mock.cameras = {
-            (PluginType.RING, "Test Camera"): Mock(
-                last_polled=datetime.now(timezone.utc) -
-                timedelta(seconds=120),  # 2 minutes ago
-                status=CameraStatus.ACTIVE
-            )
+            (PluginType.RING, "Test Camera"): camera_entry
         }
         mock.get_all_by_vendor.return_value = [Mock()]
+        
+        # Mock update_last_polled to actually update the camera entry's last_polled
+        def update_last_polled_side_effect(vendor, camera_name, polled_time):
+            camera_entry.last_polled = polled_time
+        
+        mock.update_last_polled.side_effect = update_last_polled_side_effect
         yield mock
 
 
