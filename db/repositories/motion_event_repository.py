@@ -49,8 +49,9 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
 
     def get_unprocessed_events(self, db: Session) -> List[MotionEvent]:
         """Get all motion events that haven't been processed by facial recognition"""
-        pacific_tz = timezone(timedelta(hours=-8))  # PST
-        now = datetime.now(pacific_tz)
+        from watch_tower.config import get_timezone
+        tz = get_timezone()
+        now = datetime.now(tz)
         future_date = datetime(9998, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
 
         try:
@@ -72,8 +73,9 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
 
     def get_unuploaded_events(self, db: Session) -> List[MotionEvent]:
         """Get all motion events that haven't been uploaded to S3 yet"""
-        pacific_tz = timezone(timedelta(hours=-8))  # PST
-        now = datetime.now(pacific_tz)
+        from watch_tower.config import get_timezone
+        tz = get_timezone()
+        now = datetime.now(tz)
         future_date = datetime(9998, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
 
         try:

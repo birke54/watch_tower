@@ -8,12 +8,25 @@ import os
 from typing import Optional
 from dataclasses import dataclass
 import logging
+from datetime import timezone as dt_timezone, timedelta
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
 LOGGER = logging.getLogger(__name__)
+
+# Try to use zoneinfo (Python 3.9+), fallback to pytz
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    # Fallback for Python < 3.9
+    try:
+        import pytz
+        ZoneInfo = pytz.timezone
+    except ImportError:
+        LOGGER.warning("Neither zoneinfo nor pytz available. Timezone support may be limited.")
+        ZoneInfo = None
 
 
 @dataclass
@@ -112,6 +125,9 @@ class AppConfig:
     rekognition_video_service_role_arn: str = os.getenv(
         "REKOGNITION_VIDEO_SERVICE_ROLE_ARN", "")
 
+    # Timezone Configuration
+    timezone: str = os.getenv("TIMEZONE", "America/Los_Angeles")
+
     # Sub-configurations
     database: DatabaseConfig = DatabaseConfig()
     video: VideoConfig = VideoConfig()
@@ -187,6 +203,32 @@ class AppConfig:
 
 # Global configuration instance
 config = AppConfig()
+
+
+def get_timezone():
+    """
+    Get the configured timezone object.
+    
+    Returns:
+        timezone object (ZoneInfo, pytz timezone, or fixed offset timezone)
+    """
+    tz_name = config.timezone
+    
+    # Try to use ZoneInfo/pytz first (handles DST properly)
+    if ZoneInfo is not None:
+        try:
+            return ZoneInfo(tz_name)
+        except Exception as e:
+            LOGGER.warning(
+                "Failed to load timezone '%s' with ZoneInfo/pytz: %s. "
+                "Falling back to fixed offset.", tz_name, e)
+    
+    # Fallback to fixed offset for common timezones
+    # This is a basic fallback and doesn't handle DST
+    LOGGER.warning(
+        "Using fixed offset for timezone '%s'. DST changes will not be handled.", tz_name)
+    return tz_fallbacks[tz_name]
+
 
 # Note: Configuration validation is not run automatically on import
 # to allow for testing environments. Use config.validate() explicitly

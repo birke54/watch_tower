@@ -21,6 +21,7 @@ from watch_tower.core.events_loop import (
 )
 from watch_tower.exceptions import BusinessLogicError
 from watch_tower.registry.camera_registry import REGISTRY as camera_registry
+from watch_tower.config import get_timezone
 
 LOGGER = logging.getLogger(__name__)
 
@@ -49,14 +50,13 @@ class BusinessLogicManager:
 
     def _save_state(self) -> None:
         """Save the current state to a file for cross-process access."""
-        pacific_tz = timezone(timedelta(hours=-8))
+        tz = get_timezone()
         state = {
             "running": self.running,
             "start_time": self.start_time.isoformat() if self.start_time else None,
             "business_logic_completed": self.task.done() if self.task else None,
             "business_logic_cancelled": self.task.cancelled() if self.task else None,
-            "last_updated": datetime.now(
-                pacific_tz).isoformat()}
+            "last_updated": datetime.now(tz).isoformat()}
         try:
             with open(STATE_FILE, 'w') as state_file:
                 json.dump(state, state_file)
@@ -146,12 +146,12 @@ class BusinessLogicManager:
         original_state = self._capture_state()
 
         try:
-            pacific_tz = timezone(timedelta(hours=-8))
+            tz = get_timezone()
             for camera in camera_registry.get_all():
-                camera_registry.update_last_polled(camera.plugin_type, camera.camera_name, datetime.now(pacific_tz))
+                camera_registry.update_last_polled(camera.plugin_type, camera.camera_name, datetime.now(tz))
             LOGGER.info("Starting business logic loop...")
             self.running = True
-            self.start_time = datetime.now(pacific_tz)
+            self.start_time = datetime.now(tz)
             self.shutdown_event.clear()
             self.task = asyncio.create_task(self._run_business_logic_loop())
 
@@ -251,8 +251,8 @@ class BusinessLogicManager:
 
                     # Run one iteration of the business logic loop
                     active_cameras = camera_registry.get_all_active()
-                    pacific_tz = timezone(timedelta(hours=-8))
-                    current_time = datetime.now(pacific_tz)
+                    tz = get_timezone()
+                    current_time = datetime.now(tz)
                     new_events: List[MotionEvent] = []
 
                     for camera in active_cameras:
@@ -299,8 +299,8 @@ class BusinessLogicManager:
             try:
                 if state.get('running', False) and state.get('start_time'):
                     start_time = datetime.fromisoformat(state['start_time'])
-                    pacific_tz = timezone(timedelta(hours=-8))
-                    uptime = str(datetime.now(pacific_tz) - start_time)
+                    tz = get_timezone()
+                    uptime = str(datetime.now(tz) - start_time)
                 elif not state.get('running', False) and state.get('start_time'):
                     # If not running, show the total runtime before it stopped
                     start_time = datetime.fromisoformat(state['start_time'])
@@ -310,8 +310,8 @@ class BusinessLogicManager:
                         stop_time = datetime.fromisoformat(
                             state['last_updated'])
                     else:
-                        pacific_tz = timezone(timedelta(hours=-8))
-                        stop_time = datetime.now(pacific_tz)
+                        tz = get_timezone()
+                        stop_time = datetime.now(tz)
                     uptime = f"{str(stop_time - start_time)} (stopped)"
             except ValueError as e:
                 LOGGER.error("Failed to parse timestamps: %s", e)
