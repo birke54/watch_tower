@@ -91,19 +91,21 @@ class TestCameraRegistry:
             registry: CameraRegistry,
             mock_camera: Mock) -> None:
         """Test successful camera retrieval."""
-        registry.cameras[(PluginType.RING, "Test Camera")] = CameraEntry(
+        camera_entry = CameraEntry(
             camera=mock_camera,
             status=CameraStatus.ACTIVE,
             last_polled=datetime.now(timezone.utc),
             status_last_updated=datetime.now(timezone.utc)
         )
-        camera = registry.get(PluginType.RING, "Test Camera")
-        assert camera == mock_camera
+        registry.cameras[(PluginType.RING, "Test Camera")] = camera_entry
+        result = registry.get(PluginType.RING, "Test Camera")
+        assert result == camera_entry
+        assert result.camera == mock_camera
 
     def test_get_camera_not_found(self, registry: CameraRegistry) -> None:
         """Test retrieving a non-existent camera."""
-        camera = registry.get(PluginType.RING, "Test Camera")
-        assert camera is None
+        camera_entry = registry.get(PluginType.RING, "Test Camera")
+        assert camera_entry is None
 
     def test_get_all_cameras(self, registry: CameraRegistry, mock_camera: Mock) -> None:
         """Test retrieving all cameras."""

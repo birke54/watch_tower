@@ -8,7 +8,7 @@ import os
 from typing import Optional
 from dataclasses import dataclass
 import logging
-from datetime import timezone as dt_timezone, timedelta
+from datetime import timedelta, timezone
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -227,7 +227,7 @@ def get_timezone():
     # This is a basic fallback and doesn't handle DST
     LOGGER.warning(
         "Using fixed offset for timezone '%s'. DST changes will not be handled.", tz_name)
-    return tz_fallbacks[tz_name]
+    return timezone.utcoffset(timedelta(hours=-8))  # Default to UTC-8 (PST) as a fallback
 
 
 # Note: Configuration validation is not run automatically on import
