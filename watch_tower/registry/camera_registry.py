@@ -1,13 +1,15 @@
 """Camera registry module for managing camera instances and their state."""
 
-import datetime
+from datetime import datetime
 from enum import Enum
 from typing import List, Dict, Tuple, Optional, ClassVar
 from dataclasses import dataclass
+
 from cameras.camera_base import CameraBase
 from connection_managers.plugin_type import PluginType
 from utils.logging_config import get_logger
 from db.camera_state_db import save_camera_states, load_camera_states
+from watch_tower.config import get_timezone
 
 LOGGER = get_logger(__name__)
 
@@ -23,8 +25,8 @@ class CameraEntry:
     """Data class representing a camera entry in the registry."""
     camera: CameraBase
     status: CameraStatus
-    last_polled: datetime.datetime
-    status_last_updated: datetime.datetime
+    last_polled: datetime
+    status_last_updated: datetime
 
 
 class CameraRegistry:
@@ -84,8 +86,8 @@ class CameraRegistry:
             self.cameras[camera_id] = CameraEntry(
                 camera=camera,
                 status=CameraStatus.ACTIVE,
-                last_polled=datetime.datetime.now(datetime.timezone.utc),
-                status_last_updated=datetime.datetime.now(datetime.timezone.utc)
+                last_polled=datetime.now(get_timezone()),
+                status_last_updated=datetime.now(get_timezone())
             )
             LOGGER.debug("Added camera %s to registry", camera_name)
 
@@ -121,15 +123,16 @@ class CameraRegistry:
             LOGGER.error("Error removing camera from registry: %s", e)
             raise
 
-    def get(self, vendor: PluginType, camera_name: str) -> Optional[CameraBase]:
-        """Get a camera from the registry.
+    def get(self, vendor: PluginType, camera_name: str) -> Optional[CameraEntry]:
+        """Get a camera entry from the registry.
 
         Args:
             vendor: The camera vendor
             camera_name: The name of the camera
 
         Returns:
-            Optional[CameraBase]: The camera instance if found, None otherwise
+            Optional[CameraEntry]: The camera entry if found, None otherwise.
+                The entry contains the camera object and its metadata (status, last_polled, etc.)
         """
         try:
             camera_key = (vendor, camera_name)
@@ -137,10 +140,10 @@ class CameraRegistry:
                 LOGGER.warning("Camera %s not found in registry", camera_name)
                 return None
 
-            return self.cameras[camera_key].camera
+            return self.cameras[camera_key]
 
         except Exception as e:
-            LOGGER.error("Error getting camera from registry: %s", e)
+            LOGGER.error("Error getting camera entry from registry: %s", e)
             return None
 
     def get_all(self) -> List[CameraBase]:
@@ -176,7 +179,7 @@ class CameraRegistry:
         self,
         vendor: PluginType,
         camera_name: str,
-        polled_time: datetime.datetime) -> None:
+        polled_time: datetime) -> None:
         """Update the last polled time of a camera in the registry.
         Args:
             vendor: The camera vendor
@@ -222,8 +225,7 @@ class CameraRegistry:
                 raise KeyError(f"Camera {camera_name} not found in registry")
 
             self.cameras[camera_key].status = status
-            self.cameras[camera_key].status_last_updated = datetime.datetime.now(
-                datetime.timezone.utc)
+            self.cameras[camera_key].status_last_updated = datetime.now(get_timezone())
             LOGGER.debug("Updated status of camera %s to %s", camera_name, status.name)
 
             # Save state to database for cross-process access
@@ -263,15 +265,8 @@ class CameraRegistry:
                     vendor = PluginType(entry["vendor"])
                     camera_name = entry["name"]
                     status = CameraStatus[entry["status"]]
-                    last_polled = (
-                        datetime.datetime.fromisoformat(entry["last_polled"])
-                        if entry["last_polled"]
-                        else datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
-                    )
-                    status_last_updated = (
-                        datetime.datetime.fromisoformat(entry["status_last_updated"])
-                        if entry["status_last_updated"]
-                        else datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+                    last_polled = datetime.fromisoformat(entry["last_polled"])
+                    status_last_updated = datetime.fromisoformat(entry["status_last_updated"]
                     )
 
                     camera_entry = CameraEntry(

@@ -218,7 +218,7 @@ class RekognitionService:
             return face_search_results, False
         except ClientError as e:
             LOGGER.error("Error starting face search: %s", e)
-            raise RekognitionError(f"Error starting face search: {e}")
+            raise RekognitionError(f"Error processing face search: {e}")
         finally:
             # Always remove from running jobs set
             _running_face_search_jobs.discard(source_video_path)

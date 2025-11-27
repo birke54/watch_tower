@@ -7,17 +7,18 @@ processes them, and manages the business logic flow.
 
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import List, Dict, Any, Set
-from watch_tower.registry.camera_registry import CameraStatus, REGISTRY as camera_registry
-from cameras.camera_base import CameraBase
-from watch_tower.registry.connection_manager_registry import VendorStatus, REGISTRY as connection_manager_registry
+from datetime import datetime, timedelta
+from typing import List, Dict, Any
+
+from cameras.camera_base import CameraBase, PluginType
 from data_models.motion_event import MotionEvent
 from db.connection import get_database_connection
 from db.repositories.motion_event_repository import MotionEventRepository
-from cameras.camera_base import PluginType
-from watch_tower.config import config, get_timezone
+from db.repositories.visitor_log_repository import VisitorLogRepository
 from utils.error_handler import handle_async_errors
+from watch_tower.config import config, get_timezone
+from watch_tower.registry.camera_registry import CameraStatus, REGISTRY as camera_registry
+from watch_tower.registry.connection_manager_registry import VendorStatus, REGISTRY as connection_manager_registry
 
 LOGGER = logging.getLogger(__name__)
 
@@ -25,14 +26,15 @@ LOGGER = logging.getLogger(__name__)
 enqueued_upload_tasks: Dict[int, asyncio.Task] = {}
 enqueued_facial_recognition_tasks: Dict[str, asyncio.Task] = {}
 
-# Semaphores to limit concurrent operations using config
-upload_semaphore = asyncio.Semaphore(config.video.max_concurrent_uploads)
-face_recognition_semaphore = asyncio.Semaphore(
+# Semaphores to limit concurrent operations
+UPLOAD_SEMAPHORE = asyncio.Semaphore(config.video.max_concurrent_uploads)
+FACE_RECOGNITION_SEMAPHORE = asyncio.Semaphore(
     config.video.max_concurrent_face_recognition)
 
 
 @handle_async_errors(log_error=True, reraise=False)
 async def handle_camera_error(camera: CameraBase) -> None:
+    """Handle errors encountered while polling a camera."""
     try:
         if not connection_manager_registry.get_connection_manager(
                 camera.plugin_type).is_healthy():
@@ -53,13 +55,9 @@ async def handle_camera_error(camera: CameraBase) -> None:
         LOGGER.exception("Full traceback:")
 
 
-async def poll_for_events(
-    camera: CameraBase,
-    current_time: datetime,
-    new_events: List[MotionEvent]
-) -> None:
+async def poll_for_events(camera: CameraBase, current_time: datetime, new_events: List[MotionEvent]) -> None:
     properties = await camera.get_properties()
-    camera_entry = camera_registry.cameras[(camera.plugin_type, properties["name"])]
+    camera_entry = camera_registry.get(camera.plugin_type, properties["name"])
     time_since_last_polled = current_time - camera_entry.last_polled
     if time_since_last_polled > timedelta(seconds=camera.motion_poll_interval):
         try:
@@ -76,22 +74,19 @@ def insert_events_into_db(events: List[MotionEvent]) -> None:
     if not events:
         return
 
-    engine, session_factory = get_database_connection()
+    _, session_factory = get_database_connection()
     motion_event_repository = MotionEventRepository()
 
     with session_factory() as session:
-        tz = get_timezone()
-        now = datetime.now(tz)
-        future_date = datetime(9998, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
+        high_date = datetime(9998, 12, 31, 23, 59, 59, tzinfo=get_timezone())
 
         for event in events:
             event_data: Dict[str, Any] = {
-                # Store enum value
                 "event_metadata": {"event_id": event.event_id, "camera_vendor": event.camera_vendor.value},
                 "camera_name": event.camera_name,
                 "motion_detected": event.timestamp,
-                "uploaded_to_s3": future_date,  # Use future date to indicate unprocessed
-                "facial_recognition_processed": future_date,  # Use future date to indicate unprocessed
+                "uploaded_to_s3": high_date,
+                "facial_recognition_processed": high_date,
                 "s3_url": event.s3_url if event.s3_url else ""
             }
             motion_event_repository.create(session, event_data)
@@ -99,7 +94,7 @@ def insert_events_into_db(events: List[MotionEvent]) -> None:
 
 async def process_video_retrieval(event: MotionEvent, camera: CameraBase) -> None:
     """Process a single video retrieval task"""
-    async with upload_semaphore:
+    async with UPLOAD_SEMAPHORE:
         try:
             await camera.retrieve_video_from_event_and_upload_to_s3(event)
         except Exception as e:
@@ -150,31 +145,21 @@ async def start_facial_recognition_tasks() -> None:
         LOGGER.exception("Full traceback:")
 
 
-async def process_face_search_with_visitor_logs_with_semaphore(
-    rekognition_service,
-    motion_event: MotionEvent,
-    db_event: Any,
-    session_factory: Any
-) -> None:
+async def process_face_search_with_visitor_logs_with_semaphore(rekognition_service, motion_event: MotionEvent, db_event: Any, session_factory: Any) -> None:
     """Process face search with visitor logs using semaphore for concurrency control"""
-    async with face_recognition_semaphore:
+    async with FACE_RECOGNITION_SEMAPHORE:
         await process_face_search_with_visitor_logs(
             rekognition_service, motion_event, db_event, session_factory
         )
 
 
-async def process_face_search_with_visitor_logs(
-    rekognition_service,
-    motion_event: MotionEvent,
-    db_event: Any,
-    session_factory: Any
-) -> None:
+async def process_face_search_with_visitor_logs(rekognition_service, motion_event: MotionEvent, db_event: Any, session_factory: Any) -> None:
     """Process face search and create visitor log entries for found people"""
     try:
-        # Task enqueued, and possibly running
+        # Task already enqueued, and possibly running
         if motion_event.s3_url in enqueued_facial_recognition_tasks:
             face_search_results, was_skipped = [], True
-        
+
         face_search_results, was_skipped = await rekognition_service.start_face_search(motion_event.s3_url)
 
         # If a rekognition task is already queued or running, skip processing
@@ -183,7 +168,6 @@ async def process_face_search_with_visitor_logs(
                 "Face search skipped for event %s - job already running", motion_event.event_id)
             return
 
-        tz = get_timezone()
         if face_search_results:
             # Process the results and create visitor log entries
             await create_visitor_logs_from_face_search(
@@ -192,78 +176,61 @@ async def process_face_search_with_visitor_logs(
                 session_factory
             )
 
-            # Mark the motion event as processed only if we got results
-            with session_factory() as session:
-                motion_event_repository = MotionEventRepository()
-                motion_event_repository.mark_as_processed(
-                    session,
-                    db_event.id,
-                    datetime.now(tz)
-                )
         else:
             # Face search completed but found no faces
             LOGGER.info(
                 "Face search completed for event %s - no faces detected", motion_event.event_id)
 
-            # Mark the motion event as processed since the search completed
-            with session_factory() as session:
-                motion_event_repository = MotionEventRepository()
-                motion_event_repository.mark_as_processed(
-                    session,
-                    db_event.id,
-                    datetime.now(tz)
-                )
+        # Mark the motion event as processed only if the search completed successfully
+        with session_factory() as session:
+            motion_event_repository = MotionEventRepository()
+            motion_event_repository.mark_as_processed(
+                session,
+                db_event.id,
+                datetime.now(get_timezone())
+            )
 
     except Exception as e:
         LOGGER.error(
             "Error processing face search for event %s: %s", motion_event.event_id, e)
         LOGGER.exception("Full traceback:")
+        # Don't mark as processed if there was an error - let it retry on next iteration
+        return
 
 
-async def create_visitor_logs_from_face_search(
-    face_search_results: List[Dict[str, Any]],
-    db_event: Any,
-    session_factory: Any
-) -> None:
+async def create_visitor_logs_from_face_search(face_search_results: List[Dict[str, Any]], db_event: Any, session_factory: Any) -> None:
     """Create visitor log entries for people found in face search results"""
-    try:
-        # Consolidate results to get the max confidence score for each person
-        consolidated_results: Dict[str, float] = {}
-        for match in face_search_results:
-            person_name = match.get('external_image_id')
-            confidence_score = match.get('confidence')
+    # Consolidate results to get the max confidence score for each person
+    consolidated_results: Dict[str, float] = {}
+    for match in face_search_results:
+        person_name = match.get('external_image_id')
+        confidence_score = match.get('confidence')
 
-            if person_name and confidence_score is not None:
-                # Update with the max confidence score found for this person
-                if person_name not in consolidated_results or confidence_score > consolidated_results[
-                        person_name]:
-                    consolidated_results[person_name] = confidence_score
+        if person_name and confidence_score is not None:
+            # Update with the max confidence score found for this person
+            if person_name not in consolidated_results or confidence_score > consolidated_results[
+                    person_name]:
+                consolidated_results[person_name] = confidence_score
 
-        with session_factory() as session:
-            from db.repositories.visitor_log_repository import VisitorLogRepository
+    with session_factory() as session:
+        visitor_log_repository = VisitorLogRepository()
 
-            visitor_log_repository = VisitorLogRepository()
+        # Get camera information
+        camera_name = db_event.camera_name
 
-            # Get camera information
-            camera_name = db_event.camera_name
+        for person_name, max_confidence in consolidated_results.items():
+            # Create a single visitor log entry for each person with the max
+            # confidence
+            visitor_log_data = {
+                "camera_name": camera_name,
+                "persons_name": person_name,
+                "confidence_score": max_confidence,
+                "visited_at": db_event.motion_detected,
+            }
 
-            for person_name, max_confidence in consolidated_results.items():
-                # Create a single visitor log entry for each person with the max
-                # confidence
-                visitor_log_data = {
-                    "camera_name": camera_name,
-                    "persons_name": person_name,
-                    "confidence_score": max_confidence,
-                    "visited_at": db_event.motion_detected,
-                }
-
-                visitor_log_repository.create(session, visitor_log_data)
-                LOGGER.info(
-                    "Created consolidated visitor log for person '%s' at event %d with max confidence %f", person_name, db_event.id, max_confidence)
-
-    except Exception as e:
-        LOGGER.error("Error creating visitor logs from face search results: %s", e)
-        LOGGER.exception("Full traceback:")
+            visitor_log_repository.create(session, visitor_log_data)
+            LOGGER.info(
+                "Created consolidated visitor log for person '%s' at event %d with max confidence %f", person_name, db_event.id, max_confidence)
 
 
 async def start_video_retrieval_tasks() -> None:
@@ -280,9 +247,10 @@ async def start_video_retrieval_tasks() -> None:
                     continue
                 # Find the camera that created this event
                 camera_vendor = db_event.event_metadata.get('camera_vendor')
-                camera = camera_registry.get(
+                camera_entry = camera_registry.get(
                     PluginType(camera_vendor), db_event.camera_name)
-                if camera:
+                if camera_entry and camera_entry.camera:
+                    camera = camera_entry.camera
                     # Convert DB event to MotionEvent
                     motion_event = MotionEvent(
                         event_id=str(db_event.id),
@@ -303,5 +271,5 @@ async def start_video_retrieval_tasks() -> None:
                     # Add a small delay between tasks to prevent overwhelming the system
                     await asyncio.sleep(0.1)
     except Exception as e:
-        LOGGER.error(f"Error starting video retrieval tasks: %s", e)
+        LOGGER.error("Error starting video retrieval tasks: %s", e)
         LOGGER.exception("Full traceback:")
