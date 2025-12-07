@@ -48,7 +48,7 @@ def mock_rekognition_client() -> Generator[Mock, None, None]:
 @pytest.fixture
 def mock_s3_service() -> Generator[Mock, None, None]:
     """Create a mock S3 service."""
-    with patch('aws.rekognition.rekognition_service.s3_service') as mock_service:
+    with patch('aws.rekognition.rekognition_service.S3_SERVICE') as mock_service:
         yield mock_service
 
 

@@ -1,8 +1,13 @@
+"""
+Camera Helpers Module
+
+This module provides helper functions for working with Ring cameras and devices.
+"""
 from typing import Any, Optional
-from connection_managers.ring_connection_manager import RingConnectionManager
-from utils.logging_config import get_logger
 
 from ring_doorbell import Ring, RingDoorBell
+
+from utils.logging_config import get_logger
 
 LOGGER = get_logger(__name__)
 
@@ -19,11 +24,12 @@ def find_device(
     Returns:
         The device object if found, None otherwise
     """
-    if connection_manager._ring is None:
+    # Access protected member to check and update Ring data
+    if connection_manager._ring is None:  # pylint: disable=protected-access
         return None
 
-    connection_manager._ring.update_data()
-    for device in connection_manager._ring.video_devices():
+    connection_manager._ring.update_data()  # pylint: disable=protected-access
+    for device in connection_manager._ring.video_devices():  # pylint: disable=protected-access
         if device.name == device_name:
             return device
     return None
@@ -40,7 +46,7 @@ async def get_video_device_object(ring: Ring,
                 return device
         return None
     except Exception as e:
-        logger.error("Failed to get video devices: %s", e)
+        LOGGER.error("Failed to get video devices: %s", e)
         raise
 
 
@@ -53,7 +59,7 @@ def get_camera_name(self: Any, camera_id: str) -> Optional[str]:
         The name of the camera if found, None otherwise
     """
     if not self._is_authenticated:
-        logger.info("Not authenticated, skipping get_camera_name")
+        LOGGER.info("Not authenticated, skipping get_camera_name")
         return None
 
     try:
@@ -64,11 +70,11 @@ def get_camera_name(self: Any, camera_id: str) -> Optional[str]:
         cameras = self._ring.video_devices()
         for camera in cameras:
             if str(camera.id) == str(camera_id):
-                logger.info("Found camera name: %s", camera.name)
+                LOGGER.info("Found camera name: %s", camera.name)
                 return str(camera.name)  # Explicitly convert to str
-        logger.warning("No camera found with ID %d", camera_id)
+        LOGGER.warning("No camera found with ID %d", camera_id)
         return None
     except Exception as e:
-        logger.error("Error retrieving camera name: %s", e)
-        logger.exception("Full traceback:")
+        LOGGER.error("Error retrieving camera name: %s", e)
+        LOGGER.exception("Full traceback:")
         return None

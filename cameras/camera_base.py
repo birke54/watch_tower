@@ -1,6 +1,13 @@
+"""
+Camera Base Module
+
+This module provides the base abstract class for all camera implementations,
+defining the interface that camera classes must implement.
+"""
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Dict, Any, List
+
 from connection_managers.plugin_type import PluginType
 from data_models.motion_event import MotionEvent
 from utils.logging_config import get_logger

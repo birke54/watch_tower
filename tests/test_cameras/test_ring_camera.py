@@ -228,8 +228,8 @@ class TestRingCamera:
         # Mock the config
         with patch('cameras.ring_camera.config') as mock_config:
             mock_config.event_recordings_bucket = 'test-bucket'
-            # Mock the S3 service
-            with patch('aws.s3.s3_service.s3_service') as mock_s3_service:
+            # Mock the S3 service - patch where it's imported, not where it's defined
+            with patch('cameras.ring_camera.S3_SERVICE') as mock_s3_service:
                 # Mock requests.get to return a successful response
                 with patch('cameras.ring_camera.requests.get') as mock_get:
                     mock_response = Mock()

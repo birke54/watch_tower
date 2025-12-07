@@ -1,5 +1,12 @@
+"""
+AWS S3 Service
+
+This module provides functionality for interacting with AWS S3 service,
+including file uploads, downloads, bucket operations, and object listing.
+"""
 import os
 from typing import List
+
 import boto3
 from botocore.exceptions import ClientError
 
@@ -10,11 +17,21 @@ from utils.aws_client_factory import AWSClientFactory
 
 LOGGER = get_logger(__name__)
 
+
 class S3Service:
+    """
+    Service for interacting with AWS S3 API.
+
+    This service provides methods for:
+    - Checking bucket existence
+    - Uploading and downloading files
+    - Listing objects with prefixes
+    - Managing S3 bucket operations
+    """
     def __init__(self) -> None:
         """Initialize the S3 service with AWS credentials."""
         self._validate_environment_variables()
-        self.client = self._initialize_s3_client()
+        self.client = S3Service._initialize_s3_client()
 
     def _validate_environment_variables(self) -> None:
         """
@@ -30,7 +47,8 @@ class S3Service:
         self.access_key = config.aws_access_key_id
         self.secret_key = config.aws_secret_access_key
 
-    def _initialize_s3_client(self) -> boto3.client:
+    @staticmethod
+    def _initialize_s3_client() -> boto3.client:
         """
         Initialize the S3 client with AWS credentials.
 
@@ -67,7 +85,7 @@ class S3Service:
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == '404':
-                LOGGER.warning(f"Bucket %s does not exist", bucket_name)
+                LOGGER.warning("Bucket %s does not exist", bucket_name)
                 raise S3ResourceNotFoundException(
                     f"Bucket {bucket_name} not found")
             LOGGER.error("Error checking bucket %s: %s", bucket_name, e)
@@ -189,4 +207,4 @@ class S3Service:
 
 
 # Create a singleton instance
-s3_service = S3Service()
+S3_SERVICE = S3Service()

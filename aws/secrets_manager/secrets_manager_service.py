@@ -1,6 +1,15 @@
+"""
+AWS Secrets Manager Service
+
+This module provides functionality for retrieving secrets from AWS Secrets Manager,
+specifically for database credentials and other sensitive configuration data.
+"""
 import json
+
 import boto3
-from aws.exceptions import ClientError, ConfigError, NoCredentialsError, SecretsManagerError
+from botocore.exceptions import ClientError
+
+from aws.exceptions import NoCredentialsError, SecretsManagerError
 from watch_tower.config import config
 
 
