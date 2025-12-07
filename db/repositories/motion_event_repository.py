@@ -1,5 +1,5 @@
 from typing import Optional, List
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from db.models import MotionEvent

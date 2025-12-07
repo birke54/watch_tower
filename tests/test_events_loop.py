@@ -3,6 +3,7 @@ from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone, timedelta
 from typing import List, Generator, Any
 
+from watch_tower.config import get_timezone
 from watch_tower.core.events_loop import poll_for_events, handle_camera_error
 from cameras.camera_base import CameraBase
 from connection_managers.plugin_type import PluginType
@@ -27,7 +28,7 @@ def mock_camera_registry() -> Generator[Mock, None, None]:
     with patch('watch_tower.core.events_loop.camera_registry') as mock:
         # Set last_polled to be older than motion_poll_interval
         camera_entry = Mock(
-            last_polled=datetime.now(timezone.utc) -
+            last_polled=datetime.now(get_timezone()) -
             timedelta(seconds=120),  # 2 minutes ago
             status=CameraStatus.ACTIVE
         )
@@ -35,6 +36,12 @@ def mock_camera_registry() -> Generator[Mock, None, None]:
             (PluginType.RING, "Test Camera"): camera_entry
         }
         mock.get_all_by_vendor.return_value = [Mock()]
+        
+        # Mock get() method to return the camera entry
+        def get_side_effect(plugin_type, camera_name):
+            return camera_entry
+        
+        mock.get.side_effect = get_side_effect
         
         # Mock update_last_polled to actually update the camera entry's last_polled
         def update_last_polled_side_effect(vendor, camera_name, polled_time):
@@ -59,7 +66,7 @@ async def test_poll_for_events_success(
     mock_camera_registry: Mock
 ) -> None:
     """Test successful event polling."""
-    current_time = datetime.now(timezone.utc)
+    current_time = datetime.now(get_timezone())
     new_events: List[Any] = []
 
     await poll_for_events(mock_camera, current_time, new_events)
@@ -79,7 +86,7 @@ async def test_poll_for_events_error(
     """Test error handling in event polling."""
     # Set up the error condition
     mock_camera.retrieve_motion_events.side_effect = Exception("Test error")
-    current_time = datetime.now(timezone.utc)
+    current_time = datetime.now(get_timezone())
     new_events: List[Any] = []
 
     # Ensure last_polled is old enough to trigger polling
@@ -130,7 +137,7 @@ async def test_poll_for_events_skip_recent_poll(
     mock_camera_registry: Mock
 ) -> None:
     """Test that polling is skipped if last poll was recent."""
-    current_time = datetime.now(timezone.utc)
+    current_time = datetime.now(get_timezone())
     new_events: List[Any] = []
 
     # Set last_polled to be very recent
