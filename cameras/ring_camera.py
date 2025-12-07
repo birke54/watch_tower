@@ -38,7 +38,7 @@ from watch_tower.registry.connection_manager_registry import (
     REGISTRY as connection_manager_registry
 )
 from utils.logging_config import get_logger
-from utils.video_converter import video_converter
+from utils.video_converter import VIDEO_CONVERTER
 
 try:
     from zoneinfo import ZoneInfo
