@@ -26,7 +26,7 @@ from watch_tower.registry.connection_manager_registry import (
     REGISTRY as connection_manager_registry
 )
 from utils.logging_config import get_logger
-from utils.video_converter import video_converter
+from utils.video_converter import VIDEO_CONVERTER
 
 try:
     from zoneinfo import ZoneInfo
@@ -147,9 +147,9 @@ class RingCamera(CameraBase):
                 temp_file.close()  # Close so S3 can read it
 
                 # If file is not already H.264, convert it to H.264 for Rekognition
-                if not video_converter.get_video_info(
+                if not VIDEO_CONVERTER.get_video_info(
                         temp_file_path).get('codec') == 'h264':
-                    h264_file_path, h264_is_temp = video_converter.convert_for_rekognition(
+                    h264_file_path, h264_is_temp = VIDEO_CONVERTER.convert_for_rekognition(
                         temp_file_path)
                 else:
                     h264_file_path = temp_file_path

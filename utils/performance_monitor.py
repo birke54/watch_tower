@@ -14,7 +14,7 @@ from datetime import datetime
 
 from utils.logging_config import get_logger
 
-logger = get_logger(__name__)
+LOGGER = get_logger(__name__)
 
 
 @dataclass
@@ -76,11 +76,18 @@ class PerformanceMonitor:
 
             # Log performance metrics
             if success:
-                logger.info(
-                    f"Operation '{metric.operation}' completed in {metric.duration:.3f}s")
+                LOGGER.info(
+                    "Operation '%s' completed in %.3fs",
+                    metric.operation,
+                    metric.duration
+                )
             else:
-                logger.error(
-                    f"Operation '{metric.operation}' failed after {metric.duration:.3f}s: {error}")
+                LOGGER.error(
+                    "Operation '%s' failed after %.3fs: %s",
+                    metric.operation,
+                    metric.duration,
+                    error
+                )
 
     def get_metrics(self, operation: Optional[str]
                     = None) -> Dict[str, PerformanceMetrics]:
@@ -115,7 +122,7 @@ class PerformanceMonitor:
 
 
 # Global performance monitor instance
-performance_monitor = PerformanceMonitor()
+PERFORMANCE_MONITOR = PerformanceMonitor()
 
 
 def monitor_performance(operation: str):
@@ -131,13 +138,13 @@ def monitor_performance(operation: str):
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            operation_id = performance_monitor.start_operation(operation)
+            operation_id = PERFORMANCE_MONITOR.start_operation(operation)
             try:
                 result = func(*args, **kwargs)
-                performance_monitor.end_operation(operation_id, success=True)
+                PERFORMANCE_MONITOR.end_operation(operation_id, success=True)
                 return result
             except Exception as e:
-                performance_monitor.end_operation(
+                PERFORMANCE_MONITOR.end_operation(
                     operation_id, success=False, error=str(e))
                 raise
         return wrapper
@@ -157,13 +164,13 @@ def monitor_async_performance(operation: str):
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            operation_id = performance_monitor.start_operation(operation)
+            operation_id = PERFORMANCE_MONITOR.start_operation(operation)
             try:
                 result = await func(*args, **kwargs)
-                performance_monitor.end_operation(operation_id, success=True)
+                PERFORMANCE_MONITOR.end_operation(operation_id, success=True)
                 return result
             except Exception as e:
-                performance_monitor.end_operation(
+                PERFORMANCE_MONITOR.end_operation(
                     operation_id, success=False, error=str(e))
                 raise
         return wrapper
@@ -182,20 +189,20 @@ def performance_context(operation: str, **metadata: Any):
     Yields:
         None
     """
-    operation_id = performance_monitor.start_operation(operation, **metadata)
+    operation_id = PERFORMANCE_MONITOR.start_operation(operation, **metadata)
     try:
         yield
-        performance_monitor.end_operation(operation_id, success=True)
+        PERFORMANCE_MONITOR.end_operation(operation_id, success=True)
     except Exception as e:
-        performance_monitor.end_operation(operation_id, success=False, error=str(e))
+        PERFORMANCE_MONITOR.end_operation(operation_id, success=False, error=str(e))
         raise
 
 
 def log_performance_summary() -> None:
     """Log a summary of performance metrics."""
-    metrics = performance_monitor.get_metrics()
+    metrics = PERFORMANCE_MONITOR.get_metrics()
     if not metrics:
-        logger.info("No performance metrics available")
+        LOGGER.info("No performance metrics available")
         return
 
     # Group by operation
@@ -205,7 +212,7 @@ def log_performance_summary() -> None:
             operation_stats[metric.operation] = []
         operation_stats[metric.operation].append(metric)
 
-    logger.info("Performance Summary:")
+    LOGGER.info("Performance Summary:")
     for operation, stats in operation_stats.items():
         durations = [s.duration for s in stats if s.duration is not None]
         if durations:
@@ -215,10 +222,12 @@ def log_performance_summary() -> None:
             success_count = sum(1 for s in stats if s.success)
             total_count = len(stats)
 
-            logger.info(
-                f"  {operation}: "
-                f"avg={avg_duration:.3f}s, "
-                f"min={min_duration:.3f}s, "
-                f"max={max_duration:.3f}s, "
-                f"success={success_count}/{total_count}"
+            LOGGER.info(
+                "  %s: avg=%.3fs, min=%.3fs, max=%.3fs, success=%s/%s",
+                operation,
+                avg_duration,
+                min_duration,
+                max_duration,
+                success_count,
+                total_count
             )

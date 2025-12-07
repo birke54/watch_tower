@@ -239,7 +239,7 @@ class TestRingCamera:
                     mock_get.return_value.__enter__.return_value = mock_response
 
                     # Mock video converter
-                    with patch('cameras.ring_camera.video_converter') as mock_converter:
+                    with patch('cameras.ring_camera.VIDEO_CONVERTER') as mock_converter:
                         mock_converter.get_video_info.return_value = {'codec': 'h264'}
                         # Mock the database session and repository
                         with patch('cameras.ring_camera.get_database_connection') as mock_get_db_conn, \

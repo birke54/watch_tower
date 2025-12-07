@@ -1,3 +1,10 @@
+"""
+Video conversion utilities for Watch Tower.
+
+This module provides functionality for converting video files to H.264 format
+using ffmpeg, optimized for AWS Rekognition and general use cases.
+"""
+import json
 import os
 import subprocess
 import tempfile
@@ -8,7 +15,7 @@ from utils.logging_config import get_logger
 from utils.error_handler import handle_errors
 from utils.performance_monitor import monitor_performance
 
-logger = get_logger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class VideoConverter:
@@ -26,7 +33,7 @@ class VideoConverter:
             raise RuntimeError(
                 "ffmpeg not found. Please install ffmpeg and ensure it's in your PATH.")
 
-        logger.debug(f"VideoConverter initialized with ffmpeg at: {self.ffmpeg_path}")
+        LOGGER.debug("VideoConverter initialized with ffmpeg at: %s", self.ffmpeg_path)
 
     def _find_ffmpeg(self) -> Optional[str]:
         """Find ffmpeg executable in system PATH."""
@@ -77,7 +84,6 @@ class VideoConverter:
 
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            import json
             info = json.loads(result.stdout)
 
             # Extract relevant information
@@ -101,18 +107,38 @@ class VideoConverter:
                     'codec': video_stream.get('codec_name'),
                     'width': int(video_stream.get('width', 0)),
                     'height': int(video_stream.get('height', 0)),
-                    'fps': eval(video_stream.get('r_frame_rate', '0/1')),
+                    'fps': self._parse_frame_rate(video_stream.get('r_frame_rate', '0/1')),
                     'pixel_format': video_stream.get('pix_fmt'),
                 })
 
             return video_info
 
         except subprocess.CalledProcessError as e:
-            logger.error(f"ffprobe failed: {e.stderr}")
-            raise RuntimeError(f"Failed to get video info: {e.stderr}")
+            LOGGER.error("ffprobe failed: %s", e.stderr)
+            raise RuntimeError(f"Failed to get video info: {e.stderr}") from e
         except (json.JSONDecodeError, FileNotFoundError) as e:
-            logger.error(f"Failed to parse ffprobe output: {e}")
-            raise RuntimeError("Failed to parse video information")
+            LOGGER.error("Failed to parse ffprobe output: %s", e)
+            raise RuntimeError("Failed to parse video information") from e
+
+    def _parse_frame_rate(self, frame_rate_str: str) -> float:
+        """
+        Parse frame rate string (e.g., "30/1") to float.
+
+        Args:
+            frame_rate_str: Frame rate string in format "numerator/denominator"
+
+        Returns:
+            Frame rate as float
+        """
+        try:
+            parts = frame_rate_str.split('/')
+            if len(parts) == 2:
+                numerator = float(parts[0])
+                denominator = float(parts[1])
+                return numerator / denominator if denominator != 0 else 0.0
+            return float(frame_rate_str)
+        except (ValueError, ZeroDivisionError):
+            return 0.0
 
     @monitor_performance("video_conversion")
     @handle_errors(RuntimeError, log_error=True, reraise=True)
@@ -154,7 +180,10 @@ class VideoConverter:
 
         # Get input video info
         input_info = self.get_video_info(input_path)
-        logger.debug(f"Converting video: {input_info.get('codec', 'unknown')} -> H.264")
+        LOGGER.debug(
+            "Converting video: %s -> H.264",
+            input_info.get('codec', 'unknown')
+        )
 
         # Determine output path
         is_temp_file = False
@@ -210,13 +239,13 @@ class VideoConverter:
 
         # Run conversion
         try:
-            logger.debug(f"Starting conversion: {' '.join(cmd)}")
-            logger.debug(f"Input file size: {os.path.getsize(input_path)} bytes")
-            logger.debug(f"Output path: {output_path}")
+            LOGGER.debug("Starting conversion: %s", ' '.join(cmd))
+            LOGGER.debug("Input file size: %s bytes", os.path.getsize(input_path))
+            LOGGER.debug("Output path: %s", output_path)
 
             # Use timeout and better subprocess handling
             # Don't capture stderr as FFmpeg writes progress there
-            result = subprocess.run(
+            subprocess.run(
                 cmd,
                 capture_output=False,  # Don't capture output to avoid hanging
                 text=True,
@@ -227,37 +256,45 @@ class VideoConverter:
             # Log conversion results
             if os.path.exists(output_path):
                 output_size = os.path.getsize(output_path)
-                logger.info(f"Conversion completed successfully: {output_path}")
-                logger.debug(f"Output file size: {output_size} bytes")
+                LOGGER.info("Conversion completed successfully: %s", output_path)
+                LOGGER.debug("Output file size: %s bytes", output_size)
             else:
-                logger.error("Conversion completed but output file not found")
+                LOGGER.error("Conversion completed but output file not found")
                 raise RuntimeError("Output file not created")
 
             return output_path, is_temp_file
 
         except subprocess.TimeoutExpired:
-            logger.error(
-                f"FFmpeg conversion timed out after {config.video.ffmpeg_timeout} seconds")
+            LOGGER.error(
+                "FFmpeg conversion timed out after %s seconds",
+                config.video.ffmpeg_timeout
+            )
             # Clean up temp file if conversion failed
             if is_temp_file and os.path.exists(output_path):
                 try:
                     os.remove(output_path)
                 except Exception as cleanup_error:
-                    logger.warning(
-                        f"Failed to cleanup temp file after timeout: {cleanup_error}")
+                    LOGGER.warning(
+                        "Failed to cleanup temp file after timeout: %s",
+                        cleanup_error
+                    )
             raise RuntimeError(
-                f"Video conversion timed out after {config.video.ffmpeg_timeout} seconds")
+                f"Video conversion timed out after {config.video.ffmpeg_timeout} seconds"
+            ) from None
         except subprocess.CalledProcessError as e:
-            logger.error(f"FFmpeg conversion failed with return code: {e.returncode}")
+            LOGGER.error("FFmpeg conversion failed with return code: %s", e.returncode)
             # Clean up temp file if conversion failed
             if is_temp_file and os.path.exists(output_path):
                 try:
                     os.remove(output_path)
                 except Exception as cleanup_error:
-                    logger.warning(
-                        f"Failed to cleanup temp file after conversion error: {cleanup_error}")
+                    LOGGER.warning(
+                        "Failed to cleanup temp file after conversion error: %s",
+                        cleanup_error
+                    )
             raise RuntimeError(
-                f"Video conversion failed with return code: {e.returncode}")
+                f"Video conversion failed with return code: {e.returncode}"
+            ) from e
 
     def convert_for_rekognition(self, input_path: str,
                                 output_path: Optional[str] = None) -> Tuple[str, bool]:
@@ -282,7 +319,8 @@ class VideoConverter:
             overwrite=True
         )
 
-    def cleanup_temp_file(self, file_path: str) -> None:
+    @staticmethod
+    def cleanup_temp_file(file_path: str) -> None:
         """
         Clean up a temporary file.
 
@@ -293,10 +331,10 @@ class VideoConverter:
             if os.path.exists(file_path) and file_path.startswith(
                     tempfile.gettempdir()):
                 os.remove(file_path)
-                logger.debug(f"Cleaned up temp file: {file_path}")
+                LOGGER.debug("Cleaned up temp file: %s", file_path)
         except Exception as e:
-            logger.warning(f"Failed to cleanup temp file {file_path}: {e}")
+            LOGGER.warning("Failed to cleanup temp file %s: %s", file_path, e)
 
 
 # Create a singleton instance
-video_converter = VideoConverter()
+VIDEO_CONVERTER = VideoConverter()
