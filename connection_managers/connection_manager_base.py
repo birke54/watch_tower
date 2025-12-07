@@ -1,3 +1,5 @@
+"""Base class for connection managers."""
+
 from abc import ABC, abstractmethod
 from typing import List, Optional, Any, Dict
 from connection_managers.plugin_type import PluginType
@@ -11,6 +13,7 @@ class ConnectionManagerBase(ABC):
 
     @property
     def plugin_type(self) -> PluginType:
+        """Get the plugin type for this connection manager."""
         if self._plugin_type is None:
             raise ValueError("Plugin type not set")
         return self._plugin_type

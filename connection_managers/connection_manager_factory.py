@@ -1,8 +1,11 @@
+"""Factory for creating connection manager instances."""
+
 from typing import Dict, Type
-from connection_managers.connection_manager_base import ConnectionManagerBase, PluginType
+
+from connection_managers.connection_manager_base import ConnectionManagerBase
 from connection_managers.plugin_type import PluginType
-from utils.logging_config import get_logger
 from connection_managers.ring_connection_manager import RingConnectionManager
+from utils.logging_config import get_logger
 
 # Configure Logger for this file
 LOGGER = get_logger(__name__)
