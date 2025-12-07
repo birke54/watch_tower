@@ -1,8 +1,11 @@
+"""Tests for video converter functionality."""
 import os
-import tempfile
-import pytest
 import subprocess
+import tempfile
 from unittest.mock import patch
+
+import pytest
+
 from utils.video_converter import VideoConverter
 
 
@@ -95,8 +98,8 @@ def test_get_video_info_ffprobe_failure(video_converter):
 
 def create_output_file(*args, **kwargs):
     output_path = args[0][-1]
-    with open(output_path, 'w') as f:
-        f.write('dummy video data')
+    with open(output_path, 'w', encoding='utf-8') as output_file:
+        output_file.write('dummy video data')
     return subprocess.CompletedProcess(args[0], 0)
 
 
@@ -105,13 +108,13 @@ def test_convert_to_h264_success(video_converter):
     with patch.object(video_converter, 'get_video_info') as mock_info:
         mock_info.return_value = {'codec': 'h264', 'width': 1920, 'height': 1080}
 
-        with patch('subprocess.run', side_effect=create_output_file) as mock_run:
+        with patch('subprocess.run', side_effect=create_output_file):
             with tempfile.NamedTemporaryFile(suffix='.mp4') as input_file:
                 with tempfile.NamedTemporaryFile(suffix='.mp4') as output_file:
                     result, is_temp = video_converter.convert_to_h264(
                         input_file.name, output_file.name, overwrite=True)
                     assert result == output_file.name
-                    assert is_temp == False
+                    assert not is_temp
 
 
 def test_convert_to_h264_file_not_found(video_converter):
@@ -154,7 +157,7 @@ def test_convert_to_h264_with_scaling(video_converter):
                     call_args = mock_run.call_args[0][0]
                     assert '-vf' in call_args
                     assert 'scale=1280:720' in ' '.join(call_args)
-                    assert is_temp == False
+                    assert not is_temp
 
 
 def test_convert_to_h264_without_audio(video_converter):
@@ -175,7 +178,7 @@ def test_convert_to_h264_without_audio(video_converter):
                     # Check that ffmpeg was called with -an flag
                     call_args = mock_run.call_args[0][0]
                     assert '-an' in call_args
-                    assert is_temp == False
+                    assert not is_temp
 
 
 def test_convert_to_h264_overwrite_existing(video_converter):
@@ -189,8 +192,8 @@ def test_convert_to_h264_overwrite_existing(video_converter):
             with tempfile.NamedTemporaryFile(suffix='.mp4') as input_file:
                 with tempfile.NamedTemporaryFile(suffix='.mp4') as output_file:
                     # Create the output file to simulate existing file
-                    with open(output_file.name, 'w') as f:
-                        f.write("existing content")
+                    with open(output_file.name, 'w', encoding='utf-8') as output_file_handle:
+                        output_file_handle.write("existing content")
 
                     result, is_temp = video_converter.convert_to_h264(
                         input_file.name,
@@ -198,7 +201,7 @@ def test_convert_to_h264_overwrite_existing(video_converter):
                         overwrite=True
                     )
                     assert result == output_file.name
-                    assert is_temp == False
+                    assert not is_temp
 
 
 def test_convert_to_h264_existing_file_no_overwrite(video_converter):
@@ -208,8 +211,8 @@ def test_convert_to_h264_existing_file_no_overwrite(video_converter):
         with tempfile.NamedTemporaryFile(suffix='.mp4') as input_file:
             with tempfile.NamedTemporaryFile(suffix='.mp4') as output_file:
                 # Create the output file to simulate existing file
-                with open(output_file.name, 'w') as f:
-                    f.write("existing content")
+                with open(output_file.name, 'w', encoding='utf-8') as output_file_handle:
+                    output_file_handle.write("existing content")
 
                 with pytest.raises(FileExistsError):
                     video_converter.convert_to_h264(
@@ -221,7 +224,7 @@ def test_convert_to_h264_with_temp_file(video_converter):
     with patch.object(video_converter, 'get_video_info') as mock_info:
         mock_info.return_value = {'codec': 'h264', 'width': 1920, 'height': 1080}
 
-        with patch('subprocess.run', side_effect=create_output_file) as mock_run:
+        with patch('subprocess.run', side_effect=create_output_file):
             with tempfile.NamedTemporaryFile(suffix='.mp4') as input_file:
                 result, is_temp = video_converter.convert_to_h264(input_file.name)
 
