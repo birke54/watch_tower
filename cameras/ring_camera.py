@@ -4,11 +4,20 @@ Ring Camera Module
 This module provides the Ring camera implementation, handling motion event
 retrieval, video download, and S3 upload for Ring doorbell devices.
 """
+"""
+Ring Camera Module
+
+This module provides the Ring camera implementation, handling motion event
+retrieval, video download, and S3 upload for Ring doorbell devices.
+"""
 import os
+import tempfile
+from datetime import datetime
 import tempfile
 from datetime import datetime
 from typing import Any, Dict, List, cast
 
+import requests
 import requests
 from ring_doorbell import RingDoorBell
 
@@ -21,12 +30,15 @@ from db.repositories.motion_event_repository import MotionEventRepository
 
 from aws.s3.s3_service import S3_SERVICE
 from watch_tower.config import config
+
+from aws.s3.s3_service import S3_SERVICE
+from watch_tower.config import config
 from watch_tower.exceptions import DatabaseEventNotFoundError
 from watch_tower.registry.connection_manager_registry import (
     REGISTRY as connection_manager_registry
 )
 from utils.logging_config import get_logger
-from utils.video_converter import VIDEO_CONVERTER
+from utils.video_converter import video_converter
 
 try:
     from zoneinfo import ZoneInfo
@@ -80,6 +92,7 @@ class RingCamera(CameraBase):
         try:
             connection_manager = cast(
                 RingConnectionManager, connection_manager_registry.get_connection_manager(PluginType.RING))
+            connection_manager._ring.update_data()  # pylint: disable=protected-access
             connection_manager._ring.update_data()  # pylint: disable=protected-access
 
             # Get more events to ensure we don't miss any within our time window
@@ -143,6 +156,9 @@ class RingCamera(CameraBase):
                 with requests.get(video_url, stream=True) as response:
                     response.raise_for_status()
                     for chunk in response.iter_content(chunk_size=8192):
+                with requests.get(video_url, stream=True) as response:
+                    response.raise_for_status()
+                    for chunk in response.iter_content(chunk_size=8192):
                         temp_file.write(chunk)
                 temp_file.close()  # Close so S3 can read it
 
@@ -157,6 +173,7 @@ class RingCamera(CameraBase):
 
                 # Upload to S3
                 S3_SERVICE.upload_file(h264_file_path, bucket_name, object_key)
+                S3_SERVICE.upload_file(h264_file_path, bucket_name, object_key)
             finally:
                 # Always clean up the temp files
                 if temp_file_path and os.path.exists(temp_file_path):
@@ -170,6 +187,7 @@ class RingCamera(CameraBase):
                 f"Error retrieving video URL for Ring event {event_id}: {e}")
 
         # Update the event in the database with the video URL
+        _, session_factory = get_database_connection()
         _, session_factory = get_database_connection()
         motion_event_repository = MotionEventRepository()
 
@@ -206,6 +224,10 @@ class RingCamera(CameraBase):
                 connection_manager_registry.get_connection_manager(PluginType.RING))
             # Access protected member to update Ring data
             connection_manager._ring.update_data()  # pylint: disable=protected-access
+                RingConnectionManager,
+                connection_manager_registry.get_connection_manager(PluginType.RING))
+            # Access protected member to update Ring data
+            connection_manager._ring.update_data()  # pylint: disable=protected-access
             device_properties = await self.get_properties()
             return device_properties.get("connection_status") == "online"
         except Exception as e:
@@ -225,9 +247,14 @@ class RingCamera(CameraBase):
                 connection_manager_registry.get_connection_manager(PluginType.RING))
             # Access protected member to update Ring data
             connection_manager._ring.update_data()  # pylint: disable=protected-access
+                RingConnectionManager,
+                connection_manager_registry.get_connection_manager(PluginType.RING))
+            # Access protected member to update Ring data
+            connection_manager._ring.update_data()  # pylint: disable=protected-access
 
             # Access all properties in a single try block
             name = self.device_object.name
+            device_id = self.device_object.id
             device_id = self.device_object.id
             motion_detection = self.device_object.motion_detection
             volume = self.device_object.volume
@@ -237,6 +264,7 @@ class RingCamera(CameraBase):
 
             return {
                 "name": name,
+                "id": device_id,
                 "id": device_id,
                 "motion_detection": motion_detection,
                 "volume": volume,
