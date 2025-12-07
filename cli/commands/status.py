@@ -20,10 +20,10 @@ from cli.utils import (
     handle_cli_error,
 )
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 # Initialize service
-service = WatchTowerService()
+SERVICE = WatchTowerService()
 
 
 @click.command()
@@ -35,10 +35,10 @@ def status_command(ctx: click.Context, format: str, detailed: bool) -> None:
     """Show comprehensive system status."""
     try:
         if ctx.obj.get('verbose'):
-            logger.debug("Getting comprehensive system status...")
+            LOGGER.debug("Getting comprehensive system status...")
 
         # Get business logic status
-        business_logic_status = service.get_status()
+        business_logic_status = SERVICE.get_status()
 
         # Validate configuration
         config_results = []
@@ -148,7 +148,7 @@ def status_command(ctx: click.Context, format: str, detailed: bool) -> None:
         }
 
         if ctx.obj.get('verbose'):
-            logger.debug(f"System status: {status_info}")
+            LOGGER.debug("System status: %s", status_info)
 
         if format == 'json':
             click.echo(json.dumps(status_info, indent=2))

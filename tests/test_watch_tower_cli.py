@@ -457,7 +457,7 @@ class TestCLICommands:
         assert result.exit_code == 0
         assert 'Watch Tower - Video Surveillance System CLI' in result.output
 
-    @patch('cli.commands.status.service')
+    @patch('cli.commands.status.SERVICE')
     def test_status_command_text_format(self, mock_service: Mock) -> None:
         """Test status command with text format."""
         mock_service.get_status.return_value = {
@@ -487,7 +487,7 @@ class TestCLICommands:
                         assert '✅ Passed: 4' in result.output
                         assert '✅ All systems operational' in result.output
 
-    @patch('cli.commands.status.service')
+    @patch('cli.commands.status.SERVICE')
     def test_status_command_json_format(self, mock_service: Mock) -> None:
         """Test status command with JSON format."""
         mock_service.get_status.return_value = {
@@ -517,7 +517,7 @@ class TestCLICommands:
                         assert output_data['business_logic']['running'] is False
                         assert output_data['configuration']['failed'] == 1
 
-    @patch('cli.commands.status.service')
+    @patch('cli.commands.status.SERVICE')
     def test_status_command_detailed(self, mock_service: Mock) -> None:
         """Test status command with detailed output."""
         mock_service.get_status.return_value = {
@@ -546,7 +546,7 @@ class TestCLICommands:
                         assert 'aws_region' in result.output
                         assert 'db_secret_name' in result.output
 
-    @patch('cli.commands.status.service')
+    @patch('cli.commands.status.SERVICE')
     def test_status_command_error(self, mock_service: Mock) -> None:
         """Test status command with service error."""
         mock_service.get_status.return_value = {

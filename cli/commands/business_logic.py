@@ -15,14 +15,14 @@ from cli.services import WatchTowerService
 from cli.utils import handle_cli_error
 from watch_tower.exceptions import DependencyError, ManagementAPIError
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 # Constants
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 8080
 
 # Initialize service
-service = WatchTowerService()
+SERVICE = WatchTowerService()
 
 
 @click.group()
@@ -40,13 +40,13 @@ def start(ctx: click.Context, host: str, port: int) -> None:
     """Start the business logic loop via HTTP API."""
     try:
         if ctx.obj.get('verbose'):
-            logger.debug(
-                f"Starting business logic loop via API at http://{host}:{port}/start...")
+            LOGGER.debug(
+                "Starting business logic loop via API at http://%s:%d/start...", host, port)
 
-        result = asyncio.run(service.start_business_logic_api(host, port))
+        result = asyncio.run(SERVICE.start_business_logic_api(host, port))
 
         if ctx.obj.get('verbose'):
-            logger.debug(f"Start API response: {result}")
+            LOGGER.debug("Start API response: %s", result)
 
         click.echo("✅ Business logic loop started successfully")
 
@@ -56,7 +56,7 @@ def start(ctx: click.Context, host: str, port: int) -> None:
     except ManagementAPIError as e:
         click.echo(f"❌ Failed to start business logic loop: {e}")
         if ctx.obj.get('verbose') and e.original_error:
-            logger.debug(f"Original error: {e.original_error}")
+            LOGGER.debug("Original error: %s", e.original_error)
         sys.exit(1)
     except Exception as e:
         handle_cli_error(e, f"Failed to start business logic loop: {e}", ctx)
@@ -72,13 +72,13 @@ def stop(ctx: click.Context, host: str, port: int) -> None:
     """Stop the business logic loop via HTTP API."""
     try:
         if ctx.obj.get('verbose'):
-            logger.debug(
-                f"Stopping business logic loop via API at http://{host}:{port}/stop...")
+            LOGGER.debug(
+                "Stopping business logic loop via API at http://%s:%d/stop...", host, port)
 
-        result = asyncio.run(service.stop_business_logic_api(host, port))
+        result = asyncio.run(SERVICE.stop_business_logic_api(host, port))
 
         if ctx.obj.get('verbose'):
-            logger.debug(f"Stop API response: {result}")
+            LOGGER.debug("Stop API response: %s", result)
 
         click.echo("✅ Business logic loop stopped successfully")
 
@@ -88,7 +88,7 @@ def stop(ctx: click.Context, host: str, port: int) -> None:
     except ManagementAPIError as e:
         click.echo(f"❌ Failed to stop business logic loop: {e}")
         if ctx.obj.get('verbose') and e.original_error:
-            logger.debug(f"Original error: {e.original_error}")
+            LOGGER.debug("Original error: %s", e.original_error)
         sys.exit(1)
     except Exception as e:
         handle_cli_error(e, f"Failed to stop business logic loop: {e}", ctx)

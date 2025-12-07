@@ -12,7 +12,7 @@ import click
 
 from cli.utils import format_confidence_score, format_timestamp, create_json_entry, handle_cli_error
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 # Constants
 DEFAULT_VISITOR_LOG_LIMIT = 10
@@ -33,17 +33,16 @@ def visitor_log_group():
 @click.pass_context
 def recent(ctx: click.Context, limit: int, format: str, show_more: bool) -> None:
     """Show recent visitor log entries."""
+    # Import here to avoid circular imports
+    from db.repositories.visitor_log_repository import VisitorLogRepository  # pylint: disable=import-outside-toplevel
+    from db.connection import get_database_connection  # pylint: disable=import-outside-toplevel
+
     try:
         if ctx.obj.get('verbose'):
-            logger.debug(
-                f"Fetching recent visitor log entries (limit: {limit})")
-
-        # Import here to avoid circular imports
-        from db.repositories.visitor_log_repository import VisitorLogRepository
-        from db.connection import get_database_connection
+            LOGGER.debug("Fetching recent visitor log entries (limit: %d)", limit)
 
         # Get database connection and repository
-        engine, session_factory = get_database_connection()
+        _, session_factory = get_database_connection()
         visitor_log_repo = VisitorLogRepository()
 
         # Create a session and fetch recent entries
@@ -52,7 +51,7 @@ def recent(ctx: click.Context, limit: int, format: str, show_more: bool) -> None
                 db_session, limit=limit)
 
         if ctx.obj.get('verbose'):
-            logger.debug(f"Retrieved {len(entries)} visitor log entries")
+            LOGGER.debug("Retrieved %d visitor log entries", len(entries))
 
         if format == 'json':
             # Convert entries to JSON-serializable format

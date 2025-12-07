@@ -11,7 +11,7 @@ import click
 
 from cli.commands import status_command, business_logic_group, visitor_log_group
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 @click.group()
@@ -31,7 +31,7 @@ def cli(ctx: click.Context, verbose: bool) -> None:
 
     if verbose:
         logging.getLogger().setLevel(logging.DEBUG)
-        logger.debug("Verbose mode enabled")
+        LOGGER.debug("Verbose mode enabled")
 
 
 # Add command groups to the main CLI
