@@ -68,7 +68,7 @@ def save_camera_states(camera_states: List[Dict[str, Any]]) -> None:
         conn.close()
         LOGGER.debug("Saved %d camera states to database", len(camera_states))
 
-    except Exception as e:
+    except (sqlite3.Error, OSError) as e:
         LOGGER.error("Failed to save camera states to database: %s", e)
         raise
 
@@ -104,7 +104,7 @@ def load_camera_states() -> List[Dict[str, Any]]:
         LOGGER.debug("Loaded %d camera states from database", len(camera_states))
         return camera_states
 
-    except Exception as e:
+    except (sqlite3.Error, OSError) as e:
         LOGGER.error("Failed to load camera states from database: %s", e)
         return []
 
@@ -134,7 +134,7 @@ def get_camera_state(camera_name: str, vendor: str) -> Dict[str, Any]:
             }
         return {}
 
-    except Exception as e:
+    except (sqlite3.Error, OSError) as e:
         LOGGER.error("Failed to get camera state for %s: %s", camera_name, e)
         return {}
 
@@ -155,6 +155,7 @@ def update_camera_status(camera_name: str, vendor: str, status: str) -> None:
         conn.close()
         LOGGER.debug("Updated camera %s status to %s", camera_name, status)
 
-    except Exception as e:
-        LOGGER.error("Failed to update camera status for %s: %s", camera_name, e)
+    except (sqlite3.Error, OSError) as e:
+        LOGGER.error(
+            "Failed to update camera status for %s: %s", camera_name, e)
         raise

@@ -275,6 +275,7 @@ good-names=e,
            k,
            ex,
            Run,
+           db,
            _
 
 # Include a hint for the correct naming format with invalid-name.

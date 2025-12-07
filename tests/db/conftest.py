@@ -4,7 +4,7 @@ from typing import Generator, Dict, Any, Union
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
-from db.models import Base, Vendors, MotionEvent, VisitorLogs
+from db.models import BASE, Vendors, MotionEvent, VisitorLogs
 from db.repositories.vendors_repository import VendorsRepository
 from db.repositories.motion_event_repository import MotionEventRepository
 from db.repositories.visitor_log_repository import VisitorLogRepository
@@ -21,9 +21,9 @@ def engine() -> Generator[Engine, None, None]:
         connect_args={"check_same_thread": False},
         poolclass=StaticPool
     )
-    Base.metadata.create_all(engine)
+    BASE.metadata.create_all(engine)
     yield engine
-    Base.metadata.drop_all(engine)
+    BASE.metadata.drop_all(engine)
 
 
 @pytest.fixture(scope="function")

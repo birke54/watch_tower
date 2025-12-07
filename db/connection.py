@@ -1,16 +1,16 @@
+"""Database connection management module."""
+
+from functools import lru_cache
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from aws.secrets_manager.secrets_manager_service import get_db_secret
 from db.exceptions import DatabaseConnectionError
-from functools import lru_cache
-from watch_tower.config import config
 from utils.logging_config import get_logger
+from watch_tower.config import config
 
-logger = get_logger(__name__)
-
-# Module-level variables for database connection
-engine = None
-SessionLocal = None
+LOGGER = get_logger(__name__)
 
 
 @lru_cache()
@@ -64,14 +64,18 @@ def get_session_factory():
         DatabaseConnectionError: If there are issues creating the session factory
     """
     try:
-        engine = get_engine()
+        db_engine = get_engine()
         return sessionmaker(
             autocommit=False,
             autoflush=False,
-            bind=engine
+            bind=db_engine
         )
+    except DatabaseConnectionError:
+        raise
     except Exception as e:
-        raise DatabaseConnectionError(f"Failed to create session factory: {str(e)}")
+        raise DatabaseConnectionError(
+            f"Failed to create session factory: {str(e)}"
+        ) from e
 
 
 def get_database_connection():
@@ -86,8 +90,12 @@ def get_database_connection():
         DatabaseConnectionError: If there are issues creating the database connection
     """
     try:
-        engine = get_engine()
+        db_engine = get_engine()
         session_factory = get_session_factory()
-        return engine, session_factory
+        return db_engine, session_factory
+    except DatabaseConnectionError:
+        raise
     except Exception as e:
-        raise DatabaseConnectionError(f"Failed to create database connection: {str(e)}")
+        raise DatabaseConnectionError(
+            f"Failed to create database connection: {str(e)}"
+        ) from e
