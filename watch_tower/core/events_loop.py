@@ -85,8 +85,30 @@ def insert_events_into_db(events: List[MotionEvent]) -> None:
         future_date = datetime(9998, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
 
         for event in events:
+            # Use event.event_id which contains the Ring event ID from the API
+            # When creating from Ring API via MotionEvent.from_ring_event(),
+            # event.event_id is set to the Ring event ID
+            ring_event_id = event.event_id
+            
+            if not ring_event_id:
+                LOGGER.warning(
+                    "Event missing Ring event ID, skipping: %s", event)
+                continue
+            
+            # Check if an event with this Ring event ID and camera name already exists
+            existing_events = session.query(motion_event_repository.model).filter(
+                motion_event_repository.model.event_metadata.op('->>')('event_id') == str(ring_event_id),
+                motion_event_repository.model.camera_name == event.camera_name
+            ).all()
+            
+            if existing_events:
+                # Event already exists, skip insertion
+                LOGGER.debug(
+                    "Skipping duplicate event: Ring event ID %s for camera %s already exists in database (found %d existing events)",
+                    ring_event_id, event.camera_name, len(existing_events))
+                continue
+            
             event_data: Dict[str, Any] = {
-                # Store enum value
                 "event_metadata": {"event_id": event.event_id, "camera_vendor": event.camera_vendor.value},
                 "camera_name": event.camera_name,
                 "motion_detected": event.timestamp,

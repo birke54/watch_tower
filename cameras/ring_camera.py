@@ -4,11 +4,20 @@ Ring Camera Module
 This module provides the Ring camera implementation, handling motion event
 retrieval, video download, and S3 upload for Ring doorbell devices.
 """
+"""
+Ring Camera Module
+
+This module provides the Ring camera implementation, handling motion event
+retrieval, video download, and S3 upload for Ring doorbell devices.
+"""
 import os
+import tempfile
+from datetime import datetime
 import tempfile
 from datetime import datetime
 from typing import Any, Dict, List, cast
 
+import requests
 import requests
 from ring_doorbell import RingDoorBell
 
@@ -18,6 +27,9 @@ from connection_managers.ring_connection_manager import RingConnectionManager
 from data_models.motion_event import MotionEvent
 from db.connection import get_database_connection
 from db.repositories.motion_event_repository import MotionEventRepository
+
+from aws.s3.s3_service import S3_SERVICE
+from watch_tower.config import config
 
 from aws.s3.s3_service import S3_SERVICE
 from watch_tower.config import config
