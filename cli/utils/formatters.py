@@ -4,9 +4,10 @@ CLI Formatting Utilities
 This module contains utility functions for formatting data for CLI output,
 including timestamps, confidence scores, and JSON entries.
 """
-
 from datetime import datetime
 from typing import Any, Dict, Optional
+
+import pytz
 
 # Constants
 DEFAULT_TIMEZONE = "America/Los_Angeles"
@@ -25,7 +26,6 @@ def format_timestamp(
     """Format timestamp for display."""
     if timestamp is None:
         return 'Unknown'
-    import pytz
     local_tz = pytz.timezone(timezone_name)
     local_time = timestamp.astimezone(local_tz)
     return local_time.isoformat(sep=' ')

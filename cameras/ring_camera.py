@@ -1,23 +1,33 @@
-# Configure logger for this module
-from datetime import datetime, timezone
+"""
+Ring Camera Module
+
+This module provides the Ring camera implementation, handling motion event
+retrieval, video download, and S3 upload for Ring doorbell devices.
+"""
 import os
+import tempfile
+from datetime import datetime
 from typing import Any, Dict, List, cast
 
-from ring_doorbell import RingDoorBell
 import requests
-import tempfile
+from ring_doorbell import RingDoorBell
 
 from cameras.camera_base import CameraBase
 from connection_managers.plugin_type import PluginType
 from connection_managers.ring_connection_manager import RingConnectionManager
-from watch_tower.registry.connection_manager_registry import REGISTRY as connection_manager_registry
 from data_models.motion_event import MotionEvent
 from db.connection import get_database_connection
 from db.repositories.motion_event_repository import MotionEventRepository
-from watch_tower.exceptions import DatabaseEventNotFoundError
-from utils.video_converter import video_converter
+
+from aws.s3.s3_service import S3_SERVICE
 from watch_tower.config import config
+from watch_tower.exceptions import DatabaseEventNotFoundError
+from watch_tower.registry.connection_manager_registry import (
+    REGISTRY as connection_manager_registry
+)
 from utils.logging_config import get_logger
+from utils.video_converter import VIDEO_CONVERTER
+
 try:
     from zoneinfo import ZoneInfo
 except ImportError:
@@ -70,7 +80,7 @@ class RingCamera(CameraBase):
         try:
             connection_manager = cast(
                 RingConnectionManager, connection_manager_registry.get_connection_manager(PluginType.RING))
-            connection_manager._ring.update_data()
+            connection_manager._ring.update_data()  # pylint: disable=protected-access
 
             # Get more events to ensure we don't miss any within our time window
             events = self.device_object.history(limit=5)
@@ -105,7 +115,6 @@ class RingCamera(CameraBase):
         Args:
             event: The motion event to retrieve video for
         """
-        from aws.s3.s3_service import s3_service
         # Get the event ID from the event metadata
         event_id = event.event_metadata.get("event_id")
         if not event_id:
@@ -131,23 +140,23 @@ class RingCamera(CameraBase):
             temp_file_path = temp_file.name
             try:
                 # Download the video to the temp file
-                with requests.get(video_url, stream=True) as r:
-                    r.raise_for_status()
-                    for chunk in r.iter_content(chunk_size=8192):
+                with requests.get(video_url, stream=True) as response:
+                    response.raise_for_status()
+                    for chunk in response.iter_content(chunk_size=8192):
                         temp_file.write(chunk)
                 temp_file.close()  # Close so S3 can read it
 
                 # If file is not already H.264, convert it to H.264 for Rekognition
-                if not video_converter.get_video_info(
+                if not VIDEO_CONVERTER.get_video_info(
                         temp_file_path).get('codec') == 'h264':
-                    h264_file_path, h264_is_temp = video_converter.convert_for_rekognition(
+                    h264_file_path, h264_is_temp = VIDEO_CONVERTER.convert_for_rekognition(
                         temp_file_path)
                 else:
                     h264_file_path = temp_file_path
                     h264_is_temp = False
 
                 # Upload to S3
-                s3_service.upload_file(h264_file_path, bucket_name, object_key)
+                S3_SERVICE.upload_file(h264_file_path, bucket_name, object_key)
             finally:
                 # Always clean up the temp files
                 if temp_file_path and os.path.exists(temp_file_path):
@@ -161,7 +170,7 @@ class RingCamera(CameraBase):
                 f"Error retrieving video URL for Ring event {event_id}: {e}")
 
         # Update the event in the database with the video URL
-        engine, session_factory = get_database_connection()
+        _, session_factory = get_database_connection()
         motion_event_repository = MotionEventRepository()
 
         with session_factory() as session:
@@ -191,11 +200,12 @@ class RingCamera(CameraBase):
         Returns:
             True if the camera is healthy and can be accessed, False otherwise
         """
-        from connection_managers.ring_connection_manager import RingConnectionManager
         try:
             connection_manager = cast(
-                RingConnectionManager, connection_manager_registry.get_connection_manager(PluginType.RING))
-            connection_manager._ring.update_data()
+                RingConnectionManager,
+                connection_manager_registry.get_connection_manager(PluginType.RING))
+            # Access protected member to update Ring data
+            connection_manager._ring.update_data()  # pylint: disable=protected-access
             device_properties = await self.get_properties()
             return device_properties.get("connection_status") == "online"
         except Exception as e:
@@ -209,15 +219,16 @@ class RingCamera(CameraBase):
         Returns:
             Dictionary containing camera properties and status
         """
-        from connection_managers.ring_connection_manager import RingConnectionManager
         try:
             connection_manager = cast(
-                RingConnectionManager, connection_manager_registry.get_connection_manager(PluginType.RING))
-            connection_manager._ring.update_data()
+                RingConnectionManager,
+                connection_manager_registry.get_connection_manager(PluginType.RING))
+            # Access protected member to update Ring data
+            connection_manager._ring.update_data()  # pylint: disable=protected-access
 
             # Access all properties in a single try block
             name = self.device_object.name
-            id = self.device_object.id
+            device_id = self.device_object.id
             motion_detection = self.device_object.motion_detection
             volume = self.device_object.volume
             battery_life = self.device_object.battery_life
@@ -226,7 +237,7 @@ class RingCamera(CameraBase):
 
             return {
                 "name": name,
-                "id": id,
+                "id": device_id,
                 "motion_detection": motion_detection,
                 "volume": volume,
                 "battery_life": battery_life,

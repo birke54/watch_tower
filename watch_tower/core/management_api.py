@@ -46,8 +46,8 @@ def create_management_app():
         aws_healthy = False
         aws_error = None
         try:
-            from aws.s3.s3_service import s3_service
-            s3_service.check_bucket_exists(config.event_recordings_bucket)
+            from aws.s3.s3_service import S3_SERVICE
+            S3_SERVICE.check_bucket_exists(config.event_recordings_bucket)
             aws_healthy = True
         except ConfigError as e:
             aws_error = f"AWS configuration error: {str(e)}"

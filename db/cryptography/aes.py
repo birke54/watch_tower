@@ -108,7 +108,7 @@ def encrypt(data: Union[str, bytes], key: bytes = None) -> str:
         salt = os.urandom(SALT_SIZE)
 
         # Generate a random IV
-        iv = os.urandom(IV_SIZE)
+        initialization_vector = os.urandom(IV_SIZE)
 
         # Derive the encryption key
         derived_key = derive_key(key, salt)
@@ -116,7 +116,7 @@ def encrypt(data: Union[str, bytes], key: bytes = None) -> str:
         # Create cipher
         cipher = Cipher(
             algorithms.AES(derived_key),
-            modes.CBC(iv),
+            modes.CBC(initialization_vector),
             backend=default_backend()
         )
         encryptor = cipher.encryptor()
@@ -129,7 +129,7 @@ def encrypt(data: Union[str, bytes], key: bytes = None) -> str:
         encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
 
         # Combine salt + IV + encrypted data and encode as base64
-        combined = salt + iv + encrypted_data
+        combined = salt + initialization_vector + encrypted_data
         return base64.b64encode(combined).decode('utf-8')
 
     except Exception as e:
@@ -187,7 +187,7 @@ def decrypt(data: str, key: bytes = None) -> str:
 
         # Extract salt, IV, and encrypted data
         salt = combined[:SALT_SIZE]
-        iv = combined[SALT_SIZE:SALT_SIZE + IV_SIZE]
+        initialization_vector = combined[SALT_SIZE:SALT_SIZE + IV_SIZE]
         encrypted_data = combined[SALT_SIZE + IV_SIZE:]
 
         # Check if encrypted data length is a multiple of block size
@@ -202,7 +202,7 @@ def decrypt(data: str, key: bytes = None) -> str:
         # Create cipher
         cipher = Cipher(
             algorithms.AES(derived_key),
-            modes.CBC(iv),
+            modes.CBC(initialization_vector),
             backend=default_backend()
         )
         decryptor = cipher.decryptor()

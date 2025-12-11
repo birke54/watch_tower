@@ -11,7 +11,7 @@ from typing import Any, Dict
 
 import click
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 def create_validation_result(status: str, field: str,
@@ -37,10 +37,10 @@ def create_error_status_response(error_message: str) -> Dict[str, Any]:
     }
 
 
-def handle_cli_error(error: Exception, error_msg: str, ctx: click.Context) -> None:
+def handle_cli_error(_error: Exception, error_msg: str, ctx: click.Context) -> None:
     """Handle CLI errors consistently."""
-    logger.error(error_msg)
+    LOGGER.error(error_msg)
     if ctx.obj.get('verbose'):
-        logger.exception("Full traceback:")
+        LOGGER.exception("Full traceback:")
     click.echo(f"❌ {error_msg}")
     sys.exit(1)

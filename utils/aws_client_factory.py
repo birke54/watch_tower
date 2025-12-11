@@ -5,15 +5,16 @@ This module provides a centralized factory for creating AWS clients,
 reducing code duplication across S3 and Rekognition services.
 """
 
-import boto3
 from typing import Any, Optional
+
+import boto3
 from botocore.exceptions import ClientError
 
 from watch_tower.config import config
 from utils.logging_config import get_logger
 from utils.error_handler import handle_errors
 
-logger = get_logger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class AWSClientFactory:
@@ -22,9 +23,9 @@ class AWSClientFactory:
     @staticmethod
     @handle_errors(ClientError, log_error=True, reraise=True)
     def create_client(
-        service_name: str,
-        region_name: Optional[str] = None,
-        **kwargs: Any
+            service_name: str,
+            region_name: Optional[str] = None,
+            **kwargs: Any
     ) -> boto3.client:
         """
         Create an AWS client with consistent configuration.
@@ -50,7 +51,7 @@ class AWSClientFactory:
             **kwargs
         }
 
-        logger.debug(f"Creating AWS {service_name} client for region {region}")
+        LOGGER.debug("Creating AWS %s client for region %s", service_name, region)
         return boto3.client(**client_config)
 
     @staticmethod
@@ -70,9 +71,9 @@ class AWSClientFactory:
 
 
 def handle_aws_error(
-    error: ClientError,
-    operation: str,
-    resource: str = ""
+        error: ClientError,
+        operation: str,
+        resource: str = ""
 ) -> None:
     """
     Handle AWS errors consistently.
@@ -88,8 +89,12 @@ def handle_aws_error(
     error_code = error.response['Error']['Code']
     error_message = error.response['Error']['Message']
 
-    logger.error(
-        f"AWS {operation} failed for {resource}: {error_code} - {error_message}"
+    LOGGER.error(
+        "AWS %s failed for %s: %s - %s",
+        operation,
+        resource,
+        error_code,
+        error_message
     )
 
     # Re-raise with enhanced context

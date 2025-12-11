@@ -2,13 +2,14 @@
 DB models package initialization.
 """
 
-from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, Integer, String, Enum, JSON, DateTime, func, Index, Float, LargeBinary
 import enum
+
+from sqlalchemy import Column, DateTime, Enum, Float, Index, Integer, JSON, LargeBinary, String, func
+from sqlalchemy.orm import declarative_base
 
 from connection_managers.plugin_type import PluginType
 
-Base = declarative_base()
+BASE = declarative_base()
 
 
 class VendorStatus(enum.Enum):
@@ -17,7 +18,9 @@ class VendorStatus(enum.Enum):
     INACTIVE = 2
 
 
-class Vendors(Base):
+class Vendors(BASE):
+    """Database model for vendor information and authentication."""
+
     __tablename__ = 'vendors'
 
     vendor_id = Column(Integer, primary_key=True)
@@ -41,7 +44,8 @@ class Vendors(Base):
         nullable=False)
 
 
-class MotionEvent(Base):
+class MotionEvent(BASE):
+    """Database model for motion events from camera systems."""
     __tablename__ = 'motion_events'
 
     id = Column(Integer, primary_key=True)
@@ -70,7 +74,8 @@ class MotionEvent(Base):
     )
 
 
-class VisitorLogs(Base):
+class VisitorLogs(BASE):
+    """Database model for visitor log entries."""
     __tablename__ = 'visitor_logs'
 
     visitor_log_id = Column(Integer, primary_key=True)

@@ -1,13 +1,15 @@
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timedelta
+"""Tests for RingConnectionManager."""
 import json
+from datetime import datetime, timedelta
 from typing import Generator, Dict, Optional, List, cast
+from unittest.mock import Mock, patch, MagicMock
+
+import pytest
+from ring_doorbell import Ring, Auth, AuthenticationError, Requires2FAError, RingDoorBell
 
 from connection_managers.ring_connection_manager import RingConnectionManager
 from connection_managers.plugin_type import PluginType
 from watch_tower.registry.connection_manager_registry import VendorStatus as RegistryVendorStatus
-from ring_doorbell import Ring, Auth, AuthenticationError, Requires2FAError, RingDoorBell
 
 
 @pytest.fixture
@@ -104,13 +106,13 @@ class TestRingConnectionManager:
 
     @pytest.mark.asyncio
     async def test_login_success_with_existing_token(
-        self,
-        ring_connection_manager: RingConnectionManager,
-        mock_vendor: Mock,
-        mock_auth: Mock,
-        mock_ring: Mock,
-        mock_db_connection: Mock,
-        mock_registry: Mock
+            self,
+            ring_connection_manager: RingConnectionManager,
+            mock_vendor: Mock,
+            mock_auth: Mock,
+            mock_ring: Mock,
+            mock_db_connection: Mock,
+            mock_registry: Mock
     ) -> None:
         """Test successful login with existing valid token."""
         # Setup
@@ -137,13 +139,13 @@ class TestRingConnectionManager:
 
     @pytest.mark.asyncio
     async def test_login_success_with_credentials(
-        self,
-        ring_connection_manager: RingConnectionManager,
-        mock_vendor: Mock,
-        mock_auth: Mock,
-        mock_ring: Mock,
-        mock_db_connection: Mock,
-        mock_registry: Mock
+            self,
+            ring_connection_manager: RingConnectionManager,
+            mock_vendor: Mock,
+            mock_auth: Mock,
+            mock_ring: Mock,
+            mock_db_connection: Mock,
+            mock_registry: Mock
     ) -> None:
         """Test successful login with credentials when no valid token exists."""
         # Setup
@@ -168,13 +170,13 @@ class TestRingConnectionManager:
 
     @pytest.mark.asyncio
     async def test_login_with_2fa(
-        self,
-        ring_connection_manager: RingConnectionManager,
-        mock_vendor: Mock,
-        mock_auth: Mock,
-        mock_ring: Mock,
-        mock_db_connection: Mock,
-        mock_registry: Mock
+            self,
+            ring_connection_manager: RingConnectionManager,
+            mock_vendor: Mock,
+            mock_auth: Mock,
+            mock_ring: Mock,
+            mock_db_connection: Mock,
+            mock_registry: Mock
     ) -> None:
         """Test login with 2FA requirement."""
         # Setup
@@ -198,11 +200,11 @@ class TestRingConnectionManager:
 
     @pytest.mark.asyncio
     async def test_login_failure(
-        self,
-        ring_connection_manager: RingConnectionManager,
-        mock_vendor: Mock,
-        mock_auth: Mock,
-        mock_db_connection: Mock
+            self,
+            ring_connection_manager: RingConnectionManager,
+            mock_vendor: Mock,
+            mock_auth: Mock,
+            mock_db_connection: Mock
     ) -> None:
         """Test login failure."""
         # Setup
@@ -220,9 +222,9 @@ class TestRingConnectionManager:
 
     @pytest.mark.asyncio
     async def test_logout(
-        self,
-        ring_connection_manager: RingConnectionManager,
-        mock_ring: Mock
+            self,
+            ring_connection_manager: RingConnectionManager,
+            mock_ring: Mock
     ) -> None:
         """Test successful logout."""
         # Setup
@@ -240,9 +242,9 @@ class TestRingConnectionManager:
         assert not ring_connection_manager._is_authenticated
 
     def test_is_healthy(
-        self,
-        ring_connection_manager: RingConnectionManager,
-        mock_ring: Mock
+            self,
+            ring_connection_manager: RingConnectionManager,
+            mock_ring: Mock
     ) -> None:
         """Test health check."""
         # Setup
@@ -258,9 +260,9 @@ class TestRingConnectionManager:
 
     @pytest.mark.asyncio
     async def test_get_cameras_success(
-        self,
-        ring_connection_manager: RingConnectionManager,
-        mock_ring: Mock
+            self,
+            ring_connection_manager: RingConnectionManager,
+            mock_ring: Mock
     ) -> Optional[List[RingDoorBell]]:
         """Test successful camera retrieval."""
         # Setup
@@ -280,8 +282,8 @@ class TestRingConnectionManager:
 
     @pytest.mark.asyncio
     async def test_get_cameras_not_authenticated(
-        self,
-        ring_connection_manager: RingConnectionManager
+            self,
+            ring_connection_manager: RingConnectionManager
     ) -> None:
         """Test camera retrieval when not authenticated."""
         # Setup
@@ -294,11 +296,11 @@ class TestRingConnectionManager:
         assert result is None
 
     def test_token_updated(
-        self,
-        ring_connection_manager: RingConnectionManager,
-        mock_vendor_repository: Mock,
-        mock_db_connection: Mock,
-        mock_registry: Mock
+            self,
+            ring_connection_manager: RingConnectionManager,
+            mock_vendor_repository: Mock,
+            mock_db_connection: Mock,
+            mock_registry: Mock
     ) -> None:
         """Test token update callback."""
         # Setup
@@ -306,7 +308,6 @@ class TestRingConnectionManager:
             'expires_at': (datetime.now() + timedelta(hours=1)).timestamp()
         }
         vendor_id = 1
-        mock_session = Mock()
 
         # Execute
         ring_connection_manager.token_updated(token, vendor_id)

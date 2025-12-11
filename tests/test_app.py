@@ -1,5 +1,7 @@
+"""Tests for the main application entry point."""
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock, Mock
 
 from app import main
 
@@ -11,10 +13,10 @@ class TestApp:
     @patch('app.bootstrap')
     @patch('app._run_main_application_loop')
     def test_main_success(
-        self,
-        mock_run_main_loop: AsyncMock,
-        mock_bootstrap: AsyncMock,
-        mock_get_event_loop
+            self,
+            mock_run_main_loop: AsyncMock,
+            mock_bootstrap: AsyncMock,
+            mock_get_event_loop
     ) -> None:
         """Test successful application startup."""
         # Setup
@@ -35,9 +37,9 @@ class TestApp:
     @patch('app.asyncio.get_event_loop')
     @patch('app.bootstrap')
     def test_main_bootstrap_failure(
-        self,
-        mock_bootstrap: AsyncMock,
-        mock_get_event_loop
+            self,
+            mock_bootstrap: AsyncMock,
+            mock_get_event_loop
     ) -> None:
         """Test application startup with bootstrap failure."""
         # Setup

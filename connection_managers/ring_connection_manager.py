@@ -1,21 +1,26 @@
+"""Ring connection manager for handling authentication and session management."""
+
 import json
+from datetime import datetime
 from typing import Any, Dict, Optional, Sequence
 
-from watch_tower.exceptions import ConnectionManagerError
-from watch_tower.registry.connection_manager_registry import REGISTRY as connection_manager_registry, VendorStatus as RegistryVendorStatus
-from connection_managers.plugin_type import PluginType
-import logging
-from ring_doorbell import Ring, Auth, Requires2FAError, RingDoorBell
-from db.connection import get_database_connection
-from db.models import VendorStatus as DBVendorStatus
-from db.repositories.vendors_repository import VendorsRepository
-from datetime import datetime
-from db.cryptography.aes import decrypt
+from ring_doorbell import Auth, Ring, Requires2FAError, RingDoorBell
 
 from connection_managers.connection_manager_base import ConnectionManagerBase
+from connection_managers.plugin_type import PluginType
+from db.connection import get_database_connection
+from db.cryptography.aes import decrypt
+from db.models import VendorStatus as DBVendorStatus
+from db.repositories.vendors_repository import VendorsRepository
+from utils.logging_config import get_logger
+from watch_tower.exceptions import ConnectionManagerError
+from watch_tower.registry.connection_manager_registry import (
+    REGISTRY as connection_manager_registry,
+    VendorStatus as RegistryVendorStatus,
+)
 
 # Configure logger for this module
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class RingConnectionManager(ConnectionManagerBase):
@@ -49,7 +54,7 @@ class RingConnectionManager(ConnectionManagerBase):
 
         LOGGER.info("Attempting to login with database token")
         try:
-            engine, session_factory = get_database_connection()
+            _, session_factory = get_database_connection()
             with session_factory() as session:
                 vendor = self._vendor_repository.get_by_field(
                     session, 'plugin_type', self._plugin_type)
@@ -60,25 +65,34 @@ class RingConnectionManager(ConnectionManagerBase):
                         return
                 except Exception as e:
                     LOGGER.error(
-                        "Failed to authenticate with existing token: %s\n Moving on to credential-based authentication", e)
+                        "Failed to authenticate with existing token: %s\n "
+                        "Moving on to credential-based authentication", e)
 
                 # Fall back to credential-based authentication
                 try:
                     if await self._authenticate_with_credentials(vendor):
-                        # Update vendor status to active after successful authentication
+                        # Update vendor status to active after successful auth
                         self._vendor_repository.update_status(
                             session, vendor.vendor_id, DBVendorStatus.ACTIVE)
                         LOGGER.info(
-                            "Updated vendor status to active for %r", self._plugin_type)
+                            "Updated vendor status to active for %r",
+                            self._plugin_type)
                         return
                 except Exception as e:
                     LOGGER.error(
-                        "Failed to authenticate with credentials: %s\n Moving on to new authentication", e)
+                        "Failed to authenticate with credentials: %s\n "
+                        "Moving on to new authentication", e)
 
+            raise ConnectionManagerError(
+                "Failed to authenticate with Ring: all authentication methods failed"
+            )
+        except ConnectionManagerError:
             raise
         except Exception as e:
             LOGGER.error("Failed to authenticate with Ring: %s", e)
-            raise ConnectionManagerError(f"Failed to authenticate with Ring: {str(e)}")
+            raise ConnectionManagerError(
+                f"Failed to authenticate with Ring: {str(e)}"
+            ) from e
 
     async def logout(self) -> bool:
         """
@@ -106,7 +120,7 @@ class RingConnectionManager(ConnectionManagerBase):
                 return False
             self._ring.update_data()
             return True
-        except Exception as e:
+        except Exception:
             return False
 
     async def get_cameras(self) -> Optional[Sequence[RingDoorBell]]:
@@ -124,11 +138,12 @@ class RingConnectionManager(ConnectionManagerBase):
             self._ring.update_data()
             cameras = self._ring.video_devices()
             if cameras:
-                LOGGER.info("Successfully retrieved %d cameras: %r", len(cameras), cameras)
+                LOGGER.info(
+                    "Successfully retrieved %d cameras: %r",
+                    len(cameras), cameras)
                 return cameras
-            else:
-                LOGGER.info("No cameras found in response")
-                return []
+            LOGGER.info("No cameras found in response")
+            return []
         except Exception as e:
             LOGGER.error("Error retrieving cameras: %s", e)
             LOGGER.exception("Full traceback:")
@@ -138,9 +153,11 @@ class RingConnectionManager(ConnectionManagerBase):
                       vendor_id: Optional[int] = None) -> None:
         """Callback for when token is updated."""
         if vendor_id is None:
-            LOGGER.error("token_updated called without vendor_id - token may not be saved correctly")
+            LOGGER.error(
+                "token_updated called without vendor_id - "
+                "token may not be saved correctly")
             # Try to get vendor_id from database
-            engine, session_factory = get_database_connection()
+            _, session_factory = get_database_connection()
             with session_factory() as session:
                 vendor = self._vendor_repository.get_by_field(
                     session, 'plugin_type', self._plugin_type)
@@ -149,24 +166,28 @@ class RingConnectionManager(ConnectionManagerBase):
                 else:
                     LOGGER.error("Could not find vendor to update token")
                     return
-        
+
         expire_dt = datetime.fromtimestamp(token['expires_at'])
         # Update in-memory registry
-        connection_manager_registry.connection_managers[self._plugin_type]['token'] = token
-        connection_manager_registry.connection_managers[self._plugin_type]['expires_at'] = expire_dt
+        registry_entry = connection_manager_registry.connection_managers[
+            self._plugin_type]
+        registry_entry['token'] = token
+        registry_entry['expires_at'] = expire_dt
 
         # Update database
-        engine, session_factory = get_database_connection()
+        _, session_factory = get_database_connection()
         with session_factory() as session:
             self._vendor_repository.update_token(
                 session,
                 vendor_id,
                 json.dumps(token),
-                expire_dt  # ✅ Pass datetime object, not string
+                expire_dt  # Pass datetime object, not string
             )
-            LOGGER.info("Token updated in database for vendor_id: %d", vendor_id)
+            LOGGER.info(
+                "Token updated in database for vendor_id: %d", vendor_id)
 
-    def otp_callback(self) -> str:
+    @staticmethod
+    def otp_callback() -> str:
         """
         Callback for 2FA code input. Prompts the user for a 2FA code.
         Returns the code as a string.
@@ -180,7 +201,7 @@ class RingConnectionManager(ConnectionManagerBase):
 
     async def _authenticate_with_existing_token(self) -> bool:
         """Authenticate using an existing token from the database."""
-        engine, session_factory = get_database_connection()
+        _, session_factory = get_database_connection()
         with session_factory() as session:
             vendor = self._vendor_repository.get_by_field(
                 session, 'plugin_type', self._plugin_type)
@@ -195,16 +216,17 @@ class RingConnectionManager(ConnectionManagerBase):
                     token_str = vendor.token.decode('utf-8')
                 token = json.loads(token_str)
                 LOGGER.info(
-                    "Token expiration: %s, Current time: %s", token['expires_at'], datetime.now().timestamp())
+                    "Token expiration: %s, Current time: %s",
+                    token['expires_at'], datetime.now().timestamp())
                 if token:
                     # Create a lambda that captures vendor_id for the callback
-                    def token_callback(token): 
+                    def token_callback(token):
                         return self.token_updated(token, vendor.vendor_id)
-                    
+
                     self._auth = Auth(
                         self._user_agent,
                         token,
-                        token_callback  # ✅ Use lambda with vendor_id
+                        token_callback  # Use lambda with vendor_id
                     )
                     self._ring = Ring(self._auth)
                     LOGGER.info("Created Ring object: %r", self._ring)
@@ -213,15 +235,18 @@ class RingConnectionManager(ConnectionManagerBase):
                     self._is_authenticated = True
 
                     # Update in-memory registry
-                    connection_manager_registry.connection_managers[self._plugin_type]['status'] = RegistryVendorStatus.ACTIVE
-                    connection_manager_registry.connection_managers[self._plugin_type]['token'] = token
-                    connection_manager_registry.connection_managers[self._plugin_type]['expires_at'] = datetime.fromtimestamp(
+                    registry_entry = (
+                        connection_manager_registry.connection_managers[
+                            self._plugin_type])
+                    registry_entry['status'] = RegistryVendorStatus.ACTIVE
+                    registry_entry['token'] = token
+                    registry_entry['expires_at'] = datetime.fromtimestamp(
                         token['expires_at'])
 
-                    LOGGER.info("Successfully connected to Ring using database token")
+                    LOGGER.info(
+                        "Successfully connected to Ring using database token")
                     return True
-                else:
-                    LOGGER.info("Existing token not found")
+                LOGGER.info("Existing token not found")
             else:
                 LOGGER.info("No token found in database")
         return False
@@ -229,12 +254,15 @@ class RingConnectionManager(ConnectionManagerBase):
     async def _authenticate_with_credentials(self, vendor: Any) -> bool:
         """Authenticate using stored credentials."""
         LOGGER.info(
-            "No valid or expired token found in database, performing new authentication")
+            "No valid or expired token found in database, "
+            "performing new authentication")
         username = vendor.username
         password = decrypt(vendor.password_enc)
         self._auth = self.perform_auth(username, password, vendor.vendor_id)
         self._ring = Ring(self._auth)
-        connection_manager_registry.connection_managers[self._plugin_type]['status'] = RegistryVendorStatus.ACTIVE
+        registry_entry = connection_manager_registry.connection_managers[
+            self._plugin_type]
+        registry_entry['status'] = RegistryVendorStatus.ACTIVE
         self._is_authenticated = True
         return True
 
@@ -246,7 +274,9 @@ class RingConnectionManager(ConnectionManagerBase):
         """
         try:
             # Create a lambda that captures vendor_id for the callback
-            def token_callback(token): return self.token_updated(token, vendor_id)
+            def token_callback(token):
+                return self.token_updated(token, vendor_id)
+
             auth = Auth(self._user_agent, None, token_callback)
             try:
                 auth.fetch_token(username, password)
@@ -257,4 +287,6 @@ class RingConnectionManager(ConnectionManagerBase):
             return auth
         except Exception as e:
             LOGGER.error("Authentication failed: %s", e)
-            raise
+            raise ConnectionManagerError(
+                f"Authentication failed: {str(e)}"
+            ) from e

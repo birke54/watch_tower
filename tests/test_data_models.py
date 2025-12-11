@@ -1,8 +1,10 @@
-import pytest
+"""Tests for data models."""
 from datetime import datetime, timezone
 
-from data_models.motion_event import MotionEvent
+import pytest
+
 from connection_managers.plugin_type import PluginType
+from data_models.motion_event import MotionEvent
 
 
 class TestMotionEvent:

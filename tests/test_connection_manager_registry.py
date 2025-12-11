@@ -1,6 +1,8 @@
-import pytest
-from unittest.mock import Mock
+"""Tests for the ConnectionManagerRegistry class."""
 from datetime import datetime, timezone, timedelta
+from unittest.mock import Mock
+
+import pytest
 
 from watch_tower.registry.connection_manager_registry import ConnectionManagerRegistry, VendorStatus
 from connection_managers.plugin_type import PluginType
@@ -32,9 +34,10 @@ class TestConnectionManagerRegistry:
         registry2 = ConnectionManagerRegistry()
         assert registry1 is registry2
 
-    def test_register_connection_manager(self,
-                                         registry: ConnectionManagerRegistry,
-                                         mock_connection_manager: Mock) -> None:
+    def test_register_connection_manager(
+            self,
+            registry: ConnectionManagerRegistry,
+            mock_connection_manager: Mock) -> None:
         """Test registering a connection manager."""
         registry.register_connection_manager(PluginType.RING, mock_connection_manager)
 
@@ -76,9 +79,10 @@ class TestConnectionManagerRegistry:
         with pytest.raises(KeyError):
             registry.get_connection_manager(PluginType.RING)
 
-    def test_get_all_connection_managers(self,
-                                         registry: ConnectionManagerRegistry,
-                                         mock_connection_manager: Mock) -> None:
+    def test_get_all_connection_managers(
+            self,
+            registry: ConnectionManagerRegistry,
+            mock_connection_manager: Mock) -> None:
         """Test retrieving all connection managers."""
         # Register managers for different plugin types
         registry.register_connection_manager(PluginType.RING, mock_connection_manager)
@@ -96,9 +100,10 @@ class TestConnectionManagerRegistry:
         # Should be the first manager we registered (not overwritten)
         assert managers[0]['connection_manager'] == mock_connection_manager
 
-    def test_connection_manager_status(self,
-                                       registry: ConnectionManagerRegistry,
-                                       mock_connection_manager: Mock) -> None:
+    def test_connection_manager_status(
+            self,
+            registry: ConnectionManagerRegistry,
+            mock_connection_manager: Mock) -> None:
         """Test connection manager status tracking."""
         registry.register_connection_manager(PluginType.RING, mock_connection_manager)
 
@@ -111,9 +116,10 @@ class TestConnectionManagerRegistry:
         # Verify updated status
         assert registry.connection_managers[PluginType.RING]['status'] == VendorStatus.ACTIVE
 
-    def test_connection_manager_token(self,
-                                      registry: ConnectionManagerRegistry,
-                                      mock_connection_manager: Mock) -> None:
+    def test_connection_manager_token(
+            self,
+            registry: ConnectionManagerRegistry,
+            mock_connection_manager: Mock) -> None:
         """Test connection manager token tracking."""
         registry.register_connection_manager(PluginType.RING, mock_connection_manager)
 

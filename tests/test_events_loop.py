@@ -1,11 +1,13 @@
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
+"""Tests for the events loop."""
 from datetime import datetime, timezone, timedelta
-from typing import List, Generator, Any
+from typing import Any, Generator, List
+from unittest.mock import AsyncMock, Mock, patch
 
-from watch_tower.core.events_loop import poll_for_events, handle_camera_error
+import pytest
+
 from cameras.camera_base import CameraBase
 from connection_managers.plugin_type import PluginType
+from watch_tower.core.events_loop import handle_camera_error, poll_for_events
 from watch_tower.registry.camera_registry import CameraStatus
 from watch_tower.registry.connection_manager_registry import VendorStatus
 
@@ -35,11 +37,11 @@ def mock_camera_registry() -> Generator[Mock, None, None]:
             (PluginType.RING, "Test Camera"): camera_entry
         }
         mock.get_all_by_vendor.return_value = [Mock()]
-        
+
         # Mock update_last_polled to actually update the camera entry's last_polled
-        def update_last_polled_side_effect(vendor, camera_name, polled_time):
+        def update_last_polled_side_effect(_vendor, _camera_name, polled_time):
             camera_entry.last_polled = polled_time
-        
+
         mock.update_last_polled.side_effect = update_last_polled_side_effect
         yield mock
 
@@ -55,8 +57,8 @@ def mock_connection_manager_registry() -> Generator[Mock, None, None]:
 
 @pytest.mark.asyncio
 async def test_poll_for_events_success(
-    mock_camera: Mock,
-    mock_camera_registry: Mock
+        mock_camera: Mock,
+        mock_camera_registry: Mock
 ) -> None:
     """Test successful event polling."""
     current_time = datetime.now(timezone.utc)
@@ -72,9 +74,9 @@ async def test_poll_for_events_success(
 
 @pytest.mark.asyncio
 async def test_poll_for_events_error(
-    mock_camera: Mock,
-    mock_camera_registry: Mock,
-    mock_connection_manager_registry: Mock
+        mock_camera: Mock,
+        mock_camera_registry: Mock,
+        mock_connection_manager_registry: Mock
 ) -> None:
     """Test error handling in event polling."""
     # Set up the error condition
@@ -95,9 +97,9 @@ async def test_poll_for_events_error(
 
 @pytest.mark.asyncio
 async def test_handle_camera_error_connection_manager_unhealthy(
-    mock_camera: Mock,
-    mock_camera_registry: Mock,
-    mock_connection_manager_registry: Mock
+        mock_camera: Mock,
+        mock_camera_registry: Mock,
+        mock_connection_manager_registry: Mock
 ) -> None:
     """Test handling camera error when connection manager is unhealthy."""
     mock_connection_manager_registry.get_connection_manager.return_value.is_healthy.return_value = False
@@ -111,9 +113,9 @@ async def test_handle_camera_error_connection_manager_unhealthy(
 
 @pytest.mark.asyncio
 async def test_handle_camera_error_connection_manager_healthy(
-    mock_camera: Mock,
-    mock_camera_registry: Mock,
-    mock_connection_manager_registry: Mock
+        mock_camera: Mock,
+        mock_camera_registry: Mock,
+        mock_connection_manager_registry: Mock
 ) -> None:
     """Test handling camera error when connection manager is healthy."""
     mock_connection_manager_registry.get_connection_manager.return_value.is_healthy.return_value = True
@@ -126,8 +128,8 @@ async def test_handle_camera_error_connection_manager_healthy(
 
 @pytest.mark.asyncio
 async def test_poll_for_events_skip_recent_poll(
-    mock_camera: Mock,
-    mock_camera_registry: Mock
+        mock_camera: Mock,
+        mock_camera_registry: Mock
 ) -> None:
     """Test that polling is skipped if last poll was recent."""
     current_time = datetime.now(timezone.utc)

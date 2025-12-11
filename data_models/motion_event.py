@@ -1,3 +1,5 @@
+"""Data model for motion events from camera systems."""
+
 from dataclasses import dataclass, field
 import datetime
 from typing import Any, Dict, Optional
@@ -14,6 +16,11 @@ except ImportError:
 
 @dataclass
 class MotionEvent:
+    """Represents a motion event detected by a camera system.
+
+    This class stores information about motion events including the event ID,
+    camera vendor, camera name, timestamp, and optional video file or S3 URL.
+    """
     event_id: str
     camera_vendor: PluginType
     camera_name: str

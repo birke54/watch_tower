@@ -12,14 +12,14 @@ from contextlib import contextmanager
 
 from utils.logging_config import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger(__name__)  # pylint: disable=invalid-name
 
 
 def handle_errors(
-    error_types: Optional[Union[Type[Exception], Tuple[Type[Exception], ...]]] = None,
-    default_return: Any = None,
-    log_error: bool = True,
-    reraise: bool = True
+        error_types: Optional[Union[Type[Exception], Tuple[Type[Exception], ...]]] = None,
+        default_return: Any = None,
+        log_error: bool = True,
+        reraise: bool = True
 ) -> Callable:
     """
     Decorator for consistent error handling.
@@ -42,25 +42,26 @@ def handle_errors(
                 if error_types is None or isinstance(e, error_types):
                     if log_error:
                         logger.error(
-                            f"Error in {func.__name__}: {str(e)}",
+                            "Error in %s: %s",
+                            func.__name__,
+                            str(e),
                             exc_info=True
                         )
 
                     if reraise:
                         raise
                     return default_return
-                else:
-                    # Re-raise if it's not the type we're handling
-                    raise
+                # Re-raise if it's not the type we're handling
+                raise
         return wrapper
     return decorator
 
 
 def handle_async_errors(
-    error_types: Optional[Union[Type[Exception], Tuple[Type[Exception], ...]]] = None,
-    default_return: Any = None,
-    log_error: bool = True,
-    reraise: bool = True
+        error_types: Optional[Union[Type[Exception], Tuple[Type[Exception], ...]]] = None,
+        default_return: Any = None,
+        log_error: bool = True,
+        reraise: bool = True
 ) -> Callable:
     """
     Decorator for consistent async error handling.
@@ -83,26 +84,27 @@ def handle_async_errors(
                 if error_types is None or isinstance(e, error_types):
                     if log_error:
                         logger.error(
-                            f"Error in async {func.__name__}: {str(e)}",
+                            "Error in async %s: %s",
+                            func.__name__,
+                            str(e),
                             exc_info=True
                         )
 
                     if reraise:
                         raise
                     return default_return
-                else:
-                    # Re-raise if it's not the type we're handling
-                    raise
+                # Re-raise if it's not the type we're handling
+                raise
         return wrapper
     return decorator
 
 
 @contextmanager
 def error_context(
-    operation: str,
-    error_types: Optional[Union[Type[Exception], Tuple[Type[Exception], ...]]] = None,
-    log_error: bool = True,
-    reraise: bool = True
+        operation: str,
+        error_types: Optional[Union[Type[Exception], Tuple[Type[Exception], ...]]] = None,
+        log_error: bool = True,
+        reraise: bool = True
 ):
     """
     Context manager for error handling.
@@ -122,21 +124,22 @@ def error_context(
         if error_types is None or isinstance(e, error_types):
             if log_error:
                 logger.error(
-                    f"Error during {operation}: {str(e)}",
+                    "Error during %s: %s",
+                    operation,
+                    str(e),
                     exc_info=True
                 )
 
             if reraise:
                 raise
-        else:
-            # Re-raise if it's not the type we're handling
-            raise
+        # Re-raise if it's not the type we're handling
+        raise
 
 
 def log_and_raise(
-    error: Exception,
-    message: str,
-    logger_instance: Optional[logging.Logger] = None
+        error: Exception,
+        message: str,
+        logger_instance: Optional[logging.Logger] = None
 ) -> None:
     """
     Log an error and re-raise it with additional context.
@@ -147,16 +150,16 @@ def log_and_raise(
         logger_instance: Optional logger instance (uses module logger if None)
     """
     log = logger_instance or logger
-    log.error(f"{message}: {str(error)}", exc_info=True)
+    log.error("%s: %s", message, str(error), exc_info=True)
     raise error
 
 
 def safe_execute(
-    func: Callable,
-    *args: Any,
-    error_message: str = "Function execution failed",
-    default_return: Any = None,
-    **kwargs: Any
+        func: Callable,
+        *args: Any,
+        error_message: str = "Function execution failed",
+        default_return: Any = None,
+        **kwargs: Any
 ) -> Any:
     """
     Safely execute a function with error handling.
@@ -174,16 +177,16 @@ def safe_execute(
     try:
         return func(*args, **kwargs)
     except Exception as e:
-        logger.error(f"{error_message}: {str(e)}", exc_info=True)
+        logger.error("%s: %s", error_message, str(e), exc_info=True)
         return default_return
 
 
 async def safe_execute_async(
-    func: Callable,
-    *args: Any,
-    error_message: str = "Async function execution failed",
-    default_return: Any = None,
-    **kwargs: Any
+        func: Callable,
+        *args: Any,
+        error_message: str = "Async function execution failed",
+        default_return: Any = None,
+        **kwargs: Any
 ) -> Any:
     """
     Safely execute an async function with error handling.
@@ -201,5 +204,5 @@ async def safe_execute_async(
     try:
         return await func(*args, **kwargs)
     except Exception as e:
-        logger.error(f"{error_message}: {str(e)}", exc_info=True)
+        logger.error("%s: %s", error_message, str(e), exc_info=True)
         return default_return

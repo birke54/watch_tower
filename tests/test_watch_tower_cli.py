@@ -8,10 +8,12 @@ This module provides comprehensive test coverage for:
 - CLI command execution
 """
 
+"""Tests for Watch Tower CLI functionality."""
 import json
+import os
 import tempfile
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch, mock_open, ANY
+from unittest.mock import ANY, MagicMock, Mock, mock_open, patch
 
 import click
 import pytest
@@ -89,8 +91,8 @@ class TestHelperFunctions:
 
     def test_format_timestamp_with_datetime(self) -> None:
         """Test _format_timestamp with valid datetime."""
-        dt = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        formatted = format_timestamp(dt)
+        timestamp = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        formatted = format_timestamp(timestamp)
         # Should contain the date and time (accounting for timezone conversion)
         assert '2023-01-01' in formatted
         # The time will be converted to local timezone, so we just check it
@@ -104,8 +106,8 @@ class TestHelperFunctions:
 
     def test_format_timestamp_custom_timezone(self) -> None:
         """Test _format_timestamp with custom timezone."""
-        dt = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        formatted = format_timestamp(dt, 'UTC')
+        timestamp = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        formatted = format_timestamp(timestamp, 'UTC')
         assert '2023-01-01' in formatted
 
     def test_create_json_entry(self) -> None:
@@ -159,7 +161,6 @@ class TestWatchTowerService:
 
     def teardown_method(self) -> None:
         """Clean up test fixtures."""
-        import os
         if os.path.exists(self.temp_state_file.name):
             os.unlink(self.temp_state_file.name)
 
@@ -457,7 +458,7 @@ class TestCLICommands:
         assert result.exit_code == 0
         assert 'Watch Tower - Video Surveillance System CLI' in result.output
 
-    @patch('cli.commands.status.service')
+    @patch('cli.commands.status.SERVICE')
     def test_status_command_text_format(self, mock_service: Mock) -> None:
         """Test status command with text format."""
         mock_service.get_status.return_value = {
@@ -487,7 +488,7 @@ class TestCLICommands:
                         assert '✅ Passed: 4' in result.output
                         assert '✅ All systems operational' in result.output
 
-    @patch('cli.commands.status.service')
+    @patch('cli.commands.status.SERVICE')
     def test_status_command_json_format(self, mock_service: Mock) -> None:
         """Test status command with JSON format."""
         mock_service.get_status.return_value = {
@@ -517,7 +518,7 @@ class TestCLICommands:
                         assert output_data['business_logic']['running'] is False
                         assert output_data['configuration']['failed'] == 1
 
-    @patch('cli.commands.status.service')
+    @patch('cli.commands.status.SERVICE')
     def test_status_command_detailed(self, mock_service: Mock) -> None:
         """Test status command with detailed output."""
         mock_service.get_status.return_value = {
@@ -546,7 +547,7 @@ class TestCLICommands:
                         assert 'aws_region' in result.output
                         assert 'db_secret_name' in result.output
 
-    @patch('cli.commands.status.service')
+    @patch('cli.commands.status.SERVICE')
     def test_status_command_error(self, mock_service: Mock) -> None:
         """Test status command with service error."""
         mock_service.get_status.return_value = {

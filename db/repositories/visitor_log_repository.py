@@ -1,12 +1,17 @@
-from typing import List, Dict
+"""Repository for visitor log database operations."""
+
 from datetime import datetime
-from sqlalchemy.orm import Session
+from typing import Dict, List
+
 from sqlalchemy import and_, func
+from sqlalchemy.orm import Session
+
 from db.models import VisitorLogs
 from db.repositories.base import BaseRepository
 
 
 class VisitorLogRepository(BaseRepository[VisitorLogs]):
+    """Repository for managing visitor log database operations."""
     def __init__(self):
         super().__init__(VisitorLogs)
 
@@ -19,10 +24,10 @@ class VisitorLogRepository(BaseRepository[VisitorLogs]):
         return self.get_all_by_field(db, "camera_name", camera_name)
 
     def get_by_time_range(
-        self,
-        db: Session,
-        start_time: datetime,
-        end_time: datetime
+            self,
+            db: Session,
+            start_time: datetime,
+            end_time: datetime
     ) -> List[VisitorLogs]:
         """Get all visitor logs within a time range"""
         return db.query(self.model).filter(
@@ -32,11 +37,11 @@ class VisitorLogRepository(BaseRepository[VisitorLogs]):
             )
         ).all()
 
+    @staticmethod
     def get_visitor_stats(
-        self,
-        db: Session,
-        start_time: datetime,
-        end_time: datetime
+            db: Session,
+            start_time: datetime,
+            end_time: datetime
     ) -> List[Dict]:
         """Get visitor statistics within a time range"""
         return db.query(
@@ -52,11 +57,11 @@ class VisitorLogRepository(BaseRepository[VisitorLogs]):
             VisitorLogs.persons_name
         ).all()
 
+    @staticmethod
     def get_camera_stats(
-        self,
-        db: Session,
-        start_time: datetime,
-        end_time: datetime
+            db: Session,
+            start_time: datetime,
+            end_time: datetime
     ) -> List[Dict]:
         """Get camera statistics within a time range"""
         return db.query(
@@ -73,9 +78,9 @@ class VisitorLogRepository(BaseRepository[VisitorLogs]):
         ).all()
 
     def get_high_confidence_visits(
-        self,
-        db: Session,
-        confidence_threshold: float
+            self,
+            db: Session,
+            confidence_threshold: float
     ) -> List[VisitorLogs]:
         """Get all visitor logs with confidence score above threshold"""
         return db.query(self.model).filter(

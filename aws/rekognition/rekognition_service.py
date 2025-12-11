@@ -1,11 +1,18 @@
+"""
+AWS Rekognition Service
+
+This module provides functionality for interacting with AWS Rekognition service,
+including face indexing, face search in videos, and collection management.
+"""
+import asyncio
 from typing import Dict, Any, Tuple, List
+from urllib.parse import urlparse
+
 import boto3
 from botocore.exceptions import ClientError
-from urllib.parse import urlparse
-import asyncio
 
 from aws.exceptions import ClientInitializationError, RekognitionError, RekognitionResourceNotFoundException
-from aws.s3.s3_service import s3_service
+from aws.s3.s3_service import S3_SERVICE
 from watch_tower.config import config
 from utils.logging_config import get_logger
 from utils.aws_client_factory import AWSClientFactory
@@ -17,14 +24,23 @@ JOB_STATUS_SUCCEEDED = 'SUCCEEDED'
 JOB_STATUS_FAILED = 'FAILED'
 
 # Module-level tracking of running face search jobs to prevent duplicates
-_running_face_search_jobs = set()
+RUNNING_FACE_SEARCH_JOBS = set()
 
 
-class RekognitionService:
+class RekognitionService:  # pylint: disable=too-many-instance-attributes
+    """
+    Service for interacting with AWS Rekognition API.
+
+    This service provides methods for:
+    - Indexing faces in images
+    - Searching for faces in videos
+    - Managing Rekognition collections
+    - Retrieving face search job results
+    """
     def __init__(self):
         """Initialize the Rekognition service with AWS credentials."""
         self._validate_environment_variables()
-        self.client = self._initialize_rekognition_client()
+        self.client = RekognitionService._initialize_rekognition_client()
 
     def _validate_environment_variables(self) -> None:
         """
@@ -52,7 +68,8 @@ class RekognitionService:
         self.sns_topic_arn = config.sns_rekognition_video_analysis_topic_arn
         self.role_arn = config.rekognition_video_service_role_arn
 
-    def _initialize_rekognition_client(self) -> boto3.client:
+    @staticmethod
+    def _initialize_rekognition_client() -> boto3.client:
         """
         Initialize the Rekognition client with AWS credentials.
 
@@ -105,7 +122,7 @@ class RekognitionService:
             ValueError: If no matching files are found or if face indexing fails.
             ClientError: If there's an AWS service error.
         """
-        matching_s3_files = s3_service.get_files_with_prefix(
+        matching_s3_files = S3_SERVICE.get_files_with_prefix(
             self.bucket_name, person_id)
 
         if not matching_s3_files:
@@ -131,7 +148,7 @@ class RekognitionService:
                 LOGGER.info("Indexed faces for %s from %s", person_id, file_path)
         except ClientError as e:
             LOGGER.error("Error indexing faces: %s", e)
-            raise RekognitionError("Error indexing faces: %s", e)
+            raise RekognitionError(f"Error indexing faces: {e}")
 
         return response['JobId']
 
@@ -158,14 +175,14 @@ class RekognitionService:
             ClientError: If there's an AWS service error.
         """
         # Check if a job is already running for this video
-        if source_video_path in _running_face_search_jobs:
+        if source_video_path in RUNNING_FACE_SEARCH_JOBS:
             LOGGER.warning(
                 "Face search job already running for video: %s", source_video_path)
             return [], True  # Return empty list and flag indicating job was skipped
 
         try:
             # Add to running jobs set
-            _running_face_search_jobs.add(source_video_path)
+            RUNNING_FACE_SEARCH_JOBS.add(source_video_path)
 
             # Parse the S3 URL to extract bucket and object key
             if source_video_path.startswith('s3://'):
@@ -211,7 +228,7 @@ class RekognitionService:
                 }
             )
             LOGGER.info(
-                "Started face search job {response['JobId']} for video %s", source_video_path)
+                "Started face search job %s for video %s", response['JobId'], source_video_path)
             face_search_results = await self.get_face_search_results(response['JobId'])
 
             # Return results and flag indicating job was executed
@@ -221,7 +238,7 @@ class RekognitionService:
             raise RekognitionError(f"Error starting face search: {e}")
         finally:
             # Always remove from running jobs set
-            _running_face_search_jobs.discard(source_video_path)
+            RUNNING_FACE_SEARCH_JOBS.discard(source_video_path)
 
     async def get_face_search_results(self, job_id: str) -> List[Dict[str, Any]]:
         """
@@ -245,7 +262,7 @@ class RekognitionService:
         while True:
             try:
                 result = self.client.get_face_search(JobId=job_id)
-                LOGGER.info("Job %s status: {result['JobStatus']}", job_id)
+                LOGGER.info("Job %s status: %s", job_id, result['JobStatus'])
 
                 if result['JobStatus'] in [JOB_STATUS_SUCCEEDED, JOB_STATUS_FAILED]:
                     break
@@ -257,7 +274,7 @@ class RekognitionService:
                 LOGGER.error(
                     "Error getting face search results for job %s: %s", job_id, e)
                 raise RekognitionError(
-                    "Error getting face search results for job %s: %s", job_id, e)
+                    f"Error getting face search results for job {job_id}: {e}")
 
         matches: List[Dict[str, Any]] = []
         if result['JobStatus'] == JOB_STATUS_SUCCEEDED:
@@ -283,7 +300,7 @@ class RekognitionService:
         else:
             LOGGER.error(
                 "Face search job %s failed with status: %s", job_id, result['JobStatus'])
-            LOGGER.error(f"Full failure response: {result}")
+            LOGGER.error("Full failure response: %s", result)
             if 'StatusMessage' in result:
                 LOGGER.error("Failure reason: %s", result['StatusMessage'])
 
@@ -291,4 +308,4 @@ class RekognitionService:
 
 
 # Create a singleton instance
-rekognition_service = RekognitionService()
+REKOGNITION_SERVICE = RekognitionService()

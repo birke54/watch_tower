@@ -1,12 +1,13 @@
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timezone, timedelta
+"""Tests for the business logic manager."""
 import asyncio
 import os
-import sys
+from datetime import datetime, timezone
+from unittest.mock import Mock, patch
 
-from watch_tower.core.business_logic_manager import BusinessLogicManager, BusinessLogicError
+import pytest
+
 from connection_managers.plugin_type import PluginType
+from watch_tower.core.business_logic_manager import BusinessLogicManager, BusinessLogicError
 from watch_tower.registry.camera_registry import REGISTRY as camera_registry
 
 
@@ -137,7 +138,7 @@ class TestBusinessLogicManager:
         # Mock camera registry methods
         original_get_all = camera_registry.get_all
         original_update_last_polled = camera_registry.update_last_polled
-        
+
         try:
             camera_registry.get_all = Mock(return_value=[mock_camera1, mock_camera2])
             camera_registry.update_last_polled = Mock()
@@ -159,7 +160,7 @@ class TestBusinessLogicManager:
             timestamps = [call[0][2] for call in calls]  # Extract datetime (3rd arg) from each call
             if len(timestamps) > 1:
                 time_diffs = [abs((timestamps[i] - timestamps[0]).total_seconds())
-                             for i in range(1, len(timestamps))]
+                              for i in range(1, len(timestamps))]
                 # All timestamps should be within 1 second of each other
                 assert all(diff < 1.0 for diff in time_diffs)
         finally:
@@ -179,7 +180,7 @@ class TestBusinessLogicManager:
 
         original_get_all = camera_registry.get_all
         original_update_last_polled = camera_registry.update_last_polled
-        
+
         try:
             camera_registry.get_all = Mock(return_value=[mock_camera])
             camera_registry.update_last_polled = Mock()
@@ -215,12 +216,12 @@ class TestBusinessLogicManager:
         # Track when update_last_polled is called
         update_times = []
 
-        def capture_update_time(*args, **kwargs):
+        def capture_update_time(*_args, **_kwargs):
             update_times.append(datetime.now(timezone.utc))
 
         original_get_all = camera_registry.get_all
         original_update_last_polled = camera_registry.update_last_polled
-        
+
         try:
             camera_registry.get_all = Mock(return_value=[mock_camera])
             camera_registry.update_last_polled = Mock(side_effect=capture_update_time)
@@ -268,7 +269,7 @@ class TestBusinessLogicManager:
 
         original_get_all = camera_registry.get_all
         original_update_last_polled = camera_registry.update_last_polled
-        
+
         try:
             camera_registry.get_all = Mock(return_value=[mock_camera])
             camera_registry.update_last_polled = Mock()
@@ -297,12 +298,12 @@ class TestBusinessLogicManager:
         def track_save_state():
             call_order.append('save_state')
 
-        def track_update_last_polled(*args, **kwargs):
+        def track_update_last_polled(*_args, **_kwargs):
             call_order.append('update_last_polled')
 
         original_get_all = camera_registry.get_all
         original_update_last_polled = camera_registry.update_last_polled
-        
+
         try:
             camera_registry.get_all = Mock(return_value=[mock_camera])
             camera_registry.update_last_polled = Mock(side_effect=track_update_last_polled)

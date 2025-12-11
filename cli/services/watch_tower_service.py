@@ -19,7 +19,7 @@ from utils.errors import (
 
 from cli.utils.errors import create_error_status_response
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 # Constants
 DEFAULT_HOST = "localhost"
@@ -61,25 +61,24 @@ class WatchTowerService:
                     "business_logic_completed": not event_loop.get('running', False),
                     "business_logic_cancelled": False
                 }
-            else:
-                return create_error_status_response(
-                    "No business logic status found in health data")
+            return create_error_status_response(
+                "No business logic status found in health data")
 
         except DependencyError as e:
-            logger.error(f"Dependency error: {e}")
+            LOGGER.error("Dependency error: %s", e)
             return create_error_status_response(str(e))
         except ManagementAPIError as e:
-            logger.error(f"Management API error: {e}")
+            LOGGER.error("Management API error: %s", e)
             return create_error_status_response(str(e))
         except Exception as e:
-            logger.error(f"Failed to get business logic loop status: {e}")
+            LOGGER.error("Failed to get business logic loop status: %s", e)
             return create_error_status_response(str(e))
 
     async def start_business_logic_api(
             self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> Dict[str, Any]:
         """Start the business logic loop via HTTP API."""
         try:
-            import aiohttp
+            import aiohttp  # pylint: disable=import-outside-toplevel
         except ImportError:
             raise DependencyError("aiohttp", "pip install aiohttp")
 
@@ -89,11 +88,10 @@ class WatchTowerService:
                 async with session.post(url, timeout=DEFAULT_TIMEOUT) as response:
                     if response.status == 200:
                         return await response.json()
-                    else:
-                        raise ManagementAPIError(
-                            f"Start API returned status {response.status}",
-                            status_code=response.status
-                        )
+                    raise ManagementAPIError(
+                        f"Start API returned status {response.status}",
+                        status_code=response.status
+                    )
         except ManagementAPIError:
             raise
         except Exception as e:
@@ -104,7 +102,7 @@ class WatchTowerService:
             self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> Dict[str, Any]:
         """Stop the business logic loop via HTTP API."""
         try:
-            import aiohttp
+            import aiohttp  # pylint: disable=import-outside-toplevel
         except ImportError:
             raise DependencyError("aiohttp", "pip install aiohttp")
 
@@ -114,11 +112,10 @@ class WatchTowerService:
                 async with session.post(url, timeout=DEFAULT_TIMEOUT) as response:
                     if response.status == 200:
                         return await response.json()
-                    else:
-                        raise ManagementAPIError(
-                            f"Stop API returned status {response.status}",
-                            status_code=response.status
-                        )
+                    raise ManagementAPIError(
+                        f"Stop API returned status {response.status}",
+                        status_code=response.status
+                    )
         except ManagementAPIError:
             raise
         except Exception as e:
@@ -135,17 +132,17 @@ class WatchTowerService:
             "last_updated": datetime.now(timezone.utc).isoformat()
         }
 
-        with open(self.state_file, "w") as f:
-            json.dump(state, f)
+        with open(self.state_file, "w") as file_handle:
+            json.dump(state, file_handle)
 
-        logger.info(
+        LOGGER.info(
             "Business logic loop start requested - main process will pick this up")
 
     async def check_management_api(
             self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> Dict[str, Any]:
         """Check the management API endpoint."""
         try:
-            import aiohttp
+            import aiohttp  # pylint: disable=import-outside-toplevel
         except ImportError:
             raise DependencyError("aiohttp", "pip install aiohttp")
 
@@ -155,17 +152,17 @@ class WatchTowerService:
                 async with session.get(url, timeout=HEALTH_CHECK_TIMEOUT) as response:
                     if response.status == 200:
                         return await response.json()
-                    else:
-                        raise ManagementAPIError(
-                            f"Management API returned status {response.status}",
-                            status_code=response.status
-                        )
+                    raise ManagementAPIError(
+                        f"Management API returned status {response.status}",
+                        status_code=response.status
+                    )
         except ManagementAPIError:
             raise
         except Exception as e:
             raise ManagementAPIError(
                 f"Failed to connect to management API: {e}", original_error=e)
 
-    def validate_config(self) -> None:
+    @staticmethod
+    def validate_config() -> None:
         """Validate the current configuration."""
         config.validate()

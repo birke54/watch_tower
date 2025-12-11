@@ -1,15 +1,21 @@
-from typing import Optional, List
-from datetime import datetime, timezone, timedelta
-from sqlalchemy.orm import Session
+"""Repository for motion event database operations."""
+
+from datetime import datetime
+from typing import List, Optional
+
 from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
 from db.models import MotionEvent
 from db.repositories.base import BaseRepository
 from utils.logging_config import get_logger
+from watch_tower.config import get_timezone
 
 LOGGER = get_logger(__name__)
 
 
 class MotionEventRepository(BaseRepository[MotionEvent]):
+    """Repository for managing motion event database operations."""
     def __init__(self):
         super().__init__(MotionEvent)
 
@@ -18,10 +24,10 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
         return self.get_all_by_field(db, "camera_name", camera_name)
 
     def get_by_time_range(
-        self,
-        db: Session,
-        start_time: datetime,
-        end_time: datetime
+            self,
+            db: Session,
+            start_time: datetime,
+            end_time: datetime
     ) -> List[MotionEvent]:
         """Get all motion events within a time range"""
         return db.query(self.model).filter(
@@ -32,11 +38,11 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
         ).all()
 
     def get_by_camera_and_time(
-        self,
-        db: Session,
-        camera_name: str,
-        start_time: datetime,
-        end_time: datetime
+            self,
+            db: Session,
+            camera_name: str,
+            start_time: datetime,
+            end_time: datetime
     ) -> List[MotionEvent]:
         """Get motion events for a specific camera within a time range"""
         return db.query(self.model).filter(
@@ -49,10 +55,8 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
 
     def get_unprocessed_events(self, db: Session) -> List[MotionEvent]:
         """Get all motion events that haven't been processed by facial recognition"""
-        from watch_tower.config import get_timezone
-        tz = get_timezone()
-        now = datetime.now(tz)
-        future_date = datetime(9998, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
+        timezone_obj = get_timezone()
+        now = datetime.now(timezone_obj)
 
         try:
             # Use a single query to get all events at once
@@ -73,10 +77,8 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
 
     def get_unuploaded_events(self, db: Session) -> List[MotionEvent]:
         """Get all motion events that haven't been uploaded to S3 yet"""
-        from watch_tower.config import get_timezone
-        tz = get_timezone()
-        now = datetime.now(tz)
-        future_date = datetime(9998, 12, 31, 23, 59, 59, tzinfo=now.tzinfo)
+        timezone_obj = get_timezone()
+        now = datetime.now(timezone_obj)
 
         try:
             # Use a single query to get all events at once
@@ -92,10 +94,10 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
             raise
 
     def mark_as_processed(
-        self,
-        db: Session,
-        event_id: int,
-        processed_time: datetime
+            self,
+            db: Session,
+            event_id: int,
+            processed_time: datetime
     ) -> Optional[MotionEvent]:
         """Mark a motion event as processed by facial recognition"""
         event = self.get(db, event_id)
@@ -106,11 +108,11 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
         return event
 
     def update_s3_url(
-        self,
-        db: Session,
-        event_id: int,
-        s3_url: str,
-        upload_time: datetime
+            self,
+            db: Session,
+            event_id: int,
+            s3_url: str,
+            upload_time: datetime
     ) -> Optional[MotionEvent]:
         """Update the S3 URL and upload time for a motion event"""
         event = self.get(db, event_id)

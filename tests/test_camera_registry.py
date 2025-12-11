@@ -1,10 +1,17 @@
-import pytest
-from unittest.mock import Mock, AsyncMock
-from datetime import datetime, timezone
+"""Tests for camera registry functionality."""
 
-from watch_tower.registry.camera_registry import CameraRegistry, CameraStatus, CameraEntry
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
 from cameras.camera_base import CameraBase
 from connection_managers.plugin_type import PluginType
+from watch_tower.registry.camera_registry import (
+    CameraEntry,
+    CameraRegistry,
+    CameraStatus,
+)
 
 
 @pytest.fixture

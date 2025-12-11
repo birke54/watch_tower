@@ -1,11 +1,16 @@
-from typing import Optional, List
+"""Repository for vendor database operations."""
+
 from datetime import datetime
+from typing import List, Optional
+
 from sqlalchemy.orm import Session
-from db.models import Vendors, VendorStatus
+
+from db.models import VendorStatus, Vendors
 from db.repositories.base import BaseRepository
 
 
 class VendorsRepository(BaseRepository[Vendors]):
+    """Repository for managing vendor database operations."""
     def __init__(self):
         super().__init__(Vendors)
 

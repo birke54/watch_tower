@@ -6,18 +6,17 @@ throughout the application, ensuring consistent logging behavior.
 """
 
 import logging
-from logging import config
 import logging.handlers
+import os
 import sys
 from typing import Optional
-import os
 
 
 def setup_logging(
-    level: Optional[str] = None,
-    log_file: Optional[str] = None,
-    log_format: Optional[str] = None,
-    max_files: int = 5
+        level: Optional[str] = None,
+        log_file: Optional[str] = None,
+        log_format: Optional[str] = None,
+        max_files: int = 5
 ) -> None:
     """
     Set up centralized logging configuration.
@@ -76,9 +75,9 @@ def setup_logging(
 
     # Log the setup
     logger = logging.getLogger(__name__)
-    logger.info(f"Logging configured with level: {level}")
+    logger.info("Logging configured with level: %s", level)
     if log_file:
-        logger.info(f"Logging to file: {log_file}")
+        logger.info("Logging to file: %s", log_file)
 
 
 def get_logger(name: str) -> logging.Logger:

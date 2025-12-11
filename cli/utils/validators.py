@@ -26,8 +26,6 @@ def validate_aws_config() -> List[Dict[str, Any]]:
 
     # AWS Access Key ID
     if config.aws_access_key_id:
-        masked_key = config.aws_access_key_id[:4] + '*' * (
-            len(config.aws_access_key_id) - 8) + config.aws_access_key_id[-4:]
         results.append(create_validation_result(
             '✅', 'aws_access_key_id', '***'))
     else:
@@ -43,8 +41,9 @@ def validate_aws_config() -> List[Dict[str, Any]]:
         results.append(create_validation_result(
             '✅', 'aws_secret_access_key', '***'))
     else:
-        results.append(create_validation_result('❌', 'aws_secret_access_key',
-                       None, "Set AWS_SECRET_ACCESS_KEY environment variable"))
+        results.append(create_validation_result(
+            '❌', 'aws_secret_access_key',
+            None, "Set AWS_SECRET_ACCESS_KEY environment variable"))
 
     return results
 
@@ -67,8 +66,9 @@ def validate_database_config() -> List[Dict[str, Any]]:
         results.append(create_validation_result(
             '✅', 'encryption_key_secret_name', config.encryption_key_secret_name))
     else:
-        results.append(create_validation_result('❌', 'encryption_key_secret_name',
-                       None, "Set ENCRYPTION_KEY_SECRET_NAME environment variable"))
+        results.append(create_validation_result(
+            '❌', 'encryption_key_secret_name',
+            None, "Set ENCRYPTION_KEY_SECRET_NAME environment variable"))
 
     return results
 
@@ -78,8 +78,9 @@ def validate_ring_config() -> List[Dict[str, Any]]:
     results = []
 
     # Ring credentials are stored in database, which is the correct approach
-    results.append(create_validation_result('✅', 'ring_credentials', 'database_stored',
-                   "Ring authentication is handled via the vendors database table"))
+    results.append(create_validation_result(
+        '✅', 'ring_credentials', 'database_stored',
+        "Ring authentication is handled via the vendors database table"))
 
     return results
 
@@ -94,16 +95,18 @@ def validate_app_config() -> List[Dict[str, Any]]:
         results.append(create_validation_result(
             '✅', 'event_recordings_bucket', config.event_recordings_bucket))
     else:
-        results.append(create_validation_result('❌', 'event_recordings_bucket',
-                       None, "Set EVENT_RECORDINGS_BUCKET environment variable"))
+        results.append(create_validation_result(
+            '❌', 'event_recordings_bucket',
+            None, "Set EVENT_RECORDINGS_BUCKET environment variable"))
 
     # Rekognition Collection ID
     if config.rekognition_collection_id:
         results.append(create_validation_result(
             '✅', 'rekognition_collection_id', config.rekognition_collection_id))
     else:
-        results.append(create_validation_result('❌', 'rekognition_collection_id',
-                       None, "Set REKOGNITION_COLLECTION_ID environment variable"))
+        results.append(create_validation_result(
+            '❌', 'rekognition_collection_id',
+            None, "Set REKOGNITION_COLLECTION_ID environment variable"))
 
     # Rekognition Known Faces Bucket
     if config.rekognition_s3_known_faces_bucket:
@@ -155,7 +158,6 @@ def validate_app_config() -> List[Dict[str, Any]]:
         'ℹ️', 'environment', config.environment))
 
     # Debug Mode
-    debug_status = "Enabled" if config.debug else "Disabled"
     results.append(create_validation_result('ℹ️', 'debug', config.debug))
 
     return results

@@ -1,12 +1,13 @@
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+"""Tests for RingCamera class."""
 from datetime import datetime, timedelta, timezone
 from typing import Generator
+from unittest.mock import Mock, patch, MagicMock
+
+import pytest
+from ring_doorbell import RingDoorBell
 
 from cameras.ring_camera import RingCamera
 from connection_managers.plugin_type import PluginType
-from ring_doorbell import RingDoorBell
-
 from data_models.motion_event import MotionEvent
 
 
@@ -61,7 +62,7 @@ class TestRingCamera:
 
     @pytest.mark.asyncio
     async def test_retrieve_motion_events_success(
-        self, ring_camera: RingCamera, mock_device_object: Mock, mock_registry: Mock
+            self, ring_camera: RingCamera, mock_device_object: Mock, mock_registry: Mock
     ) -> None:
         """Test successful retrieval of motion videos."""
         # Setup
@@ -109,7 +110,7 @@ class TestRingCamera:
 
     @pytest.mark.asyncio
     async def test_retrieve_motion_events_error(
-        self, ring_camera: RingCamera, mock_device_object: Mock, mock_registry: Mock
+            self, ring_camera: RingCamera, mock_device_object: Mock, mock_registry: Mock
     ) -> None:
         """Test error handling in motion video retrieval."""
         # Setup
@@ -126,7 +127,7 @@ class TestRingCamera:
 
     @pytest.mark.asyncio
     async def test_is_healthy_online(
-        self, ring_camera: RingCamera, mock_device_object: Mock, mock_registry: Mock
+            self, ring_camera: RingCamera, mock_device_object: Mock, mock_registry: Mock
     ) -> None:
         """Test health check when camera is online."""
         # Setup
@@ -142,7 +143,7 @@ class TestRingCamera:
 
     @pytest.mark.asyncio
     async def test_is_healthy_offline(
-        self, ring_camera: RingCamera, mock_device_object: Mock, mock_registry: Mock
+            self, ring_camera: RingCamera, mock_device_object: Mock, mock_registry: Mock
     ) -> None:
         """Test health check when camera is offline."""
         # Setup
@@ -156,7 +157,7 @@ class TestRingCamera:
 
     @pytest.mark.asyncio
     async def test_is_healthy_error(
-        self, ring_camera: RingCamera, mock_device_object: Mock, mock_registry: Mock
+            self, ring_camera: RingCamera, mock_device_object: Mock, mock_registry: Mock
     ) -> None:
         """Test health check error handling."""
         # Setup
@@ -170,7 +171,7 @@ class TestRingCamera:
 
     @pytest.mark.asyncio
     async def test_get_properties_success(
-        self, ring_camera: RingCamera, mock_device_object: Mock, mock_registry: Mock
+            self, ring_camera: RingCamera, mock_device_object: Mock, mock_registry: Mock
     ) -> None:
         """Test successful retrieval of camera properties."""
         # Execute
@@ -192,7 +193,7 @@ class TestRingCamera:
 
     @pytest.mark.asyncio
     async def test_retrieve_video_from_event_and_upload_to_s3_no_event_id(
-        self, ring_camera: RingCamera
+            self, ring_camera: RingCamera
     ) -> None:
         """Test video retrieval when event has no event_id in metadata."""
         # Setup - create event without event_id in metadata
@@ -210,7 +211,7 @@ class TestRingCamera:
 
     @pytest.mark.asyncio
     async def test_retrieve_video_from_event_and_upload_to_s3_with_event_id(
-        self, ring_camera: RingCamera, mock_device_object: Mock
+            self, ring_camera: RingCamera, mock_device_object: Mock
     ) -> None:
         """Test video retrieval when event has valid event_id."""
         # Setup
@@ -228,8 +229,8 @@ class TestRingCamera:
         # Mock the config
         with patch('cameras.ring_camera.config') as mock_config:
             mock_config.event_recordings_bucket = 'test-bucket'
-            # Mock the S3 service
-            with patch('aws.s3.s3_service.s3_service') as mock_s3_service:
+            # Mock the S3 service - patch where it's imported, not where it's defined
+            with patch('cameras.ring_camera.S3_SERVICE') as mock_s3_service:
                 # Mock requests.get to return a successful response
                 with patch('cameras.ring_camera.requests.get') as mock_get:
                     mock_response = Mock()
@@ -238,7 +239,7 @@ class TestRingCamera:
                     mock_get.return_value.__enter__.return_value = mock_response
 
                     # Mock video converter
-                    with patch('cameras.ring_camera.video_converter') as mock_converter:
+                    with patch('cameras.ring_camera.VIDEO_CONVERTER') as mock_converter:
                         mock_converter.get_video_info.return_value = {'codec': 'h264'}
                         # Mock the database session and repository
                         with patch('cameras.ring_camera.get_database_connection') as mock_get_db_conn, \
@@ -268,7 +269,7 @@ class TestRingCamera:
 
     @pytest.mark.asyncio
     async def test_retrieve_video_from_event_and_upload_to_s3_no_video_url(
-        self, ring_camera: RingCamera, mock_device_object: Mock
+            self, ring_camera: RingCamera, mock_device_object: Mock
     ) -> None:
         """Test video retrieval when no video URL is available."""
         # Setup

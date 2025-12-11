@@ -1,3 +1,5 @@
+"""Tests for watch_tower exception classes."""
+
 from watch_tower.exceptions import (
     WatchTowerError,
     BusinessLogicError,
@@ -19,27 +21,34 @@ from watch_tower.exceptions import (
 
 
 class TestWatchTowerExceptions:
+    """Test cases for base WatchTower exceptions."""
+
     def test_watch_tower_error(self):
+        """Test WatchTowerError exception."""
         error = WatchTowerError("error")
         assert str(error) == "error"
         assert isinstance(error, Exception)
 
     def test_business_logic_error(self):
+        """Test BusinessLogicError exception."""
         error = BusinessLogicError("error")
         assert str(error) == "error"
         assert isinstance(error, Exception)
 
     def test_configuration_error(self):
+        """Test ConfigurationError exception."""
         error = ConfigurationError("error")
         assert str(error) == "error"
         assert isinstance(error, Exception)
 
     def test_dependency_error(self):
+        """Test DependencyError exception."""
         error = DependencyError("ffmpeg", "apt-get install ffmpeg")
         assert "ffmpeg is required" in str(error)
         assert isinstance(error, Exception)
 
     def test_management_api_error(self):
+        """Test ManagementAPIError exception."""
         error = ManagementAPIError("error")
         assert str(error) == "error"
         assert isinstance(error, Exception)
@@ -149,7 +158,10 @@ class TestExceptionMessages:
 
     def test_exception_with_long_message(self) -> None:
         """Test exception with long message."""
-        long_message = "This is a very long error message that contains a lot of details about what went wrong and how to fix it"
+        long_message = (
+            "This is a very long error message that contains a lot of details "
+            "about what went wrong and how to fix it"
+        )
         error = ConfigError(long_message)
         assert str(error) == long_message
 
