@@ -5,7 +5,7 @@ This module provides a FastAPI-based management API for monitoring and controlli
 the Watch Tower application.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from watch_tower.registry.camera_registry import REGISTRY as camera_registry
@@ -196,6 +196,18 @@ def create_management_app():
                 status_code=500,
                 detail=f"Internal server error: {str(e)}"
             )
+    
+    @app.api_route("/metrics", methods=["GET", "HEAD"])
+    async def metrics_scrapper():
+        """Endpoint for Prometheus to scrape metrics."""
+        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+        from watch_tower.core import metrics as metrics_module 
+
+        metrics_data = generate_latest()
+        return Response(
+            content=metrics_data,
+            media_type=CONTENT_TYPE_LATEST
+        )
 
     return app
 
