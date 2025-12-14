@@ -18,6 +18,7 @@ from db.repositories.motion_event_repository import MotionEventRepository
 from cameras.camera_base import PluginType
 from watch_tower.config import config, get_timezone
 from utils.error_handler import handle_async_errors
+from watch_tower.core.metrics import (aws_rekognition_face_search_error_count, aws_rekognition_face_search_success_count)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -192,54 +193,53 @@ async def process_face_search_with_visitor_logs(
     session_factory: Any
 ) -> None:
     """Process face search and create visitor log entries for found people"""
+    # Process the face search - the check on line 144 already prevents duplicate tasks
     try:
-        # Task enqueued, and possibly running
-        if motion_event.s3_url in enqueued_facial_recognition_tasks:
-            face_search_results, was_skipped = [], True
-        
         face_search_results, was_skipped = await rekognition_service.start_face_search(motion_event.s3_url)
-
-        # If a rekognition task is already queued or running, skip processing
-        if was_skipped:
-            LOGGER.info(
-                "Face search skipped for event %s - job already running", motion_event.event_id)
-            return
-
-        tz = get_timezone()
-        if face_search_results:
-            # Process the results and create visitor log entries
-            await create_visitor_logs_from_face_search(
-                face_search_results,
-                db_event,
-                session_factory
-            )
-
-            # Mark the motion event as processed only if we got results
-            with session_factory() as session:
-                motion_event_repository = MotionEventRepository()
-                motion_event_repository.mark_as_processed(
-                    session,
-                    db_event.id,
-                    datetime.now(tz)
-                )
-        else:
-            # Face search completed but found no faces
-            LOGGER.info(
-                "Face search completed for event %s - no faces detected", motion_event.event_id)
-
-            # Mark the motion event as processed since the search completed
-            with session_factory() as session:
-                motion_event_repository = MotionEventRepository()
-                motion_event_repository.mark_as_processed(
-                    session,
-                    db_event.id,
-                    datetime.now(tz)
-                )
-
+        aws_rekognition_face_search_success_count.inc()
     except Exception as e:
         LOGGER.error(
             "Error processing face search for event %s: %s", motion_event.event_id, e)
         LOGGER.exception("Full traceback:")
+        aws_rekognition_face_search_error_count.inc()
+        return
+
+    # If a rekognition task is already queued or running, skip processing
+    if was_skipped:
+        LOGGER.info(
+            "Face search skipped for event %s - job already running", motion_event.event_id)
+        return
+
+    tz = get_timezone()
+    if face_search_results:
+        # Process the results and create visitor log entries
+        await create_visitor_logs_from_face_search(
+            face_search_results,
+            db_event,
+            session_factory
+        )
+
+        # Mark the motion event as processed only if we got results
+        with session_factory() as session:
+            motion_event_repository = MotionEventRepository()
+            motion_event_repository.mark_as_processed(
+                session,
+                db_event.id,
+                datetime.now(tz)
+            )
+    else:
+        # Face search completed but found no faces
+        LOGGER.info(
+            "Face search completed for event %s - no faces detected", motion_event.event_id)
+
+        # Mark the motion event as processed since the search completed
+        with session_factory() as session:
+            motion_event_repository = MotionEventRepository()
+            motion_event_repository.mark_as_processed(
+                session,
+                db_event.id,
+                datetime.now(tz)
+            )
 
 
 async def create_visitor_logs_from_face_search(

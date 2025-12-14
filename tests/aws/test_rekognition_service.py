@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 from botocore.exceptions import ClientError
 from typing import Generator
 
-from aws.exceptions import RekognitionResourceNotFoundException
+from aws.exceptions import RekognitionError, RekognitionResourceNotFoundException
 from aws.rekognition.rekognition_service import RekognitionService
 
 # Test data
@@ -193,10 +193,10 @@ async def test_start_face_search_failed_job(
         'JobStatus': 'FAILED'
     }
 
-    matches, was_skipped = await rekognition_service.start_face_search(TEST_VIDEO_PATH)
-
-    assert len(matches) == 0
-    assert was_skipped == False
+    with pytest.raises(RekognitionError) as exc_info:
+        await rekognition_service.start_face_search(TEST_VIDEO_PATH)
+    
+    assert "Face search job test-job-id failed with status: FAILED" in str(exc_info.value)
     mock_rekognition_client.start_face_search.assert_called_once()
 
 

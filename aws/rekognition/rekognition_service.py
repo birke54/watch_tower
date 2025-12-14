@@ -228,7 +228,8 @@ class RekognitionService:  # pylint: disable=too-many-instance-attributes
                 }
             )
             LOGGER.info(
-                "Started face search job %s for video %s", response['JobId'], source_video_path)
+                "Started face search job %s for video %s", response['JobId'], source_video_path
+            )
             face_search_results = await self.get_face_search_results(response['JobId'])
 
             # Return results and flag indicating job was executed
@@ -271,8 +272,6 @@ class RekognitionService:  # pylint: disable=too-many-instance-attributes
                 await asyncio.sleep(polling_interval)
 
             except ClientError as e:
-                LOGGER.error(
-                    "Error getting face search results for job %s: %s", job_id, e)
                 raise RekognitionError(
                     f"Error getting face search results for job {job_id}: {e}")
 
@@ -298,11 +297,9 @@ class RekognitionService:  # pylint: disable=too-many-instance-attributes
                             'timestamp': timestamp
                         })
         else:
-            LOGGER.error(
-                "Face search job %s failed with status: %s", job_id, result['JobStatus'])
             LOGGER.error("Full failure response: %s", result)
-            if 'StatusMessage' in result:
-                LOGGER.error("Failure reason: %s", result['StatusMessage'])
+            raise RekognitionError(
+                f"Face search job {job_id} failed with status: {result['JobStatus']}")
 
         return matches
 
