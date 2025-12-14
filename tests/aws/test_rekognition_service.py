@@ -6,6 +6,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 from aws.exceptions import RekognitionError, RekognitionResourceNotFoundException
+from aws.exceptions import RekognitionError, RekognitionResourceNotFoundException
 from aws.rekognition.rekognition_service import RekognitionService
 
 # Test data

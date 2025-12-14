@@ -23,8 +23,8 @@ from utils.error_handler import handle_async_errors
 from utils.metric_helpers import add_histogram_metric, inc_counter_metric
 from utils.metrics import MetricDataPointName as Metric
 from watch_tower.config import config, get_timezone
-from watch_tower.registry.camera_registry import CameraStatus, REGISTRY as camera_registry
-from watch_tower.registry.connection_manager_registry import VendorStatus, REGISTRY as connection_manager_registry
+from utils.error_handler import handle_async_errors
+from watch_tower.core.metrics import (aws_rekognition_face_search_error_count, aws_rekognition_face_search_success_count)
 
 LOGGER = logging.getLogger(__name__)
 
