@@ -6,8 +6,9 @@ python-dotenv>=1.0.0  # Environment variables
 requests>=2.28.0  # HTTP requests
 tenacity>=8.0.0  # Retry logic
 cryptography>=42.0.0  # Encryption/decryption
-paramiko>=3.4.0  # SSH library (updated to fix deprecation warnings)
+paramiko>=3.4.0  # SSH library
 ring-doorbell>=0.7.0  # Ring API client
+prometheus_client>=0.19.0  # Prometheus metrics
 
 # Testing dependencies
 pytest>=7.0.0  # Testing framework
