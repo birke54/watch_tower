@@ -24,7 +24,8 @@ from utils.metric_helpers import add_histogram_metric, inc_counter_metric
 from utils.metrics import MetricDataPointName as Metric
 from watch_tower.config import config, get_timezone
 from utils.error_handler import handle_async_errors
-from watch_tower.core.metrics import (aws_rekognition_face_search_error_count, aws_rekognition_face_search_success_count)
+from utils.metrics import MetricDataPointName as Metric
+from utils.metric_helpers import inc_counter_metric
 
 LOGGER = logging.getLogger(__name__)
 
