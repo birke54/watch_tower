@@ -173,6 +173,7 @@ class RekognitionService:  # pylint: disable=too-many-instance-attributes
 
         Raises:
             ClientError: If there's an AWS service error.
+            ValueError: If the S3 URL format is invalid.
         """
         # Check if a job is already running for this video
         if source_video_path in RUNNING_FACE_SEARCH_JOBS:

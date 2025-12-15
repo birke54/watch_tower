@@ -2,9 +2,15 @@
 
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from db.models import BASE
+from utils.logging_config import get_logger
+from utils.metric_helpers import inc_counter_metric
+from utils.metrics import MetricDataPointName
+
+LOGGER = get_logger(__name__)
 
 ModelType = TypeVar("ModelType", bound=BASE)
 
@@ -30,10 +36,69 @@ class BaseRepository(Generic[ModelType]):
 
     def create(self, db: Session, obj_in: Dict[str, Any]) -> ModelType:
         """Create a new record"""
+        table_name = self.model.__table__.name
         db_obj = self.model(**obj_in)
         db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
+        try:
+            db.commit()
+        except SQLAlchemyError as e:
+            db.rollback()
+            LOGGER.error(
+                "Failed to create record in table %s: %s",
+                table_name,
+                str(e),
+                exc_info=True
+            )
+            inc_counter_metric(
+                MetricDataPointName.DATABASE_TRANSACTION_FAILURE_COUNT,
+                labels={"table": table_name},
+                increment=1,
+            )
+            raise
+        inc_counter_metric(
+            MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
+            labels={"table": table_name},
+            increment=1,
+        )
+        try:
+            db.refresh(db_obj)
+        except SQLAlchemyError as e:
+            # Refresh failed but commit succeeded, so data is persisted.
+            # Log the error but don't rollback (data is already committed).
+            # The session may be in an inconsistent state, but the object exists.
+            LOGGER.warning(
+                "Failed to refresh object after commit in table %s: %s. "
+                "Data was committed successfully.",
+                table_name,
+                str(e),
+                exc_info=True
+            )
+            # Don't rollback or close - let the caller handle the session
+            # The object exists in DB even if refresh failed
+            raise
+        return db_obj
+
+    def add_to_session(self, db: Session, obj_in: Dict[str, Any]) -> ModelType:
+        """
+        Create a model instance and add it to the provided session without committing.
+
+        Useful when batching multiple operations in a single transaction and the
+        caller manages commit/rollback themselves.
+        """
+        db_obj = self.model(**obj_in)
+        try:
+            db.add(db_obj)
+        except SQLAlchemyError as e:
+            table_name = self.model.__table__.name
+            LOGGER.error(
+                "Failed to add object to session for table %s: %s",
+                table_name,
+                str(e),
+                exc_info=True
+            )
+            if db.in_transaction():
+                db.rollback()
+            raise
         return db_obj
 
     def update(self, db: Session, record_id: int,

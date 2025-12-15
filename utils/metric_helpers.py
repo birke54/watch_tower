@@ -18,7 +18,7 @@ def inc_counter_metric(
         increment (int, optional): The value to increment the counter by. Defaults to 1
     """
     if labels:
-        metric_name.value.inc(labels, increment)
+        metric_name.value.labels(**labels).inc(increment)
     else:
         metric_name.value.inc(increment)
 
@@ -35,7 +35,7 @@ def add_histogram_metric(
         value (float): The value to add to the histogram.
     """
     if labels:
-        metric_name.value.observe(labels, value)
+        metric_name.value.labels(**labels).observe(value)
     else:
         metric_name.value.observe(value)
 
@@ -47,6 +47,6 @@ def set_gauge_metric(metric_name: MetricDataPointName, value: float, labels: Dic
         value (float): The value to set the gauge to.
     """
     if labels:
-        metric_name.value.set(value, labels)
+        metric_name.value.labels(**labels).set(value)
     else:
         metric_name.value.set(value)
