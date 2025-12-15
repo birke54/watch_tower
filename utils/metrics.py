@@ -220,10 +220,10 @@ connection_manager_registry_inactive_connection_count = Gauge(
 # pylint: enable=invalid-name
 
 
-class MetricNames(enum.Enum):
+class MetricDataPointName(enum.Enum):
     """Enumeration of Prometheus metric names."""
-    AWS_REKOGNITION_FACE_SEARCH_SUCCESS_COUNT = "aws_rekognition_face_search_success_count"
-    AWS_REKOGNITION_FACE_SEARCH_ERROR_COUNT = "aws_rekognition_face_search_error_count"
+    AWS_REKOGNITION_FACE_SEARCH_SUCCESS_COUNT = aws_rekognition_face_search_success_count
+    AWS_REKOGNITION_FACE_SEARCH_ERROR_COUNT = aws_rekognition_face_search_error_count
     AWS_REKOGNITION_FACE_SEARCH_DURATION_SECONDS = "aws_rekognition_face_search_duration_seconds"
     AWS_REKOGNITION_FACE_SEARCH_SEMAPHORE_JOB_COUNT = "aws_rekognition_face_search_semaphore_job_count"
     AWS_S3_DOWNLOAD_FILE_SUCCESS_COUNT = "aws_s3_download_file_success_count"

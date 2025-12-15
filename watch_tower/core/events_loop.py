@@ -18,7 +18,8 @@ from db.repositories.motion_event_repository import MotionEventRepository
 from cameras.camera_base import PluginType
 from watch_tower.config import config, get_timezone
 from utils.error_handler import handle_async_errors
-from watch_tower.core.metrics import (aws_rekognition_face_search_error_count, aws_rekognition_face_search_success_count)
+from utils.metrics import MetricDataPointName as Metric
+from utils.metric_helpers import inc_counter_metric
 
 LOGGER = logging.getLogger(__name__)
 
@@ -196,12 +197,12 @@ async def process_face_search_with_visitor_logs(
     # Process the face search - the check on line 144 already prevents duplicate tasks
     try:
         face_search_results, was_skipped = await rekognition_service.start_face_search(motion_event.s3_url)
-        aws_rekognition_face_search_success_count.inc()
+        inc_counter_metric(Metric.AWS_REKOGNITION_FACE_SEARCH_SUCCESS_COUNT)
     except Exception as e:
         LOGGER.error(
             "Error processing face search for event %s: %s", motion_event.event_id, e)
         LOGGER.exception("Full traceback:")
-        aws_rekognition_face_search_error_count.inc()
+        inc_counter_metric(Metric.AWS_REKOGNITION_FACE_SEARCH_ERROR_COUNT)
         return
 
     # If a rekognition task is already queued or running, skip processing

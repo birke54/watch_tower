@@ -201,7 +201,7 @@ def create_management_app():
     async def metrics_scrapper():
         """Endpoint for Prometheus to scrape metrics."""
         from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-        from watch_tower.core import metrics as metrics_module 
+        from utils import metrics as metrics_module 
 
         metrics_data = generate_latest()
         return Response(
