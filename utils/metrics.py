@@ -229,6 +229,10 @@ class MetricDataPointName(enum.Enum):
     AWS_REKOGNITION_FACE_SEARCH_SUCCESS_COUNT = aws_rekognition_face_search_success_count
     AWS_REKOGNITION_FACE_SEARCH_ERROR_COUNT = aws_rekognition_face_search_error_count
     AWS_REKOGNITION_FACE_SEARCH_DURATION_SECONDS = aws_rekognition_face_search_duration_seconds
+<<<<<<< HEAD
+=======
+    AWS_REKOGNITION_FACE_SEARCH_SEMAPHORE_JOB_COUNT = aws_rekognition_face_search_semaphore_job_count
+>>>>>>> make db ops atomic during rekognition face searches and add appropriate success/failure metrics
     AWS_S3_DOWNLOAD_FILE_SUCCESS_COUNT = aws_s3_download_file_success_count
     AWS_S3_DOWNLOAD_FILE_ERROR_COUNT = aws_s3_download_file_error_count
     AWS_S3_UPLOAD_FILE_SUCCESS_COUNT = aws_s3_upload_file_success_count
