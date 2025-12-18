@@ -35,10 +35,6 @@ aws_rekognition_face_search_duration_seconds = Histogram(
     "Duration of face search operations in seconds",
     buckets=SECOND_TO_FIVE_MINUTES_BUCKETS,
 )
-aws_rekognition_face_search_semaphore_job_count = Gauge(
-    "aws_rekognition_face_search_semaphore_job_count",
-    "Number of concurrent face search jobs being processed",
-)
 
 # AWS S3 Metrics
 aws_s3_download_file_success_count = Counter(
@@ -233,7 +229,6 @@ class MetricDataPointName(enum.Enum):
     AWS_REKOGNITION_FACE_SEARCH_SUCCESS_COUNT = aws_rekognition_face_search_success_count
     AWS_REKOGNITION_FACE_SEARCH_ERROR_COUNT = aws_rekognition_face_search_error_count
     AWS_REKOGNITION_FACE_SEARCH_DURATION_SECONDS = aws_rekognition_face_search_duration_seconds
-    AWS_REKOGNITION_FACE_SEARCH_SEMAPHORE_JOB_COUNT = aws_rekognition_face_search_semaphore_job_count
     AWS_S3_DOWNLOAD_FILE_SUCCESS_COUNT = aws_s3_download_file_success_count
     AWS_S3_DOWNLOAD_FILE_ERROR_COUNT = aws_s3_download_file_error_count
     AWS_S3_UPLOAD_FILE_SUCCESS_COUNT = aws_s3_upload_file_success_count

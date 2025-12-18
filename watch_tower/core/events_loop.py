@@ -20,7 +20,7 @@ from db.connection import get_database_connection
 from db.exceptions import DatabaseConnectionError
 from db.repositories.motion_event_repository import MotionEventRepository
 from utils.error_handler import handle_async_errors
-from utils.metric_helpers import inc_counter_metric
+from utils.metric_helpers import add_histogram_metric, inc_counter_metric
 from utils.metrics import MetricDataPointName as Metric
 from watch_tower.config import config, get_timezone
 from watch_tower.registry.camera_registry import CameraStatus, REGISTRY as camera_registry
@@ -235,6 +235,7 @@ async def process_face_search_with_visitor_logs(
     """Process face search and create visitor log entries for found people"""
     # Process the face search
     try:
+        start_time: datetime = datetime.now(get_timezone())
         face_search_results, was_skipped = await rekognition_service.start_face_search(motion_event.s3_url)
     except RekognitionError as e:
         LOGGER.error(
@@ -248,7 +249,12 @@ async def process_face_search_with_visitor_logs(
         LOGGER.info(
             "Face search skipped for event %s - job already running", motion_event.event_id)
         return
-    # Increment the success count metric
+    # Increment the duration and success count metrics
+    end_time: datetime = datetime.now(get_timezone())
+    add_histogram_metric(
+        Metric.AWS_REKOGNITION_FACE_SEARCH_DURATION_SECONDS,
+        (end_time - start_time).total_seconds()
+    )
     inc_counter_metric(Metric.AWS_REKOGNITION_FACE_SEARCH_SUCCESS_COUNT)
 
     timezone_obj = get_timezone()
