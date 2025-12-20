@@ -45,8 +45,10 @@ def get_encryption_key() -> bytes:
 
         secret = get_db_secret(config.encryption_key_secret_name)
         key = secret['encryption_key']
+        if not isinstance(key, str):
+            raise TypeError(f"encryption_key must be a string, got {type(key).__name__}")
         return key.encode('utf-8')
-    except (NoCredentialsError, SecretsManagerError, KeyError, TypeError) as e:
+    except (NoCredentialsError, SecretsManagerError, KeyError, TypeError, AttributeError) as e:
         raise CryptographyError(f"Failed to get encryption key: {str(e)}") from e
 
 
@@ -213,6 +215,14 @@ def decrypt(data: str, key: bytes = None) -> str:
 
         # Decode the encrypted data from various formats
         combined = _decode_encrypted_data(data)
+
+        # Check if combined data is long enough to contain salt + IV
+        min_required_size = SALT_SIZE + IV_SIZE
+        if len(combined) < min_required_size:
+            raise CryptographyError(
+                f"Encrypted data length ({len(combined)}) is not a multiple of block size (16). "
+                f"Expected at least {min_required_size} bytes (salt + IV). "
+                f"This suggests the data may be truncated or corrupted.")
 
         # Extract salt, IV, and encrypted data
         salt = combined[:SALT_SIZE]
