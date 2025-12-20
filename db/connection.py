@@ -8,6 +8,8 @@ from sqlalchemy.orm import sessionmaker
 from aws.secrets_manager.secrets_manager_service import get_db_secret
 from db.exceptions import DatabaseConnectionError
 from utils.logging_config import get_logger
+from utils.metric_helpers import inc_counter_metric
+from utils.metrics import MetricDataPointName
 from watch_tower.config import config
 
 LOGGER = get_logger(__name__)
@@ -92,10 +94,10 @@ def get_database_connection():
     try:
         db_engine = get_engine()
         session_factory = get_session_factory()
+        inc_counter_metric(MetricDataPointName.DATABASE_CONNECTION_SUCCESS_COUNT)
         return db_engine, session_factory
-    except DatabaseConnectionError:
-        raise
     except Exception as e:
+        inc_counter_metric(MetricDataPointName.DATABASE_CONNECTION_FAILURE_COUNT)
         raise DatabaseConnectionError(
             f"Failed to create database connection: {str(e)}"
         ) from e

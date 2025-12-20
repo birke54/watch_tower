@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'watch-tower-monitor'
+
+scrape_configs:
+  - job_name: 'watch-tower'
+    static_configs:
+      - targets: ['watch-tower:8080']
+        labels:
+          service: 'watch-tower'
+          environment: 'production'

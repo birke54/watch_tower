@@ -4,11 +4,14 @@ from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import and_
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from db.models import MotionEvent
 from db.repositories.base import BaseRepository
 from utils.logging_config import get_logger
+from utils.metric_helpers import inc_counter_metric
+from utils.metrics import MetricDataPointName
 from watch_tower.config import get_timezone
 
 LOGGER = get_logger(__name__)
@@ -100,11 +103,45 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
             processed_time: datetime
     ) -> Optional[MotionEvent]:
         """Mark a motion event as processed by facial recognition"""
+        table_name = self.model.__table__.name
         event = self.get(db, event_id)
         if event:
             event.facial_recognition_processed = processed_time
-            db.commit()
-            db.refresh(event)
+            try:
+                db.commit()
+            except SQLAlchemyError as e:
+                db.rollback()
+                LOGGER.error(
+                    "Failed to mark event %s as processed in table %s: %s",
+                    event_id,
+                    table_name,
+                    str(e),
+                    exc_info=True
+                )
+                inc_counter_metric(
+                    MetricDataPointName.DATABASE_TRANSACTION_FAILURE_COUNT,
+                    labels={"table": table_name},
+                    increment=1,
+                )
+                raise
+            inc_counter_metric(
+                MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
+                labels={"table": table_name},
+                increment=1,
+            )
+            try:
+                db.refresh(event)
+            except SQLAlchemyError as e:
+                # Refresh failed but commit succeeded, so data is persisted.
+                LOGGER.warning(
+                    "Failed to refresh event after commit in table %s: %s. "
+                    "Update was committed successfully.",
+                    table_name,
+                    str(e),
+                    exc_info=True
+                )
+                # Don't rollback or close - let the caller handle the session
+                raise
         return event
 
     def update_s3_url(

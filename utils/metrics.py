@@ -35,10 +35,6 @@ aws_rekognition_face_search_duration_seconds = Histogram(
     "Duration of face search operations in seconds",
     buckets=SECOND_TO_FIVE_MINUTES_BUCKETS,
 )
-aws_rekognition_face_search_semaphore_job_count = Gauge(
-    "aws_rekognition_face_search_semaphore_job_count",
-    "Number of concurrent face search jobs being processed",
-)
 
 # AWS S3 Metrics
 aws_s3_download_file_success_count = Counter(
@@ -163,15 +159,23 @@ watch_tower_business_logic_stop_error_count = Counter(
 )
 
 # DB operation metrics
-database_insert_success_count = Counter(
-    "database_insert_success_count",
-    "Number of successful database insert operations",
+database_transaction_success_count = Counter(
+    "database_transaction_success_count",
+    "Number of successful database transaction operations",
     labelnames=[DATABASE_TABLE_LABEL],
 )
-database_insert_failure_count = Counter(
-    "database_insert_failure_count",
-    "Number of failed database insert operations",
+database_transaction_failure_count = Counter(
+    "database_transaction_failure_count",
+    "Number of failed database transaction operations",
     labelnames=[DATABASE_TABLE_LABEL],
+)
+database_connection_success_count = Counter(
+    "database_connection_success_count",
+    "Number of successful database connection attempts",
+)
+database_connection_failure_count = Counter(
+    "database_connection_error_count",
+    "Number of failed database connection attempts",
 )
 
 # Camera registry metrics
@@ -220,56 +224,57 @@ connection_manager_registry_inactive_connection_count = Gauge(
 # pylint: enable=invalid-name
 
 
-class MetricNames(enum.Enum):
+class MetricDataPointName(enum.Enum):
     """Enumeration of Prometheus metric names."""
-    AWS_REKOGNITION_FACE_SEARCH_SUCCESS_COUNT = "aws_rekognition_face_search_success_count"
-    AWS_REKOGNITION_FACE_SEARCH_ERROR_COUNT = "aws_rekognition_face_search_error_count"
-    AWS_REKOGNITION_FACE_SEARCH_DURATION_SECONDS = "aws_rekognition_face_search_duration_seconds"
-    AWS_REKOGNITION_FACE_SEARCH_SEMAPHORE_JOB_COUNT = "aws_rekognition_face_search_semaphore_job_count"
-    AWS_S3_DOWNLOAD_FILE_SUCCESS_COUNT = "aws_s3_download_file_success_count"
-    AWS_S3_DOWNLOAD_FILE_ERROR_COUNT = "aws_s3_download_file_error_count"
-    AWS_S3_UPLOAD_FILE_SUCCESS_COUNT = "aws_s3_upload_file_success_count"
-    AWS_S3_UPLOAD_FILE_ERROR_COUNT = "aws_s3_upload_file_error_count"
-    AWS_S3_UPLOAD_SEMAPHORE_JOB_COUNT = "aws_s3_upload_semaphore_job_count"
-    RING_RETRIEVE_MOTION_EVENTS_SUCCESS_COUNT = "ring_retrieve_motion_events_success_count"
-    RING_RETRIEVE_MOTION_EVENTS_ERROR_COUNT = "ring_retrieve_motion_events_error_count"
-    RING_RETRIEVE_MOTION_EVENTS_DURATION_SECONDS = "ring_retrieve_motion_events_duration_seconds"
-    RING_RETRIEVE_VIDEO_SUCCESS_COUNT = "ring_retrieve_video_success_count"
-    RING_RETRIEVE_VIDEO_ERROR_COUNT = "ring_retrieve_video_error_count"
-    RING_RETRIEVE_VIDEO_DURATION_SECONDS = "ring_retrieve_video_duration_seconds"
-    RING_LOGIN_SUCCESS_COUNT = "ring_login_success_count"
-    RING_LOGIN_ERROR_COUNT = "ring_login_error_count"
-    RING_LOGOUT_SUCCESS_COUNT = "ring_logout_success_count"
-    RING_LOGOUT_ERROR_COUNT = "ring_logout_error_count"
-    RING_TOKEN_UPDATE_SUCCESS_COUNT = "ring_token_update_success_count"
-    RING_TOKEN_UPDATE_ERROR_COUNT = "ring_token_update_error_count"
-    AES_ENCRYPT_SUCCESS_COUNT = "aes_encrypt_success_count"
-    AES_ENCRYPT_ERROR_COUNT = "aes_encrypt_error_count"
-    AES_DECRYPT_SUCCESS_COUNT = "aes_decrypt_success_count"
-    AES_DECRYPT_ERROR_COUNT = "aes_decrypt_error_count"
-    WATCH_TOWER_BOOTSTRAP_SUCCESS_COUNT = "watch_tower_bootstrap_success_count"
-    WATCH_TOWER_BOOTSTRAP_ERROR_COUNT = "watch_tower_bootstrap_error_count"
-    WATCH_TOWER_BUSINESS_LOGIC_START_SUCCESS_COUNT = "watch_tower_business_logic_start_success_count"
-    WATCH_TOWER_BUSINESS_LOGIC_START_ERROR_COUNT = "watch_tower_business_logic_start_error_count"
-    WATCH_TOWER_BUSINESS_LOGIC_STOP_SUCCESS_COUNT = "watch_tower_business_logic_stop_success_count"
-    WATCH_TOWER_BUSINESS_LOGIC_STOP_ERROR_COUNT = "watch_tower_business_logic_stop_error_count"
-    DATABASE_INSERT_SUCCESS_COUNT = "database_insert_success_count"
-    DATABASE_INSERT_FAILURE_COUNT = "database_insert_failure_count"
-    CAMERA_REGISTRY_ADD_CAMERA_SUCCESS_COUNT = "camera_registry_add_camera_success_count"
-    CAMERA_REGISTRY_ADD_CAMERA_ERROR_COUNT = "camera_registry_add_camera_error_count"
-    CAMERA_REGISTRY_REMOVE_CAMERA_SUCCESS_COUNT = "camera_registry_remove_camera_success_count"
-    CAMERA_REGISTRY_REMOVE_CAMERA_ERROR_COUNT = "camera_registry_remove_camera_error_count"
-    CAMERA_REGISTRY_ACTIVE_CAMERA_COUNT = "camera_registry_active_camera_count"
-    CAMERA_REGISTRY_INACTIVE_CAMERA_COUNT = "camera_registry_inactive_camera_count"
+    AWS_REKOGNITION_FACE_SEARCH_SUCCESS_COUNT = aws_rekognition_face_search_success_count
+    AWS_REKOGNITION_FACE_SEARCH_ERROR_COUNT = aws_rekognition_face_search_error_count
+    AWS_REKOGNITION_FACE_SEARCH_DURATION_SECONDS = aws_rekognition_face_search_duration_seconds
+    AWS_S3_DOWNLOAD_FILE_SUCCESS_COUNT = aws_s3_download_file_success_count
+    AWS_S3_DOWNLOAD_FILE_ERROR_COUNT = aws_s3_download_file_error_count
+    AWS_S3_UPLOAD_FILE_SUCCESS_COUNT = aws_s3_upload_file_success_count
+    AWS_S3_UPLOAD_FILE_ERROR_COUNT = aws_s3_upload_file_error_count
+    AWS_S3_UPLOAD_SEMAPHORE_JOB_COUNT = aws_s3_upload_semaphore_job_count
+    RING_RETRIEVE_MOTION_EVENTS_SUCCESS_COUNT = ring_retrieve_motion_events_success_count
+    RING_RETRIEVE_MOTION_EVENTS_ERROR_COUNT = ring_retrieve_motion_events_error_count
+    RING_RETRIEVE_MOTION_EVENTS_DURATION_SECONDS = ring_retrieve_motion_events_duration
+    RING_RETRIEVE_VIDEO_SUCCESS_COUNT = ring_retrieve_video_success_count
+    RING_RETRIEVE_VIDEO_ERROR_COUNT = ring_retrieve_video_error_count
+    RING_RETRIEVE_VIDEO_DURATION_SECONDS = ring_retrieve_video_duration
+    RING_LOGIN_SUCCESS_COUNT = ring_login_success_count
+    RING_LOGIN_ERROR_COUNT = ring_login_error_count
+    RING_LOGOUT_SUCCESS_COUNT = ring_logout_success_count
+    RING_LOGOUT_ERROR_COUNT = ring_logout_error_count
+    RING_TOKEN_UPDATE_SUCCESS_COUNT = ring_token_update_success_count
+    RING_TOKEN_UPDATE_ERROR_COUNT = ring_token_update_error_count
+    AES_ENCRYPT_SUCCESS_COUNT = aes_encrypt_success_count
+    AES_ENCRYPT_ERROR_COUNT = aes_encrypt_error_count
+    AES_DECRYPT_SUCCESS_COUNT = aes_decrypt_success_count
+    AES_DECRYPT_ERROR_COUNT = aes_decrypt_error_count
+    WATCH_TOWER_BOOTSTRAP_SUCCESS_COUNT = watch_tower_bootstrap_success_count
+    WATCH_TOWER_BOOTSTRAP_ERROR_COUNT = watch_tower_bootstrap_error_count
+    WATCH_TOWER_BUSINESS_LOGIC_START_SUCCESS_COUNT = watch_tower_business_logic_start_success_count
+    WATCH_TOWER_BUSINESS_LOGIC_START_ERROR_COUNT = watch_tower_business_logic_start_error_count
+    WATCH_TOWER_BUSINESS_LOGIC_STOP_SUCCESS_COUNT = watch_tower_business_logic_stop_success_count
+    WATCH_TOWER_BUSINESS_LOGIC_STOP_ERROR_COUNT = watch_tower_business_logic_stop_error_count
+    DATABASE_TRANSACTION_SUCCESS_COUNT = database_transaction_success_count
+    DATABASE_TRANSACTION_FAILURE_COUNT = database_transaction_failure_count
+    DATABASE_CONNECTION_SUCCESS_COUNT = database_connection_success_count
+    DATABASE_CONNECTION_FAILURE_COUNT = database_connection_failure_count
+    CAMERA_REGISTRY_ADD_CAMERA_SUCCESS_COUNT = camera_registry_add_camera_success_count
+    CAMERA_REGISTRY_ADD_CAMERA_ERROR_COUNT = camera_registry_add_camera_error_count
+    CAMERA_REGISTRY_REMOVE_CAMERA_SUCCESS_COUNT = camera_registry_remove_camera_success_count
+    CAMERA_REGISTRY_REMOVE_CAMERA_ERROR_COUNT = camera_registry_remove_camera_error_count
+    CAMERA_REGISTRY_ACTIVE_CAMERA_COUNT = camera_registry_active_camera_count
+    CAMERA_REGISTRY_INACTIVE_CAMERA_COUNT = camera_registry_inactive_camera_count
     CONNECTION_MANAGER_REGISTRY_ADD_CONNECTION_SUCCESS_COUNT = (
-        "connection_manager_registry_add_connection_success_count"
+        connection_manager_registry_add_connection_success_count
     )
     CONNECTION_MANAGER_REGISTRY_ADD_CONNECTION_ERROR_COUNT = (
-        "connection_manager_registry_add_connection_error_count"
+        connection_manager_registry_add_connection_error_count
     )
     CONNECTION_MANAGER_REGISTRY_ACTIVE_CONNECTION_COUNT = (
-        "connection_manager_registry_active_connection_count"
+        connection_manager_registry_active_connection_count
     )
     CONNECTION_MANAGER_REGISTRY_INACTIVE_CONNECTION_COUNT = (
-        "connection_manager_registry_inactive_connection_count"
+        connection_manager_registry_inactive_connection_count
     )
