@@ -240,7 +240,6 @@ async def process_face_search_with_visitor_logs(
     # Process the face search
     try:
         start_time: datetime = datetime.now(get_timezone())
-        start_time: datetime = datetime.now(get_timezone())
         face_search_results, was_skipped = await rekognition_service.start_face_search(motion_event.s3_url)
     except RekognitionError as e:
         LOGGER.error(
