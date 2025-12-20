@@ -1,8 +1,19 @@
 global:
   scrape_interval: 15s
-  evaluation_interval: 15s
+  evaluation_interval: 20s
   external_labels:
     monitor: 'watch-tower-monitor'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Load alert rules
+rule_files:
+  - 'alert_rules.yml'
 
 scrape_configs:
   - job_name: 'watch-tower'
@@ -11,3 +22,4 @@ scrape_configs:
         labels:
           service: 'watch-tower'
           environment: 'production'
+    metrics_path: '/metrics'
