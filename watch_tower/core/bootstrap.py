@@ -13,6 +13,8 @@ from db.camera_state_db import init_camera_state_db
 from utils.logging_config import get_logger
 from utils.error_handler import handle_async_errors
 from utils.performance_monitor import monitor_async_performance
+from utils.metrics import MetricDataPointName
+from utils.metric_helpers import inc_counter_metric
 
 LOGGER = get_logger(__name__)
 
@@ -23,14 +25,20 @@ ENGINE, SESSION_FACTORY = get_database_connection()
 @handle_async_errors(log_error=True, reraise=True)
 async def bootstrap() -> None:
     """Bootstrap the application."""
-    # Initialize SQLite database for camera state
-    init_camera_state_db()
+    try:
+        # Initialize SQLite database for camera state
+        init_camera_state_db()
 
-    vendors = retrieve_vendors()
-    register_connection_managers(vendors)
-    await login_to_vendors()
-    cameras = await retrieve_cameras()
-    await add_cameras_to_registry(cameras)
+        vendors = retrieve_vendors()
+        register_connection_managers(vendors)
+        await login_to_vendors()
+        cameras = await retrieve_cameras()
+        await add_cameras_to_registry(cameras)
+        
+        inc_counter_metric(MetricDataPointName.WATCH_TOWER_BOOTSTRAP_SUCCESS_COUNT)
+    except Exception:
+        inc_counter_metric(MetricDataPointName.WATCH_TOWER_BOOTSTRAP_ERROR_COUNT)
+        raise
 
 
 async def add_cameras_to_registry(cameras: List[Tuple[PluginType, Any]]) -> None:
