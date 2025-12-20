@@ -1,0 +1,22 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default-receiver'
+
+receivers:
+  - name: 'default-receiver'
+    pushover_configs:
+      - user_key: 'u53j5n5vj85unyi14bx6mq2fu9o4zf'
+        token: 'ab9f23m65ho6fqpdjf8r6tyxjrkxxm'
+        title: '{{ .GroupLabels.alertname }}'
+        message: |
+          {{ range .Alerts }}
+          {{ .Status | toUpper }}: {{ .Labels.alertname }}
+          {{ if .Annotations.description }}{{ .Annotations.description }}{{ end }}
+          {{ end }}
+        priority: 0

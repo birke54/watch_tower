@@ -1,0 +1,4 @@
+groups:
+  - name: watch_tower_alerts
+    interval: 30s
+    rules:

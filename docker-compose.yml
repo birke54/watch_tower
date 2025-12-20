@@ -53,6 +53,19 @@ services:
     depends_on:
       - watch-tower
 
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: watch-tower-alertmanager
+    volumes:
+      - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    ports:
+      - "9093:9093"
+    restart: unless-stopped
+    networks:
+      - watch-tower-network
+    depends_on:
+      - prometheus
+
 volumes:
   prometheus-data:
 
