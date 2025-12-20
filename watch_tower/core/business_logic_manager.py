@@ -13,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from data_models.motion_event import MotionEvent
+from utils.metrics import MetricDataPointName
+from utils.metric_helpers import inc_counter_metric
 from watch_tower.core.events_loop import (
     insert_events_into_db,
     poll_for_events,
@@ -159,8 +161,10 @@ class BusinessLogicManager:
             # If this fails, we'll rollback to maintain consistency
             self._save_state()
 
+            inc_counter_metric(MetricDataPointName.WATCH_TOWER_BUSINESS_LOGIC_START_SUCCESS_COUNT)
             LOGGER.info("Business logic loop started successfully")
         except Exception as e:
+            inc_counter_metric(MetricDataPointName.WATCH_TOWER_BUSINESS_LOGIC_START_ERROR_COUNT)
             LOGGER.error("Failed to start business logic loop: %s", e)
 
             # Rollback state changes to maintain consistency between in-memory and file state
@@ -213,8 +217,11 @@ class BusinessLogicManager:
 
             # Save final state after successful shutdown
             self._save_state()
+
+            inc_counter_metric(MetricDataPointName.WATCH_TOWER_BUSINESS_LOGIC_STOP_SUCCESS_COUNT)
             LOGGER.info("Business logic loop stopped successfully")
         except Exception as e:
+            inc_counter_metric(MetricDataPointName.WATCH_TOWER_BUSINESS_LOGIC_STOP_ERROR_COUNT)
             LOGGER.error("Error stopping business logic loop: %s", e)
             # Rollback state changes to maintain consistency between in-memory and file state
             self._restore_state(original_state)
