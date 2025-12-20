@@ -143,7 +143,6 @@ class RingCamera(CameraBase):
         try:
             video_url = self.device_object.recording_url(event_id)
             if video_url is None:
-                LOGGER.warning("No video URL found for Ring event %s", event_id)
                 raise ValueError(
                     f"No video URL found for Ring event {event_id}")
             object_key = f'ring_{event_id}.mp4'
@@ -176,10 +175,18 @@ class RingCamera(CameraBase):
                 if h264_is_temp and h264_file_path and os.path.exists(h264_file_path):
                     os.remove(h264_file_path)
         except Exception as e:
-            LOGGER.warning(
-                "Error retrieving video URL for Ring event %s: %s", event_id, e)
-            raise ValueError(
-                f"Error retrieving video URL for Ring event {event_id}: {e}")
+            if isinstance(e, ValueError):
+                LOGGER.warning(
+                    "No video URL found for Ring event %s: %s", event_id, e)
+                raise
+            elif isinstance(e, requests.exceptions.RequestException):
+                LOGGER.warning(
+                    "Error downloading video URL for Ring event %s: %s", event_id, e)
+                raise
+            elif isinstance(e, S3Error) or isinstance(e, S3ResourceNotFoundException) or isinstance(e, FileNotFoundError):
+                LOGGER.warning(
+                    "Error uploading video to S3: %s: %s", event_id, e)
+                raise
 
         # Update the event in the database with the video URL
         _, session_factory = get_database_connection()

@@ -155,10 +155,12 @@ class S3Service:
 
             # Download the file
             self.client.download_file(bucket_name, object_key, local_path)
+            inc_counter_metric(MetricDataPointName.AWS_S3_DOWNLOAD_FILE_SUCCESS_COUNT)
             LOGGER.info(
                 "Successfully downloaded s3://%s/%s to %s", bucket_name, object_key, local_path)
 
         except ClientError as e:
+            inc_counter_metric(MetricDataPointName.AWS_S3_DOWNLOAD_FILE_ERROR_COUNT)
             error_code = e.response['Error']['Code']
             if error_code == '404':
                 LOGGER.error(
@@ -184,26 +186,21 @@ class S3Service:
             ClientError: If there's an AWS service error.
             FileNotFoundError: If the local file does not exist.
         """
-        if not os.path.isfile(local_path):
-            LOGGER.error("Local file %s does not exist.", local_path)
-            raise FileNotFoundError(f"Local file {local_path} does not exist.")
-
-        self.check_bucket_exists(bucket_name)
-
         try:
+            if not os.path.isfile(local_path):
+                inc_counter_metric(MetricDataPointName.AWS_S3_UPLOAD_FILE_ERROR_COUNT)
+                LOGGER.error("Local file %s does not exist.", local_path)
+                raise FileNotFoundError(f"Local file {local_path} does not exist.")
+
+            self.check_bucket_exists(bucket_name)
             self.client.upload_file(local_path, bucket_name, object_key)
+            inc_counter_metric(MetricDataPointName.AWS_S3_UPLOAD_FILE_SUCCESS_COUNT)
             LOGGER.info(
                 "Successfully uploaded %s to s3://%s/%s", local_path, bucket_name, object_key)
-        except ClientError as e:
-            error_code = e.response['Error']['Code']
-            if error_code == '404':
-                LOGGER.error("Bucket %s not found", bucket_name)
-                raise S3ResourceNotFoundException(
-                    f"Bucket {bucket_name} not found")
-            LOGGER.error(
-                "Error uploading file to s3://%s/%s: %s", bucket_name, object_key, e)
-            raise S3Error(
-                f"Error uploading file to s3://{bucket_name}/{object_key}: {e}")
+        except Exception as e:
+            inc_counter_metric(MetricDataPointName.AWS_S3_UPLOAD_FILE_ERROR_COUNT)
+            if isinstance(e, S3Error) or isinstance(e, S3ResourceNotFoundException) or isinstance(e, FileNotFoundError):
+                raise
 
 
 # Create a singleton instance
