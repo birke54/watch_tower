@@ -4,41 +4,28 @@ Ring Camera Module
 This module provides the Ring camera implementation, handling motion event
 retrieval, video download, and S3 upload for Ring doorbell devices.
 """
-"""
-Ring Camera Module
-
-This module provides the Ring camera implementation, handling motion event
-retrieval, video download, and S3 upload for Ring doorbell devices.
-"""
 import os
-import tempfile
-from datetime import datetime
 import tempfile
 from datetime import datetime
 from typing import Any, Dict, List, cast
 
 import requests
-import requests
 from ring_doorbell import RingDoorBell
 
+from aws.s3.s3_service import S3_SERVICE
 from cameras.camera_base import CameraBase
 from connection_managers.plugin_type import PluginType
 from connection_managers.ring_connection_manager import RingConnectionManager
 from data_models.motion_event import MotionEvent
 from db.connection import get_database_connection
 from db.repositories.motion_event_repository import MotionEventRepository
-
-from aws.s3.s3_service import S3_SERVICE
+from utils.logging_config import get_logger
+from utils.video_converter import VIDEO_CONVERTER
 from watch_tower.config import config
-
-from aws.s3.s3_service import S3_SERVICE
-from watch_tower.config import config
-from watch_tower.exceptions import DatabaseEventNotFoundError
+from watch_tower.exceptions import DatabaseEventNotFoundError, DatabaseMultipleEventsFoundError
 from watch_tower.registry.connection_manager_registry import (
     REGISTRY as connection_manager_registry
 )
-from utils.logging_config import get_logger
-from utils.video_converter import VIDEO_CONVERTER
 
 try:
     from zoneinfo import ZoneInfo
@@ -135,12 +122,12 @@ class RingCamera(CameraBase):
             raise ValueError(
                 f"No event ID found in metadata for event {event.event_id}")
 
-        bucket_name = config.event_recordings_bucket
-        temp_file_path = None
-        h264_file_path = None
-        h264_is_temp = False
-
         try:
+            bucket_name = config.event_recordings_bucket
+            temp_file_path = None
+            h264_file_path = None
+            h264_is_temp = False
+
             video_url = self.device_object.recording_url(event_id)
             if video_url is None:
                 LOGGER.warning("No video URL found for Ring event %s", event_id)
@@ -150,36 +137,31 @@ class RingCamera(CameraBase):
             temp_file = tempfile.NamedTemporaryFile(
                 delete=False, suffix='.mp4')
             temp_file_path = temp_file.name
-            try:
-                # Download the video to the temp file
-                with requests.get(video_url, stream=True) as response:
-                    response.raise_for_status()
-                    for chunk in response.iter_content(chunk_size=8192):
-                        temp_file.write(chunk)
-                temp_file.close()  # Close so S3 can read it
 
-                # If file is not already H.264, convert it to H.264 for Rekognition
-                if not VIDEO_CONVERTER.get_video_info(
-                        temp_file_path).get('codec') == 'h264':
-                    h264_file_path, h264_is_temp = VIDEO_CONVERTER.convert_for_rekognition(
-                        temp_file_path)
-                else:
-                    h264_file_path = temp_file_path
-                    h264_is_temp = False
+            # Download the video to the temp file
+            with requests.get(video_url, stream=True) as response:
+                response.raise_for_status()
+                for chunk in response.iter_content(chunk_size=8192):
+                    temp_file.write(chunk)
+            temp_file.close()  # Close so S3 can read it
 
-                # Upload to S3
-                S3_SERVICE.upload_file(h264_file_path, bucket_name, object_key)
-            finally:
-                # Always clean up the temp files
-                if temp_file_path and os.path.exists(temp_file_path):
-                    os.remove(temp_file_path)
-                if h264_is_temp and h264_file_path and os.path.exists(h264_file_path):
-                    os.remove(h264_file_path)
-        except Exception as e:
-            LOGGER.warning(
-                "Error retrieving video URL for Ring event %s: %s", event_id, e)
-            raise ValueError(
-                f"Error retrieving video URL for Ring event {event_id}: {e}")
+            # If file is not already H.264, convert it to H.264 for Rekognition
+            if not VIDEO_CONVERTER.get_video_info(
+                    temp_file_path).get('codec') == 'h264':
+                h264_file_path, h264_is_temp = VIDEO_CONVERTER.convert_for_rekognition(
+                    temp_file_path)
+            else:
+                h264_file_path = temp_file_path
+                h264_is_temp = False
+
+            # Upload to S3
+            S3_SERVICE.upload_file(h264_file_path, bucket_name, object_key)
+        finally:
+            # Always clean up the temp files
+            if temp_file_path and os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+            if h264_is_temp and h264_file_path and os.path.exists(h264_file_path):
+                os.remove(h264_file_path)
 
         # Update the event in the database with the video URL
         _, session_factory = get_database_connection()
@@ -192,11 +174,16 @@ class RingCamera(CameraBase):
                     '->>')('event_id') == str(event_id)
             ).all()
 
-            if not events or len(events) != 1:
+            if not events:
                 LOGGER.error(
                     "No database event found for Ring event ID %s", event_id)
                 raise DatabaseEventNotFoundError(
                     f"No database event found for Ring event ID {event_id}")
+            if len(events) != 1:
+                LOGGER.error(
+                    "Multiple database events found for Ring event ID %s", event_id)
+                raise DatabaseMultipleEventsFoundError(
+                    f"Multiple database events found for Ring event ID {event_id}: {events}")
 
             # Update the first matching event
             motion_event_repository.update_s3_url(

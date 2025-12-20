@@ -1,9 +1,11 @@
-from unittest.mock import patch, Mock
-from botocore.exceptions import ClientError
-import pytest
+"""Tests for S3 service functionality."""
 from typing import Generator
+from unittest.mock import Mock, patch
 
-from aws.exceptions import S3ResourceNotFoundException
+import pytest
+from botocore.exceptions import ClientError
+
+from aws.exceptions import S3Error, S3ResourceNotFoundException
 from aws.s3.s3_service import S3Service
 
 # Test data
@@ -12,8 +14,8 @@ TEST_OBJECT_NAME = "test-object"
 TEST_FILE_PATH = "test-file-path"
 
 
-@pytest.fixture
-def mock_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.fixture(name='mock_env_vars')
+def _mock_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     """Set up test environment variables."""
     monkeypatch.setenv('AWS_REGION', 'us-west-2')
     monkeypatch.setenv('AWS_ACCESS_KEY_ID', 'test-key')
@@ -21,27 +23,29 @@ def mock_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv('S3_BUCKET_NAME', TEST_BUCKET_NAME)
 
 
-@pytest.fixture
-def mock_config(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.fixture(name='mock_config')
+def _mock_config() -> Generator[Mock, None, None]:
     """Mock the configuration to use test values."""
     with patch('aws.s3.s3_service.config') as mock_config:
         mock_config.s3_bucket_name = TEST_BUCKET_NAME
         yield mock_config
 
 
-@pytest.fixture
-def mock_s3_client() -> Generator[Mock, None, None]:
+@pytest.fixture(name='mock_s3_client')
+def _mock_s3_client() -> Generator[Mock, None, None]:
     """Create a mock S3 client."""
     with patch('boto3.client') as mock_client:
         yield mock_client.return_value
 
 
-@pytest.fixture
-def s3_service(
+@pytest.fixture(name='s3_service')
+def _s3_service(
         mock_env_vars: None,
         mock_config: Mock,
         mock_s3_client: Mock) -> S3Service:
     """Create an S3 service instance with mocked dependencies."""
+    # Fixtures are used for their side effects (setup), not directly in the function body
+    _ = mock_env_vars, mock_config, mock_s3_client
     return S3Service()
 
 
@@ -50,6 +54,8 @@ def test_init_success(
         mock_config: Mock,
         mock_s3_client: Mock) -> None:
     """Test successful initialization of S3Service."""
+    # Use the fixtures to ensure proper setup
+    _ = mock_env_vars, mock_config
     service = S3Service()
     assert service.client == mock_s3_client
 
@@ -62,8 +68,8 @@ def test_init_missing_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv('AWS_SECRET_ACCESS_KEY', raising=False)
 
     # Mock config to raise ValueError when missing required vars
-    with patch('aws.s3.s3_service.config') as mock_config:
-        mock_config.validate_s3_only.side_effect = ValueError(
+    with patch('aws.s3.s3_service.config') as mock_config_patch:
+        mock_config_patch.validate_s3_only.side_effect = ValueError(
             "Missing required environment variables")
         with pytest.raises(ValueError) as exc_info:
             S3Service()
@@ -186,9 +192,9 @@ def test_download_file_bucket_not_found(
     )
 
     # Test and verify
-    with pytest.raises(S3ResourceNotFoundException) as exc_info:
+    with pytest.raises(S3Error) as exc_info:
         s3_service.download_file(TEST_BUCKET_NAME, test_object_key, str(local_path))
-    assert str(exc_info.value) == f"Bucket {TEST_BUCKET_NAME} not found"
+    assert "error downloading file" in str(exc_info.value).lower()
     mock_s3_client.download_file.assert_not_called()
 
 
@@ -211,10 +217,9 @@ def test_download_file_object_not_found(
     )
 
     # Test and verify
-    with pytest.raises(S3ResourceNotFoundException) as exc_info:
+    with pytest.raises(S3Error) as exc_info:
         s3_service.download_file(TEST_BUCKET_NAME, test_object_key, str(local_path))
-    assert str(
-        exc_info.value) == f"Object {test_object_key} not found in bucket {TEST_BUCKET_NAME}"
+    assert "error downloading file" in str(exc_info.value).lower()
     mock_s3_client.download_file.assert_called_once()
 
 

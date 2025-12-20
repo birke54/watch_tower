@@ -137,11 +137,25 @@ def insert_events_into_db(events: List[MotionEvent]) -> None:
 async def process_video_retrieval(event: MotionEvent, camera: CameraBase) -> None:
     """Process a single video retrieval task"""
     async with UPLOAD_SEMAPHORE:
-        try:
-            await camera.retrieve_video_from_event_and_upload_to_s3(event)
-        except Exception as e:
-            LOGGER.error("Error processing video for event %s: %s", event.event_id, e)
-            LOGGER.exception("Full traceback:")
+        await camera.retrieve_video_from_event_and_upload_to_s3(event)
+
+def _handle_video_retrieval_task_completion(
+        task: asyncio.Task,
+        event_id: int,
+) -> None:
+    """Handle task completion, log exceptions"""
+    try:
+        # This will raise if the task raised an exception
+        task.result()
+    except Exception as e:
+        LOGGER.error(
+            "Video retrieval task for event ID %d raised an exception: %s",
+            event_id, e
+        )
+        LOGGER.exception("Full traceback:")
+    finally:
+        # Always remove from tracking
+        enqueued_upload_tasks.pop(event_id, None)
 
 
 def _handle_facial_recognition_task_completion(
@@ -439,7 +453,7 @@ async def start_video_retrieval_tasks() -> None:
                             motion_event, camera))
                     enqueued_upload_tasks[event_id] = task
                     task.add_done_callback(
-                        lambda t, key=event_id: enqueued_upload_tasks.pop(key, None))
+                        lambda t, key=event_id: _handle_video_retrieval_task_completion(t, key))
 
                     # Add a small delay between tasks to prevent overwhelming the system
                     await asyncio.sleep(0.1)
