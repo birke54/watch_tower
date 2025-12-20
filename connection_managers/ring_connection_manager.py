@@ -13,11 +13,13 @@ from db.cryptography.aes import decrypt
 from db.models import VendorStatus as DBVendorStatus
 from db.repositories.vendors_repository import VendorsRepository
 from utils.logging_config import get_logger
-from watch_tower.exceptions import ConnectionManagerError
+from watch_tower.exceptions import RingConnectionManagerError
 from watch_tower.registry.connection_manager_registry import (
     REGISTRY as connection_manager_registry,
     VendorStatus as RegistryVendorStatus,
 )
+from utils.metrics import MetricDataPointName
+from utils.metric_helpers import inc_counter_metric
 
 # Configure logger for this module
 LOGGER = get_logger(__name__)
@@ -51,6 +53,7 @@ class RingConnectionManager(ConnectionManagerBase):
         """
         if self._is_authenticated:
             LOGGER.info("Already authenticated, skipping login")
+            return
 
         LOGGER.info("Attempting to login with database token")
         try:
@@ -62,6 +65,8 @@ class RingConnectionManager(ConnectionManagerBase):
                 # Try authentication with existing token first
                 try:
                     if await self._authenticate_with_existing_token():
+                        inc_counter_metric(MetricDataPointName.RING_LOGIN_SUCCESS_COUNT)
+                        LOGGER.info("Successfully authenticated with existing token")
                         return
                 except Exception as e:
                     LOGGER.error(
@@ -77,22 +82,17 @@ class RingConnectionManager(ConnectionManagerBase):
                         LOGGER.info(
                             "Updated vendor status to active for %r",
                             self._plugin_type)
+                        inc_counter_metric(MetricDataPointName.RING_LOGIN_SUCCESS_COUNT)
+                        LOGGER.info("Successfully authenticated with credentials")
                         return
                 except Exception as e:
                     LOGGER.error(
-                        "Failed to authenticate with credentials: %s\n "
-                        "Moving on to new authentication", e)
+                        "Failed to authenticate with credentials: %s", e)
 
-            raise ConnectionManagerError(
-                "Failed to authenticate with Ring: all authentication methods failed"
+            inc_counter_metric(MetricDataPointName.RING_LOGIN_ERROR_COUNT)
+            raise RingConnectionManagerError(
+                f"Failed to authenticate with Ring: all authentication methods failed"
             )
-        except ConnectionManagerError:
-            raise
-        except Exception as e:
-            LOGGER.error("Failed to authenticate with Ring: %s", e)
-            raise ConnectionManagerError(
-                f"Failed to authenticate with Ring: {str(e)}"
-            ) from e
 
     async def logout(self) -> bool:
         """
@@ -107,6 +107,7 @@ class RingConnectionManager(ConnectionManagerBase):
         self._ring = None
         self._auth = None
         self._is_authenticated = False
+        inc_counter_metric(MetricDataPointName.RING_LOGOUT_SUCCESS_COUNT)
         LOGGER.info("Successfully logged out from Ring")
         return True
 
@@ -183,8 +184,10 @@ class RingConnectionManager(ConnectionManagerBase):
                 json.dumps(token),
                 expire_dt  # Pass datetime object, not string
             )
+            inc_counter_metric(MetricDataPointName.RING_TOKEN_UPDATE_SUCCESS_COUNT)
             LOGGER.info(
                 "Token updated in database for vendor_id: %d", vendor_id)
+                
 
     @staticmethod
     def otp_callback() -> str:
@@ -287,6 +290,6 @@ class RingConnectionManager(ConnectionManagerBase):
             return auth
         except Exception as e:
             LOGGER.error("Authentication failed: %s", e)
-            raise ConnectionManagerError(
+            raise RingConnectionManagerError(
                 f"Authentication failed: {str(e)}"
             ) from e

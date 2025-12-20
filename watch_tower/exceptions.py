@@ -41,6 +41,9 @@ class ConnectionManagerError(WatchTowerError):
     """Raised when there's an error with connection manager operations."""
 
 
+class RingConnectionManagerError(ConnectionManagerError):
+    """Raised when there's an error with Ring connection manager operations."""
+
 # Re-export all exceptions
 __all__ = [
     # AWS exceptions
@@ -66,4 +69,6 @@ __all__ = [
     'ManagementAPIError',
     'VideoProcessingError',
     'CameraError',
+    'ConnectionManagerError',
+    'RingConnectionManagerError',
 ]
