@@ -167,18 +167,17 @@ def encrypt(data: Union[str, bytes], key: bytes = None) -> str:
         inc_counter_metric(MetricDataPointName.AES_ENCRYPT_SUCCESS_COUNT)
         return base64.b64encode(combined).decode('utf-8')
 
-    except CryptographyInputError:
-        # Re-raise input errors as-is to preserve specific exception type
+    except Exception as e:
         inc_counter_metric(MetricDataPointName.AES_ENCRYPT_ERROR_COUNT)
-        raise
-    except CryptographyError:
-        # Re-raise cryptography errors as-is (e.g., from get_encryption_key or other operations)
-        inc_counter_metric(MetricDataPointName.AES_ENCRYPT_ERROR_COUNT)
-        raise
-    except (ValueError, TypeError, UnicodeEncodeError) as e:
+        # Re-raise input/cryptography errors as-is to preserve specific exception type
+        if isinstance(e, (CryptographyInputError, CryptographyError)):
+            raise
         # Handle encoding/type errors with proper exception chaining
-        inc_counter_metric(MetricDataPointName.AES_ENCRYPT_ERROR_COUNT)
-        LOGGER.error("Encryption failed due to encoding/type error: %s", str(e), exc_info=True)
+        if isinstance(e, (ValueError, TypeError, UnicodeEncodeError)):
+            LOGGER.error("Encryption failed due to encoding/type error: %s", str(e), exc_info=True)
+            raise CryptographyError(f"Encryption failed: {str(e)}") from e
+        # Catch any other unexpected errors (e.g., from base64.b64encode(), os.urandom(), or cryptography library internal errors)
+        LOGGER.error("Unexpected error during encryption: %s", str(e), exc_info=True)
         raise CryptographyError(f"Encryption failed: {str(e)}") from e
 
 
@@ -254,21 +253,15 @@ def decrypt(data: str, key: bytes = None) -> str:
         inc_counter_metric(MetricDataPointName.AES_DECRYPT_SUCCESS_COUNT)
         return data.decode('utf-8')
 
-    except CryptographyInputError:
-        # Re-raise input errors as-is to preserve specific exception type
-        inc_counter_metric(MetricDataPointName.AES_DECRYPT_ERROR_COUNT)
-        raise
-    except CryptographyError:
-        # Re-raise cryptography errors as-is (e.g., from get_encryption_key or other operations)
-        inc_counter_metric(MetricDataPointName.AES_DECRYPT_ERROR_COUNT)
-        raise
-    except (ValueError, TypeError, UnicodeDecodeError) as e:
-        # Handle encoding/type errors with proper exception chaining
-        inc_counter_metric(MetricDataPointName.AES_DECRYPT_ERROR_COUNT)
-        LOGGER.error("Decryption failed due to encoding/type error: %s", str(e), exc_info=True)
-        raise CryptographyError(f"Decryption failed: {str(e)}") from e
     except Exception as e:
-        # Catch any other unexpected errors (e.g., cryptography library internal errors)
         inc_counter_metric(MetricDataPointName.AES_DECRYPT_ERROR_COUNT)
+        # Re-raise input/cryptography errors as-is to preserve specific exception type
+        if isinstance(e, (CryptographyInputError, CryptographyError)):
+            raise
+        # Handle encoding/type errors with proper exception chaining
+        if isinstance(e, (ValueError, TypeError, UnicodeDecodeError)):
+            LOGGER.error("Decryption failed due to encoding/type error: %s", str(e), exc_info=True)
+            raise CryptographyError(f"Decryption failed: {str(e)}") from e
+        # Catch any other unexpected errors (e.g., cryptography library internal errors)
         LOGGER.error("Unexpected error during decryption: %s", str(e), exc_info=True)
         raise CryptographyError(f"Decryption failed: {str(e)}") from e

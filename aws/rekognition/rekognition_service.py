@@ -199,14 +199,31 @@ class RekognitionService:  # pylint: disable=too-many-instance-attributes
             elif source_video_path.startswith('http'):
                 # Extract bucket and key from S3 URL
                 parsed_url = urlparse(source_video_path)
-                # URL format: https://bucket.s3.region.amazonaws.com/key
-                path_parts = parsed_url.path.lstrip('/').split('/', 1)
-                if len(path_parts) >= 2:
-                    bucket_name = path_parts[0]
-                    object_key = path_parts[1]
+                hostname = parsed_url.hostname or ''
+                
+                # Check if it's virtual-hosted-style URL (bucket in hostname)
+                # Patterns: bucket.s3.region.amazonaws.com or bucket.s3.amazonaws.com
+                if '.s3.' in hostname or hostname.endswith('.s3.amazonaws.com'):
+                    # Virtual-hosted-style: https://bucket.s3.region.amazonaws.com/key
+                    # Extract bucket from hostname (everything before .s3.)
+                    if '.s3.' in hostname:
+                        bucket_name = hostname.split('.s3.')[0]
+                    else:
+                        bucket_name = hostname.replace('.s3.amazonaws.com', '')
+                    # Object key is the entire path (without leading slash)
+                    object_key = parsed_url.path.lstrip('/')
+                    if not object_key:
+                        raise ValueError(
+                            f"Invalid S3 URL format: missing object key in {source_video_path}")
                 else:
-                    raise ValueError(
-                        f"Invalid S3 URL format: {source_video_path}")
+                    # Path-style: https://s3.region.amazonaws.com/bucket/key
+                    path_parts = parsed_url.path.lstrip('/').split('/', 1)
+                    if len(path_parts) >= 2:
+                        bucket_name = path_parts[0]
+                        object_key = path_parts[1]
+                    else:
+                        raise ValueError(
+                            f"Invalid S3 URL format: {source_video_path}")
             else:
                 # Assume it's just an object key, use the video recordings bucket
                 bucket_name = config.event_recordings_bucket
