@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
-from aws.exceptions import ClientError, NoCredentialsError, SecretsManagerError
+from aws.exceptions import NoCredentialsError, SecretsManagerError
 from aws.secrets_manager.secrets_manager_service import get_db_secret
 from db.exceptions import CryptographyError, CryptographyInputError
 from watch_tower.config import config
@@ -69,6 +69,39 @@ def derive_key(key: bytes, salt: bytes) -> bytes:
         backend=default_backend()
     )
     return kdf.derive(key)
+
+
+def _decode_encrypted_data(data: str) -> bytes:
+    """
+    Decode encrypted data from various formats (base64 or hex-encoded).
+
+    Args:
+        data: The encrypted data string (base64 or hex-encoded)
+
+    Returns:
+        bytes: The decoded encrypted data
+
+    Raises:
+        CryptographyError: If decoding fails
+    """
+    # If the data starts with \x, it's hex encoded
+    if data.startswith('\\x'):
+        # Remove all \x prefixes
+        hex_data = data.replace('\\x', '')
+
+        # Check if it's a hex-encoded base64 string
+        # Base64 strings can end with:
+        # - no padding (length % 3 = 0)
+        # - = (length % 3 = 2, hex: 3d)
+        # - == (length % 3 = 1, hex: 3d3d)
+        if hex_data.endswith('3d3d') or hex_data.endswith('3d'):
+            # Convert the hex to a string and then decode base64
+            base64_str = bytes.fromhex(hex_data).decode('utf-8')
+            return base64.b64decode(base64_str)
+        # Convert hex to bytes
+        return bytes.fromhex(hex_data)
+    # Decode as base64 (new format)
+    return base64.b64decode(data)
 
 
 def encrypt(data: Union[str, bytes], key: bytes = None) -> str:
@@ -178,26 +211,8 @@ def decrypt(data: str, key: bytes = None) -> str:
         if key is None:
             key = get_encryption_key()
 
-        # If the data starts with \x, it's hex encoded
-        if data.startswith('\\x'):
-            # Remove all \x prefixes
-            hex_data = data.replace('\\x', '')
-
-            # Check if it's a hex-encoded base64 string
-            # Base64 strings can end with:
-            # - no padding (length % 3 = 0)
-            # - = (length % 3 = 2, hex: 3d)
-            # - == (length % 3 = 1, hex: 3d3d)
-            if hex_data.endswith('3d3d') or hex_data.endswith('3d'):
-                # Convert the hex to a string and then decode base64
-                base64_str = bytes.fromhex(hex_data).decode('utf-8')
-                combined = base64.b64decode(base64_str)
-            else:
-                # Convert hex to bytes
-                combined = bytes.fromhex(hex_data)
-        else:
-            # Decode as base64 (new format)
-            combined = base64.b64decode(data)
+        # Decode the encrypted data from various formats
+        combined = _decode_encrypted_data(data)
 
         # Extract salt, IV, and encrypted data
         salt = combined[:SALT_SIZE]
