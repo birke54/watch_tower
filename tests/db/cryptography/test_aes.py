@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock
 from typing import Generator, List
 from db.cryptography.aes import encrypt, decrypt, get_encryption_key
 from db.exceptions import CryptographyError
+from aws.exceptions import SecretsManagerError
 
 # Test data
 TEST_KEY = "test_encryption_key_123"
@@ -41,10 +42,11 @@ def test_get_encryption_key_success(
 
 def test_get_encryption_key_failure(mock_env_vars: None) -> None:
     """Test key retrieval failure"""
-    with patch('db.cryptography.aes.get_db_secret', side_effect=Exception("Secret error")):
+    with patch('db.cryptography.aes.get_db_secret', side_effect=SecretsManagerError("Secret error")):
         with pytest.raises(CryptographyError) as exc_info:
             get_encryption_key()
         assert "Failed to get encryption key" in str(exc_info.value)
+        assert "Secret error" in str(exc_info.value)
 
 
 def test_encrypt_string(mock_env_vars: None, mock_secrets_manager: MagicMock) -> None:
