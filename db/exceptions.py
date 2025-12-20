@@ -19,3 +19,7 @@ class CryptographyError(WatchTowerError):
 
 class DatabaseEventNotFoundError(WatchTowerError):
     """Raised when a database event is not found."""
+
+
+class CryptographyInputError(CryptographyError):
+    """Raised when an invalid input is provided to the encryption/decryption functions."""

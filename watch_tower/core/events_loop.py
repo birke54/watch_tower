@@ -23,6 +23,10 @@ from utils.error_handler import handle_async_errors
 from utils.metric_helpers import add_histogram_metric, inc_counter_metric
 from utils.metrics import MetricDataPointName as Metric
 from watch_tower.config import config, get_timezone
+from utils.error_handler import handle_async_errors
+from utils.metric_helpers import add_histogram_metric, inc_counter_metric
+from utils.metrics import MetricDataPointName as Metric
+from watch_tower.config import config, get_timezone
 from watch_tower.registry.camera_registry import CameraStatus, REGISTRY as camera_registry
 from watch_tower.registry.connection_manager_registry import VendorStatus, REGISTRY as connection_manager_registry
 
@@ -249,6 +253,12 @@ async def process_face_search_with_visitor_logs(
         LOGGER.info(
             "Face search skipped for event %s - job already running", motion_event.event_id)
         return
+    # Increment the duration and success count metrics
+    end_time: datetime = datetime.now(get_timezone())
+    add_histogram_metric(
+        Metric.AWS_REKOGNITION_FACE_SEARCH_DURATION_SECONDS,
+        (end_time - start_time).total_seconds()
+    )
     # Increment the duration and success count metrics
     end_time: datetime = datetime.now(get_timezone())
     add_histogram_metric(

@@ -13,10 +13,13 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
+from aws.exceptions import NoCredentialsError, SecretsManagerError
 from aws.secrets_manager.secrets_manager_service import get_db_secret
-from db.exceptions import CryptographyError
+from db.exceptions import CryptographyError, CryptographyInputError
 from watch_tower.config import config
 from utils.logging_config import get_logger
+from utils.metrics import MetricDataPointName
+from utils.metric_helpers import inc_counter_metric
 
 LOGGER = get_logger(__name__)
 
@@ -34,22 +37,19 @@ def get_encryption_key() -> bytes:
         bytes: The encryption key
 
     Raises:
-        CryptographyError: If key retrieval fails or environment variables are missing
+        CryptographyError: If the encryption key cannot be retrieved
     """
-    # Validate only encryption key configuration
-    config.validate_database_only()
-
     try:
-        key = get_db_secret(config.encryption_key_secret_name)['encryption_key']
+        # Validate only encryption key configuration
+        config.validate_database_only()
 
-        # Convert string key to bytes if necessary
-        if isinstance(key, str):
-            key = key.encode('utf-8')
-
-        return key
-
-    except Exception as e:
-        raise CryptographyError(f"Failed to get encryption key: {str(e)}")
+        secret = get_db_secret(config.encryption_key_secret_name)
+        key = secret['encryption_key']
+        if not isinstance(key, str):
+            raise TypeError(f"encryption_key must be a string, got {type(key).__name__}")
+        return key.encode('utf-8')
+    except (NoCredentialsError, SecretsManagerError, KeyError, TypeError, AttributeError) as e:
+        raise CryptographyError(f"Failed to get encryption key: {str(e)}") from e
 
 
 def derive_key(key: bytes, salt: bytes) -> bytes:
@@ -73,6 +73,39 @@ def derive_key(key: bytes, salt: bytes) -> bytes:
     return kdf.derive(key)
 
 
+def _decode_encrypted_data(data: str) -> bytes:
+    """
+    Decode encrypted data from various formats (base64 or hex-encoded).
+
+    Args:
+        data: The encrypted data string (base64 or hex-encoded)
+
+    Returns:
+        bytes: The decoded encrypted data
+
+    Raises:
+        CryptographyError: If decoding fails
+    """
+    # If the data starts with \x, it's hex encoded
+    if data.startswith('\\x'):
+        # Remove all \x prefixes
+        hex_data = data.replace('\\x', '')
+
+        # Check if it's a hex-encoded base64 string
+        # Base64 strings can end with:
+        # - no padding (length % 3 = 0)
+        # - = (length % 3 = 2, hex: 3d)
+        # - == (length % 3 = 1, hex: 3d3d)
+        if hex_data.endswith('3d3d') or hex_data.endswith('3d'):
+            # Convert the hex to a string and then decode base64
+            base64_str = bytes.fromhex(hex_data).decode('utf-8')
+            return base64.b64decode(base64_str)
+        # Convert hex to bytes
+        return bytes.fromhex(hex_data)
+    # Decode as base64 (new format)
+    return base64.b64decode(data)
+
+
 def encrypt(data: Union[str, bytes], key: bytes = None) -> str:
     """
     Encrypt data using AES-256-CBC with PKCS7 padding.
@@ -85,16 +118,17 @@ def encrypt(data: Union[str, bytes], key: bytes = None) -> str:
         str: Base64 encoded string containing salt + IV + encrypted data
 
     Raises:
-        CryptographyError: If encryption fails or data is empty
+        CryptographyInputError: If input data is None or empty
+        CryptographyError: If encryption fails due to input data, key retrieval, or other issues
     """
     try:
         # Validate input data
         if data is None:
-            raise CryptographyError("Cannot encrypt None data")
+            raise CryptographyInputError("Cannot encrypt None data.")
         if isinstance(data, str) and not data.strip():
-            raise CryptographyError("Cannot encrypt empty string")
+            raise CryptographyInputError("Cannot encrypt empty string data.")
         if isinstance(data, bytes) and not data:
-            raise CryptographyError("Cannot encrypt empty bytes")
+            raise CryptographyInputError("Cannot encrypt empty bytes data.")
 
         # Get key if not provided
         if key is None:
@@ -130,10 +164,21 @@ def encrypt(data: Union[str, bytes], key: bytes = None) -> str:
 
         # Combine salt + IV + encrypted data and encode as base64
         combined = salt + initialization_vector + encrypted_data
+        inc_counter_metric(MetricDataPointName.AES_ENCRYPT_SUCCESS_COUNT)
         return base64.b64encode(combined).decode('utf-8')
 
     except Exception as e:
-        raise CryptographyError(f"Encryption failed: {str(e)}")
+        inc_counter_metric(MetricDataPointName.AES_ENCRYPT_ERROR_COUNT)
+        # Re-raise input/cryptography errors as-is to preserve specific exception type
+        if isinstance(e, (CryptographyInputError, CryptographyError)):
+            raise
+        # Handle encoding/type errors with proper exception chaining
+        if isinstance(e, (ValueError, TypeError, UnicodeEncodeError)):
+            LOGGER.error("Encryption failed due to encoding/type error: %s", str(e), exc_info=True)
+            raise CryptographyError(f"Encryption failed: {str(e)}") from e
+        # Catch any other unexpected errors (e.g., from base64.b64encode(), os.urandom(), or cryptography library internal errors)
+        LOGGER.error("Unexpected error during encryption: %s", str(e), exc_info=True)
+        raise CryptographyError(f"Encryption failed: {str(e)}") from e
 
 
 def decrypt(data: str, key: bytes = None) -> str:
@@ -151,39 +196,32 @@ def decrypt(data: str, key: bytes = None) -> str:
         str: The decrypted data as a string
 
     Raises:
-        CryptographyError: If decryption fails
+        CryptographyInputError: If input data is None or empty
+        CryptographyError: If decryption fails due to input data, key retrieval, or other issues
     """
     try:
+        # Validate input data
+        if data is None:
+            raise CryptographyInputError("Cannot decrypt None data.")
+        if not isinstance(data, str):
+            raise CryptographyInputError(f"Cannot decrypt non-string data. Got type: {type(data).__name__}")
+        if not data.strip():
+            raise CryptographyInputError("Cannot decrypt empty string data.")
+
         # Get key if not provided
         if key is None:
             key = get_encryption_key()
 
-        # If the data starts with \x, it's hex encoded
-        if data.startswith('\\x'):
-            # Remove all \x prefixes
-            hex_data = data.replace('\\x', '')
+        # Decode the encrypted data from various formats
+        combined = _decode_encrypted_data(data)
 
-            try:
-                # Check if it's a hex-encoded base64 string
-                # Base64 strings can end with:
-                # - no padding (length % 3 = 0)
-                # - = (length % 3 = 2, hex: 3d)
-                # - == (length % 3 = 1, hex: 3d3d)
-                if hex_data.endswith('3d3d') or hex_data.endswith('3d'):
-                    # Convert the hex to a string and then decode base64
-                    base64_str = bytes.fromhex(hex_data).decode('utf-8')
-                    combined = base64.b64decode(base64_str)
-                else:
-                    # Convert hex to bytes
-                    combined = bytes.fromhex(hex_data)
-            except Exception as e:
-                raise CryptographyError(f"Failed to decode hex data: {str(e)}")
-        else:
-            try:
-                # Decode as base64 (new format)
-                combined = base64.b64decode(data)
-            except Exception as e:
-                raise CryptographyError(f"Failed to decode base64 data: {str(e)}")
+        # Check if combined data is long enough to contain salt + IV
+        min_required_size = SALT_SIZE + IV_SIZE
+        if len(combined) < min_required_size:
+            raise CryptographyError(
+                f"Encrypted data length ({len(combined)}) is not a multiple of block size (16). "
+                f"Expected at least {min_required_size} bytes (salt + IV). "
+                f"This suggests the data may be truncated or corrupted.")
 
         # Extract salt, IV, and encrypted data
         salt = combined[:SALT_SIZE]
@@ -212,7 +250,18 @@ def decrypt(data: str, key: bytes = None) -> str:
         unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
         data = unpadder.update(padded_data) + unpadder.finalize()
 
+        inc_counter_metric(MetricDataPointName.AES_DECRYPT_SUCCESS_COUNT)
         return data.decode('utf-8')
 
     except Exception as e:
-        raise CryptographyError(f"Decryption failed: {str(e)}")
+        inc_counter_metric(MetricDataPointName.AES_DECRYPT_ERROR_COUNT)
+        # Re-raise input/cryptography errors as-is to preserve specific exception type
+        if isinstance(e, (CryptographyInputError, CryptographyError)):
+            raise
+        # Handle encoding/type errors with proper exception chaining
+        if isinstance(e, (ValueError, TypeError, UnicodeDecodeError)):
+            LOGGER.error("Decryption failed due to encoding/type error: %s", str(e), exc_info=True)
+            raise CryptographyError(f"Decryption failed: {str(e)}") from e
+        # Catch any other unexpected errors (e.g., cryptography library internal errors)
+        LOGGER.error("Unexpected error during decryption: %s", str(e), exc_info=True)
+        raise CryptographyError(f"Decryption failed: {str(e)}") from e

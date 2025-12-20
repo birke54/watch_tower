@@ -6,6 +6,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 from aws.exceptions import RekognitionError, RekognitionResourceNotFoundException
+from aws.exceptions import RekognitionError, RekognitionResourceNotFoundException
 from aws.rekognition.rekognition_service import RekognitionService
 
 # Test data
@@ -326,6 +327,54 @@ async def test_start_face_search_http_url_format(
     """Test face search with http/https URL format (path-style: bucket in path)."""
     # Path-style URL: https://s3.region.amazonaws.com/bucket-name/key
     http_url = "https://s3.us-west-2.amazonaws.com/my-bucket/path/to/video.mp4"
+    mock_rekognition_client.start_face_search.return_value = {'JobId': TEST_JOB_ID}
+    mock_rekognition_client.get_face_search.return_value = {
+        'JobStatus': 'SUCCEEDED',
+        'Persons': []
+    }
+
+    matches, was_skipped = await rekognition_service.start_face_search(http_url)
+
+    assert was_skipped is False
+    mock_rekognition_client.start_face_search.assert_called_once()
+    call_args = mock_rekognition_client.start_face_search.call_args
+    assert call_args[1]['Video']['S3Object']['Bucket'] == 'my-bucket'
+    assert call_args[1]['Video']['S3Object']['Name'] == 'path/to/video.mp4'
+
+
+@pytest.mark.asyncio
+async def test_start_face_search_virtual_hosted_style_url_format(
+    rekognition_service: RekognitionService,
+    mock_rekognition_client: Mock,
+    mock_config: Mock
+) -> None:
+    """Test face search with virtual-hosted-style URL format (bucket in hostname)."""
+    # Virtual-hosted-style URL: https://bucket.s3.region.amazonaws.com/key
+    http_url = "https://my-bucket.s3.us-west-2.amazonaws.com/path/to/video.mp4"
+    mock_rekognition_client.start_face_search.return_value = {'JobId': TEST_JOB_ID}
+    mock_rekognition_client.get_face_search.return_value = {
+        'JobStatus': 'SUCCEEDED',
+        'Persons': []
+    }
+
+    matches, was_skipped = await rekognition_service.start_face_search(http_url)
+
+    assert was_skipped is False
+    mock_rekognition_client.start_face_search.assert_called_once()
+    call_args = mock_rekognition_client.start_face_search.call_args
+    assert call_args[1]['Video']['S3Object']['Bucket'] == 'my-bucket'
+    assert call_args[1]['Video']['S3Object']['Name'] == 'path/to/video.mp4'
+
+
+@pytest.mark.asyncio
+async def test_start_face_search_virtual_hosted_style_url_no_region(
+    rekognition_service: RekognitionService,
+    mock_rekognition_client: Mock,
+    mock_config: Mock
+) -> None:
+    """Test face search with virtual-hosted-style URL without region."""
+    # Virtual-hosted-style URL without region: https://bucket.s3.amazonaws.com/key
+    http_url = "https://my-bucket.s3.amazonaws.com/path/to/video.mp4"
     mock_rekognition_client.start_face_search.return_value = {'JobId': TEST_JOB_ID}
     mock_rekognition_client.get_face_search.return_value = {
         'JobStatus': 'SUCCEEDED',

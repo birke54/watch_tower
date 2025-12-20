@@ -21,8 +21,8 @@ class ConfigError(Exception):
     """Exception for AWS configuration errors"""
 
 
-class NoCredentialsError(Exception):
-    """Exception for missing AWS credentials"""
+class NoCredentialsError(WatchTowerError):
+    """Raised when AWS credentials are missing or invalid."""
 
 
 class ClientError(Exception):
