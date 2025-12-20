@@ -14,6 +14,8 @@ from aws.exceptions import ClientInitializationError, S3Error, S3ResourceNotFoun
 from watch_tower.config import config
 from utils.logging_config import get_logger
 from utils.aws_client_factory import AWSClientFactory
+from utils.metrics import MetricDataPointName
+from utils.metric_helpers import inc_counter_metric
 
 LOGGER = get_logger(__name__)
 
@@ -87,9 +89,9 @@ class S3Service:
             if error_code == '404':
                 LOGGER.warning("Bucket %s does not exist", bucket_name)
                 raise S3ResourceNotFoundException(
-                    f"Bucket {bucket_name} not found")
+                    f"Bucket {bucket_name} not found") from e
             LOGGER.error("Error checking bucket %s: %s", bucket_name, e)
-            raise S3Error(f"Error checking bucket {bucket_name}: {e}")
+            raise S3Error(f"Error checking bucket {bucket_name}: {e}") from e
 
     def get_files_with_prefix(self, bucket_name: str, prefix: str) -> List[str]:
         """
@@ -145,32 +147,35 @@ class S3Service:
 
         Raises:
             S3ResourceNotFoundException: If the bucket or object doesn't exist.
-            ClientError: If there's an AWS service error.
+            S3Error: If there's an AWS service error.
+            OSError: If there's a filesystem error.
         """
-        self.check_bucket_exists(bucket_name)
-
+        success = False
         try:
+            self.check_bucket_exists(bucket_name)
+
             # Create directory if it doesn't exist
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
             # Download the file
             self.client.download_file(bucket_name, object_key, local_path)
-            inc_counter_metric(MetricDataPointName.AWS_S3_DOWNLOAD_FILE_SUCCESS_COUNT)
+            success = True
             LOGGER.info(
                 "Successfully downloaded s3://%s/%s to %s", bucket_name, object_key, local_path)
 
-        except ClientError as e:
-            inc_counter_metric(MetricDataPointName.AWS_S3_DOWNLOAD_FILE_ERROR_COUNT)
-            error_code = e.response['Error']['Code']
-            if error_code == '404':
-                LOGGER.error(
-                    "Object %s not found in bucket %s", object_key, bucket_name)
-                raise S3ResourceNotFoundException(
-                    f"Object {object_key} not found in bucket {bucket_name}")
+        except OSError as e:
             LOGGER.error(
-                "Error downloading file from s3://%s/%s: %s", bucket_name, object_key, e)
-            raise S3Error(
-                f"Error downloading file from s3://{bucket_name}/{object_key}: {e}")
+                "Filesystem error downloading file from s3://%s/%s to %s: %s",
+                bucket_name, object_key, local_path, e)
+            raise
+        except (S3ResourceNotFoundException, ClientError) as e:
+            LOGGER.warning("Bucket %s does not exist or error downloading file from s3://%s/%s: %s", bucket_name, bucket_name, object_key, e)
+            raise S3Error(f"Bucket {bucket_name} does not exist or error downloading file from s3://{bucket_name}/{object_key}: {e}") from e
+        finally:
+            if success:
+                inc_counter_metric(MetricDataPointName.AWS_S3_DOWNLOAD_FILE_SUCCESS_COUNT)
+            else:
+                inc_counter_metric(MetricDataPointName.AWS_S3_DOWNLOAD_FILE_ERROR_COUNT)
 
     def upload_file(self, local_path: str, bucket_name: str, object_key: str) -> None:
         """
@@ -183,25 +188,32 @@ class S3Service:
 
         Raises:
             S3ResourceNotFoundException: If the bucket doesn't exist.
-            ClientError: If there's an AWS service error.
+            S3Error: If there's an AWS service error.
             FileNotFoundError: If the local file does not exist.
+            OSError: If there's a filesystem error.
         """
+        success = False
         try:
             if not os.path.isfile(local_path):
-                inc_counter_metric(MetricDataPointName.AWS_S3_UPLOAD_FILE_ERROR_COUNT)
-                LOGGER.error("Local file %s does not exist.", local_path)
                 raise FileNotFoundError(f"Local file {local_path} does not exist.")
 
             self.check_bucket_exists(bucket_name)
             self.client.upload_file(local_path, bucket_name, object_key)
-            inc_counter_metric(MetricDataPointName.AWS_S3_UPLOAD_FILE_SUCCESS_COUNT)
+            success = True
             LOGGER.info(
                 "Successfully uploaded %s to s3://%s/%s", local_path, bucket_name, object_key)
-        except Exception as e:
-            inc_counter_metric(MetricDataPointName.AWS_S3_UPLOAD_FILE_ERROR_COUNT)
-            if isinstance(e, S3Error) or isinstance(e, S3ResourceNotFoundException) or isinstance(e, FileNotFoundError):
-                raise
 
+        except FileNotFoundError as e:
+            LOGGER.warning("Local file %s does not exist.", local_path)
+            raise
+        except (S3ResourceNotFoundException, ClientError) as e:
+            LOGGER.warning("Bucket %s does not exist or error uploading file %s to s3://%s/%s: %s", bucket_name, local_path, bucket_name, object_key, e)
+            raise S3Error(f"Bucket {bucket_name} does not exist or error uploading file {local_path} to s3://{bucket_name}/{object_key}: {e}") from e
+        finally:
+            if success:
+                inc_counter_metric(MetricDataPointName.AWS_S3_UPLOAD_FILE_SUCCESS_COUNT)
+            else:
+                inc_counter_metric(MetricDataPointName.AWS_S3_UPLOAD_FILE_ERROR_COUNT)
 
 # Create a singleton instance
 S3_SERVICE = S3Service()

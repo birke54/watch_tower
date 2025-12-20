@@ -14,6 +14,7 @@ from watch_tower.config import config
 from utils.logging_config import get_logger
 from utils.error_handler import handle_errors
 from utils.performance_monitor import monitor_performance
+from watch_tower.exceptions import VideoConversionError
 
 LOGGER = get_logger(__name__)
 
@@ -120,6 +121,56 @@ class VideoConverter:
             LOGGER.error("Failed to parse ffprobe output: %s", e)
             raise RuntimeError("Failed to parse video information") from e
 
+    def _cleanup_temp_file(self, is_temp_file: bool, output_path: str) -> Optional[Exception]:
+        """
+        Clean up a temporary file if it exists.
+        
+        Args:
+            is_temp_file: Whether the file is a temporary file
+            output_path: Path to the file to clean up
+            
+        Returns:
+            Exception if cleanup failed, None otherwise
+        """
+        if is_temp_file and os.path.exists(output_path):
+            try:
+                os.remove(output_path)
+                return None
+            except Exception as cleanup_err:
+                LOGGER.warning("Failed to cleanup temp file: %s", cleanup_err)
+                return cleanup_err
+        return None
+    
+    def _create_conversion_error(
+        self, 
+        error_msg: str, 
+        original_error: Exception, 
+        cleanup_error: Optional[Exception]
+    ) -> VideoConversionError:
+        """
+        Create a VideoConversionError with proper error chaining.
+        
+        Args:
+            error_msg: Base error message
+            original_error: The original exception that occurred
+            cleanup_error: Exception from cleanup if it failed, None otherwise
+            
+        Returns:
+            VideoConversionError with proper error chaining
+        """
+        if cleanup_error:
+            error_msg += f" (cleanup also failed: {cleanup_error})"
+        
+        conversion_error = VideoConversionError(error_msg)
+        # Chain both errors: original as cause, cleanup as context if it exists
+        if cleanup_error:
+            conversion_error.__cause__ = original_error
+            conversion_error.__context__ = cleanup_error
+        else:
+            # Chain original error as cause when no cleanup error
+            conversion_error.__cause__ = original_error
+        return conversion_error
+    
     def _parse_frame_rate(self, frame_rate_str: str) -> float:
         """
         Parse frame rate string (e.g., "30/1") to float.
@@ -169,7 +220,9 @@ class VideoConverter:
             Tuple of (path to the converted video file, is_temp_file).
 
         Raises:
-            RuntimeError: If conversion fails.
+            FileNotFoundError: If input file not found.
+            FileExistsError: If output file already exists and overwrite is False.
+            VideoConversionError: If conversion fails with specific error message.
         """
         # Use config defaults if not provided
         preset = preset or config.video.default_preset
@@ -264,37 +317,29 @@ class VideoConverter:
 
             return output_path, is_temp_file
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
+            cleanup_error = self._cleanup_temp_file(is_temp_file, output_path)
             LOGGER.error(
                 "FFmpeg conversion timed out after %s seconds",
                 config.video.ffmpeg_timeout
             )
-            # Clean up temp file if conversion failed
-            if is_temp_file and os.path.exists(output_path):
-                try:
-                    os.remove(output_path)
-                except Exception as cleanup_error:
-                    LOGGER.warning(
-                        "Failed to cleanup temp file after timeout: %s",
-                        cleanup_error
-                    )
-            raise RuntimeError(
-                f"Video conversion timed out after {config.video.ffmpeg_timeout} seconds"
-            ) from None
+            raise self._create_conversion_error(
+                f"Video conversion timed out after {config.video.ffmpeg_timeout} seconds",
+                e, cleanup_error
+            )
         except subprocess.CalledProcessError as e:
-            LOGGER.error("FFmpeg conversion failed with return code: %s", e.returncode)
-            # Clean up temp file if conversion failed
-            if is_temp_file and os.path.exists(output_path):
-                try:
-                    os.remove(output_path)
-                except Exception as cleanup_error:
-                    LOGGER.warning(
-                        "Failed to cleanup temp file after conversion error: %s",
-                        cleanup_error
-                    )
-            raise RuntimeError(
-                f"Video conversion failed with return code: {e.returncode}"
-            ) from e
+            cleanup_error = self._cleanup_temp_file(is_temp_file, output_path)
+            LOGGER.error(
+                "FFmpeg conversion failed with return code: %s",
+                e.returncode
+            )
+            raise self._create_conversion_error(
+                f"Video conversion failed with return code: {e.returncode}",
+                e, cleanup_error
+            )
+        finally:
+            # Placeholder for future metrics
+            pass
 
     def convert_for_rekognition(self, input_path: str,
                                 output_path: Optional[str] = None) -> Tuple[str, bool]:

@@ -23,6 +23,7 @@ from db.exceptions import (
     DatabaseConnectionError,
     CryptographyError,
     DatabaseEventNotFoundError,
+    DatabaseMultipleEventsFoundError,
 )
 
 # General domain-specific errors
@@ -44,6 +45,10 @@ class ConnectionManagerError(WatchTowerError):
 class RingConnectionManagerError(ConnectionManagerError):
     """Raised when there's an error with Ring connection manager operations."""
 
+class VideoConversionError(WatchTowerError):
+    """Raised when there's an error with video conversion operations."""
+
+
 # Re-export all exceptions
 __all__ = [
     # AWS exceptions
@@ -61,6 +66,7 @@ __all__ = [
     'DatabaseConnectionError',
     'CryptographyError',
     'DatabaseEventNotFoundError',
+    'DatabaseMultipleEventsFoundError',
     # General domain-specific errors
     'WatchTowerError',
     'ConfigurationError',
@@ -71,4 +77,5 @@ __all__ = [
     'CameraError',
     'ConnectionManagerError',
     'RingConnectionManagerError',
+    'VideoConversionError',
 ]

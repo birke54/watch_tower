@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from utils.video_converter import VideoConverter
+from watch_tower.exceptions import VideoConversionError
 
 
 @pytest.fixture
@@ -133,7 +134,7 @@ def test_convert_to_h264_ffmpeg_failure(video_converter):
                 1, "ffmpeg", stderr="Error")
 
             with tempfile.NamedTemporaryFile(suffix='.mp4') as input_file:
-                with pytest.raises(RuntimeError, match="Video conversion failed"):
+                with pytest.raises(VideoConversionError, match="Video conversion failed"):
                     video_converter.convert_to_h264(input_file.name)
 
 

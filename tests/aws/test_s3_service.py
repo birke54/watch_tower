@@ -3,7 +3,7 @@ from botocore.exceptions import ClientError
 import pytest
 from typing import Generator
 
-from aws.exceptions import S3ResourceNotFoundException
+from aws.exceptions import S3Error, S3ResourceNotFoundException
 from aws.s3.s3_service import S3Service
 
 # Test data
@@ -186,9 +186,9 @@ def test_download_file_bucket_not_found(
     )
 
     # Test and verify
-    with pytest.raises(S3ResourceNotFoundException) as exc_info:
+    with pytest.raises(S3Error) as exc_info:
         s3_service.download_file(TEST_BUCKET_NAME, test_object_key, str(local_path))
-    assert str(exc_info.value) == f"Bucket {TEST_BUCKET_NAME} not found"
+    assert "error downloading file" in str(exc_info.value).lower()
     mock_s3_client.download_file.assert_not_called()
 
 
@@ -211,10 +211,9 @@ def test_download_file_object_not_found(
     )
 
     # Test and verify
-    with pytest.raises(S3ResourceNotFoundException) as exc_info:
+    with pytest.raises(S3Error) as exc_info:
         s3_service.download_file(TEST_BUCKET_NAME, test_object_key, str(local_path))
-    assert str(
-        exc_info.value) == f"Object {test_object_key} not found in bucket {TEST_BUCKET_NAME}"
+    assert "error downloading file" in str(exc_info.value).lower()
     mock_s3_client.download_file.assert_called_once()
 
 

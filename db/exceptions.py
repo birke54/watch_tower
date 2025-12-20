@@ -21,5 +21,9 @@ class DatabaseEventNotFoundError(WatchTowerError):
     """Raised when a database event is not found."""
 
 
+class DatabaseMultipleEventsFoundError(WatchTowerError):
+    """Raised when multiple database events are found for a given event ID."""
+
+
 class CryptographyInputError(CryptographyError):
     """Raised when an invalid input is provided to the encryption/decryption functions."""

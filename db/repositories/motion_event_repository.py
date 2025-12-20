@@ -62,7 +62,6 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
         now = datetime.now(timezone_obj)
 
         try:
-            # Use a single query to get all events at once
             events = db.query(self.model).filter(
                 and_(
                     self.model.facial_recognition_processed > now,
@@ -84,7 +83,6 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
         now = datetime.now(timezone_obj)
 
         try:
-            # Use a single query to get all events at once
             events = db.query(self.model).filter(
                 self.model.uploaded_to_s3 > now
             ).all()
@@ -132,7 +130,6 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
             try:
                 db.refresh(event)
             except SQLAlchemyError as e:
-                # Refresh failed but commit succeeded, so data is persisted.
                 LOGGER.warning(
                     "Failed to refresh event after commit in table %s: %s. "
                     "Update was committed successfully.",
@@ -140,7 +137,6 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
                     str(e),
                     exc_info=True
                 )
-                # Don't rollback or close - let the caller handle the session
                 raise
         return event
 
@@ -152,10 +148,42 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
             upload_time: datetime
     ) -> Optional[MotionEvent]:
         """Update the S3 URL and upload time for a motion event"""
+        table_name = self.model.__table__.name
         event = self.get(db, event_id)
         if event:
             event.s3_url = s3_url
             event.uploaded_to_s3 = upload_time
-            db.commit()
-            db.refresh(event)
+            try:
+                db.commit()
+            except SQLAlchemyError as e:
+                db.rollback()
+                LOGGER.error(
+                    "Failed to update S3 URL for event %s in table %s: %s",
+                    event_id,
+                    table_name,
+                    str(e),
+                    exc_info=True
+                )
+                inc_counter_metric(
+                    MetricDataPointName.DATABASE_TRANSACTION_FAILURE_COUNT,
+                    labels={"table": table_name},
+                    increment=1,
+                )
+                raise
+            inc_counter_metric(
+                MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
+                labels={"table": table_name},
+                increment=1,
+            )
+            try:
+                db.refresh(event)
+            except SQLAlchemyError as e:
+                LOGGER.warning(
+                    "Failed to refresh event after commit in table %s: %s. "
+                    "Update was committed successfully.",
+                    table_name,
+                    str(e),
+                    exc_info=True
+                )
+                raise
         return event

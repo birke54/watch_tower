@@ -89,9 +89,16 @@ class RingConnectionManager(ConnectionManagerBase):
                     LOGGER.error(
                         "Failed to authenticate with credentials: %s", e)
 
-            inc_counter_metric(MetricDataPointName.RING_LOGIN_ERROR_COUNT)
+            # If we reach here, both authentication methods failed
             raise RingConnectionManagerError(
                 f"Failed to authenticate with Ring: all authentication methods failed"
+            )
+        except Exception as e:
+            # Handle errors during login
+            inc_counter_metric(MetricDataPointName.RING_LOGIN_ERROR_COUNT)
+            LOGGER.error("Error during login: %s", e)
+            raise RingConnectionManagerError(
+                f"Failed to authenticate with Ring: {e}"
             )
 
     async def logout(self) -> bool:
