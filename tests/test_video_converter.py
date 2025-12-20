@@ -10,14 +10,14 @@ from utils.video_converter import VideoConverter
 from watch_tower.exceptions import VideoConversionError
 
 
-@pytest.fixture
-def mock_ffmpeg_path():
+@pytest.fixture(name='mock_ffmpeg_path')
+def _mock_ffmpeg_path():
     """Mock ffmpeg path for testing."""
     return "/usr/bin/ffmpeg"
 
 
-@pytest.fixture
-def video_converter(mock_ffmpeg_path):
+@pytest.fixture(name='video_converter')
+def _video_converter(mock_ffmpeg_path):
     """Create a VideoConverter instance with mocked ffmpeg."""
     with patch.object(VideoConverter, '_find_ffmpeg', return_value=mock_ffmpeg_path):
         return VideoConverter()
@@ -69,7 +69,7 @@ def test_find_ffmpeg_failure():
             VideoConverter()
 
 
-def test_get_video_info_success(video_converter, sample_video_info):
+def test_get_video_info_success(video_converter):
     """Test successful video info retrieval."""
     with patch('subprocess.run') as mock_run:
         mock_run.return_value.stdout = '{"format": {"duration": "10.5"}}'
@@ -97,7 +97,8 @@ def test_get_video_info_ffprobe_failure(video_converter):
                 video_converter.get_video_info(temp_file.name)
 
 
-def create_output_file(*args, **kwargs):
+def create_output_file(*args, **_kwargs):
+    """Helper function to create output file for mocking subprocess.run."""
     output_path = args[0][-1]
     with open(output_path, 'w', encoding='utf-8') as output_file:
         output_file.write('dummy video data')
@@ -155,10 +156,11 @@ def test_convert_to_h264_with_scaling(video_converter):
                     )
 
                     # Check that ffmpeg was called with scaling filter
+                    assert result == output_file.name
+                    assert not is_temp
                     call_args = mock_run.call_args[0][0]
                     assert '-vf' in call_args
                     assert 'scale=1280:720' in ' '.join(call_args)
-                    assert not is_temp
 
 
 def test_convert_to_h264_without_audio(video_converter):
@@ -177,9 +179,10 @@ def test_convert_to_h264_without_audio(video_converter):
                     )
 
                     # Check that ffmpeg was called with -an flag
+                    assert result == output_file.name
+                    assert not is_temp
                     call_args = mock_run.call_args[0][0]
                     assert '-an' in call_args
-                    assert not is_temp
 
 
 def test_convert_to_h264_overwrite_existing(video_converter):

@@ -9,11 +9,12 @@ import os
 import subprocess
 import tempfile
 import uuid
-from typing import Optional, Tuple, Dict, Any
-from watch_tower.config import config
-from utils.logging_config import get_logger
+from typing import Any, Dict, List, Optional, Tuple
+
 from utils.error_handler import handle_errors
+from utils.logging_config import get_logger
 from utils.performance_monitor import monitor_performance
+from watch_tower.config import config
 from watch_tower.exceptions import VideoConversionError
 
 LOGGER = get_logger(__name__)
@@ -36,7 +37,8 @@ class VideoConverter:
 
         LOGGER.debug("VideoConverter initialized with ffmpeg at: %s", self.ffmpeg_path)
 
-    def _find_ffmpeg(self) -> Optional[str]:
+    @staticmethod
+    def _find_ffmpeg() -> Optional[str]:
         """Find ffmpeg executable in system PATH."""
         try:
             result = subprocess.run(['which', 'ffmpeg'],
@@ -121,14 +123,15 @@ class VideoConverter:
             LOGGER.error("Failed to parse ffprobe output: %s", e)
             raise RuntimeError("Failed to parse video information") from e
 
-    def _cleanup_temp_file(self, is_temp_file: bool, output_path: str) -> Optional[Exception]:
+    @staticmethod
+    def _cleanup_temp_file(is_temp_file: bool, output_path: str) -> Optional[Exception]:
         """
         Clean up a temporary file if it exists.
-        
+
         Args:
             is_temp_file: Whether the file is a temporary file
             output_path: Path to the file to clean up
-            
+
         Returns:
             Exception if cleanup failed, None otherwise
         """
@@ -140,27 +143,27 @@ class VideoConverter:
                 LOGGER.warning("Failed to cleanup temp file: %s", cleanup_err)
                 return cleanup_err
         return None
-    
+
+    @staticmethod
     def _create_conversion_error(
-        self, 
-        error_msg: str, 
-        original_error: Exception, 
-        cleanup_error: Optional[Exception]
+            error_msg: str,
+            original_error: Exception,
+            cleanup_error: Optional[Exception]
     ) -> VideoConversionError:
         """
         Create a VideoConversionError with proper error chaining.
-        
+
         Args:
             error_msg: Base error message
             original_error: The original exception that occurred
             cleanup_error: Exception from cleanup if it failed, None otherwise
-            
+
         Returns:
             VideoConversionError with proper error chaining
         """
         if cleanup_error:
             error_msg += f" (cleanup also failed: {cleanup_error})"
-        
+
         conversion_error = VideoConversionError(error_msg)
         # Chain both errors: original as cause, cleanup as context if it exists
         if cleanup_error:
@@ -170,8 +173,9 @@ class VideoConverter:
             # Chain original error as cause when no cleanup error
             conversion_error.__cause__ = original_error
         return conversion_error
-    
-    def _parse_frame_rate(self, frame_rate_str: str) -> float:
+
+    @staticmethod
+    def _parse_frame_rate(frame_rate_str: str) -> float:
         """
         Parse frame rate string (e.g., "30/1") to float.
 
@@ -190,6 +194,81 @@ class VideoConverter:
             return float(frame_rate_str)
         except (ValueError, ZeroDivisionError):
             return 0.0
+
+    def _build_ffmpeg_command(
+            self,
+            input_path: str,
+            output_path: str,
+            preset: str,
+            crf: int,
+            max_width: Optional[int],
+            max_height: Optional[int],
+            audio_codec: Optional[str]) -> List[str]:
+        """Build the ffmpeg command for video conversion.
+
+        Args:
+            input_path: Path to input video
+            output_path: Path to output video
+            preset: FFmpeg preset
+            crf: Constant Rate Factor
+            max_width: Maximum width
+            max_height: Maximum height
+            audio_codec: Audio codec or None
+
+        Returns:
+            List of command arguments
+        """
+        cmd = [self.ffmpeg_path, '-i', input_path]
+
+        # Build video filters
+        video_filters = []
+        if max_width or max_height:
+            scale_filter = 'scale='
+            if max_width and max_height:
+                scale_filter += f'{max_width}:{max_height}'
+            elif max_width:
+                scale_filter += f'{max_width}:-2'
+            elif max_height:
+                scale_filter += f'-2:{max_height}'
+            video_filters.append(scale_filter)
+
+        if video_filters:
+            cmd.extend(['-vf', ','.join(video_filters)])
+
+        # Video codec settings
+        cmd.extend([
+            '-c:v', 'libx264',
+            '-preset', preset,
+            '-crf', str(crf),
+            '-tune', 'fastdecode',
+            '-movflags', '+faststart'
+        ])
+
+        # Audio settings
+        if audio_codec:
+            cmd.extend(['-c:a', audio_codec])
+        else:
+            cmd.extend(['-an'])
+
+        cmd.append(output_path)
+        return cmd
+
+    @staticmethod
+    def _determine_output_path(
+            output_path: Optional[str]) -> Tuple[str, bool]:
+        """Determine the output path for conversion.
+
+        Args:
+            output_path: Optional output path
+
+        Returns:
+            Tuple of (output_path, is_temp_file)
+        """
+        if output_path is None:
+            unique_filename = f"tmp_{uuid.uuid4().hex}.mp4"
+            output_path = os.path.join(tempfile.gettempdir(), unique_filename)
+            return output_path, True
+        return output_path, False
 
     @monitor_performance("video_conversion")
     @handle_errors(RuntimeError, log_error=True, reraise=True)
@@ -239,12 +318,8 @@ class VideoConverter:
         )
 
         # Determine output path
-        is_temp_file = False
-        if output_path is None:
-            # Create temp file with unique name using UUID
-            unique_filename = f"tmp_{uuid.uuid4().hex}.mp4"
-            output_path = os.path.join(tempfile.gettempdir(), unique_filename)
-            is_temp_file = True
+        output_path, is_temp_file = VideoConverter._determine_output_path(output_path)
+        if is_temp_file:
             overwrite = True  # Always allow overwrite for temp files
 
         # Check if output file exists
@@ -252,43 +327,10 @@ class VideoConverter:
             raise FileExistsError(f"Output file already exists: {output_path}")
 
         # Build ffmpeg command
-        cmd = [self.ffmpeg_path, '-i', input_path]
-
-        # Video settings
-        video_filters = []
-
-        # Add scaling if needed
-        if max_width or max_height:
-            scale_filter = 'scale='
-            if max_width and max_height:
-                scale_filter += f'{max_width}:{max_height}'
-            elif max_width:
-                scale_filter += f'{max_width}:-2'
-            elif max_height:
-                scale_filter += f'-2:{max_height}'
-            video_filters.append(scale_filter)
-
-        # Add video filters if any
-        if video_filters:
-            cmd.extend(['-vf', ','.join(video_filters)])
-
-        # Video codec settings - optimized for speed
-        cmd.extend([
-            '-c:v', 'libx264',
-            '-preset', preset,
-            '-crf', str(crf),
-            '-tune', 'fastdecode',  # Optimize for fast decoding
-            '-movflags', '+faststart'  # Optimize for web streaming
-        ])
-
-        # Audio settings
-        if audio_codec:
-            cmd.extend(['-c:a', audio_codec])
-        else:
-            cmd.extend(['-an'])  # No audio
-
-        # Output file
-        cmd.append(output_path)
+        cmd = self._build_ffmpeg_command(
+            input_path, output_path, preset, crf,
+            max_width, max_height, audio_codec
+        )
 
         # Run conversion
         try:
@@ -318,22 +360,22 @@ class VideoConverter:
             return output_path, is_temp_file
 
         except subprocess.TimeoutExpired as e:
-            cleanup_error = self._cleanup_temp_file(is_temp_file, output_path)
+            cleanup_error = VideoConverter._cleanup_temp_file(is_temp_file, output_path)
             LOGGER.error(
                 "FFmpeg conversion timed out after %s seconds",
                 config.video.ffmpeg_timeout
             )
-            raise self._create_conversion_error(
+            raise VideoConverter._create_conversion_error(
                 f"Video conversion timed out after {config.video.ffmpeg_timeout} seconds",
                 e, cleanup_error
             )
         except subprocess.CalledProcessError as e:
-            cleanup_error = self._cleanup_temp_file(is_temp_file, output_path)
+            cleanup_error = VideoConverter._cleanup_temp_file(is_temp_file, output_path)
             LOGGER.error(
                 "FFmpeg conversion failed with return code: %s",
                 e.returncode
             )
-            raise self._create_conversion_error(
+            raise VideoConverter._create_conversion_error(
                 f"Video conversion failed with return code: {e.returncode}",
                 e, cleanup_error
             )
@@ -363,22 +405,6 @@ class VideoConverter:
             audio_codec=None,  # No audio needed for face detection
             overwrite=True
         )
-
-    @staticmethod
-    def cleanup_temp_file(file_path: str) -> None:
-        """
-        Clean up a temporary file.
-
-        Args:
-            file_path: Path to the file to delete.
-        """
-        try:
-            if os.path.exists(file_path) and file_path.startswith(
-                    tempfile.gettempdir()):
-                os.remove(file_path)
-                LOGGER.debug("Cleaned up temp file: %s", file_path)
-        except Exception as e:
-            LOGGER.warning("Failed to cleanup temp file %s: %s", file_path, e)
 
 
 # Create a singleton instance
