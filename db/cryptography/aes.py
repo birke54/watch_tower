@@ -176,7 +176,8 @@ def encrypt(data: Union[str, bytes], key: bytes = None) -> str:
         if isinstance(e, (ValueError, TypeError, UnicodeEncodeError)):
             LOGGER.error("Encryption failed due to encoding/type error: %s", str(e), exc_info=True)
             raise CryptographyError(f"Encryption failed: {e}") from e
-        # Catch any other unexpected errors (e.g., from base64.b64encode(), os.urandom(), or cryptography library internal errors)
+        # Catch any other unexpected errors (e.g., from base64.b64encode(),
+        # os.urandom(), or cryptography library internal errors)
         LOGGER.error("Unexpected error during encryption: %s", str(e), exc_info=True)
         raise CryptographyError(f"Encryption failed: {e}") from e
 

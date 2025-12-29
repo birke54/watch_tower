@@ -1,8 +1,9 @@
+"""Tests for face search functionality in the events loop."""
 from datetime import datetime, timedelta
 from typing import Callable, Tuple
+from unittest.mock import AsyncMock, Mock
 
 import pytest
-from unittest.mock import AsyncMock, Mock
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker, Session
@@ -21,14 +22,15 @@ from aws.exceptions import RekognitionError
 
 @pytest.fixture(scope="module")
 def engine():
-    engine = create_engine(
+    """Create a test database engine."""
+    db_engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    BASE.metadata.create_all(engine)
-    yield engine
-    BASE.metadata.drop_all(engine)
+    BASE.metadata.create_all(db_engine)
+    yield db_engine
+    BASE.metadata.drop_all(db_engine)
 
 
 @pytest.fixture
@@ -37,7 +39,7 @@ def session_factory(engine) -> Callable[[], Session]:
     return sessionmaker(bind=engine)
 
 
-def _seed_motion_event(session_factory) -> Tuple[MotionEvent, any, datetime]:
+def _seed_motion_event(factory) -> Tuple[MotionEvent, any, datetime]:
     """Create and return a DB event plus its corresponding domain object."""
     repo = MotionEventRepository()
     now = datetime.utcnow()
@@ -50,7 +52,7 @@ def _seed_motion_event(session_factory) -> Tuple[MotionEvent, any, datetime]:
         "s3_url": "s3://test-bucket/test-event.mp4",
         "event_metadata": {"camera_vendor": "RING"},
     }
-    with session_factory() as session:
+    with factory() as session:
         db_event = repo.create(session, event_data)
         # Detach for use outside session scope
         session.expunge(db_event)

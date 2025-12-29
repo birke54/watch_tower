@@ -8,6 +8,7 @@ import os
 from typing import List
 
 import boto3
+import botocore
 from botocore.exceptions import ClientError
 
 from aws.exceptions import AWSCredentialsError, AWSClientInitializationError, S3Error, S3ResourceNotFoundException
@@ -174,8 +175,12 @@ class S3Service:
                 bucket_name, object_key, local_path, e)
             raise
         except (S3ResourceNotFoundException, ClientError) as e:
-            LOGGER.warning("Bucket %s does not exist or error downloading file from s3://%s/%s: %s", bucket_name, bucket_name, object_key, e)
-            raise S3Error(f"Bucket {bucket_name} does not exist or error downloading file from s3://{bucket_name}/{object_key}: {e}") from e
+            LOGGER.warning(
+                "Bucket %s does not exist or error downloading file from s3://%s/%s: %s",
+                bucket_name, bucket_name, object_key, e)
+            raise S3Error(
+                f"Bucket {bucket_name} does not exist or error downloading file "
+                f"from s3://{bucket_name}/{object_key}: {e}") from e
         finally:
             if success:
                 inc_counter_metric(MetricDataPointName.AWS_S3_DOWNLOAD_FILE_SUCCESS_COUNT)
@@ -212,8 +217,12 @@ class S3Service:
             LOGGER.warning("Local file %s does not exist.", local_path)
             raise
         except (S3ResourceNotFoundException, ClientError) as e:
-            LOGGER.warning("Bucket %s does not exist or error uploading file %s to s3://%s/%s: %s", bucket_name, local_path, bucket_name, object_key, e)
-            raise S3Error(f"Bucket {bucket_name} does not exist or error uploading file {local_path} to s3://{bucket_name}/{object_key}: {e}") from e
+            LOGGER.warning(
+                "Bucket %s does not exist or error uploading file %s to s3://%s/%s: %s",
+                bucket_name, local_path, bucket_name, object_key, e)
+            raise S3Error(
+                f"Bucket {bucket_name} does not exist or error uploading file "
+                f"{local_path} to s3://{bucket_name}/{object_key}: {e}") from e
         finally:
             if success:
                 inc_counter_metric(MetricDataPointName.AWS_S3_UPLOAD_FILE_SUCCESS_COUNT)

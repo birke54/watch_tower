@@ -202,7 +202,8 @@ class BaseRepository(Generic[ModelType]):
                 labels={"table": table_name},
                 increment=1,
             )
-            raise DatabaseTransactionError(f"Failed to get record by field {field} in table {table_name}: {str(e)}") from e
+            raise DatabaseTransactionError(
+                f"Failed to get record by field {field} in table {table_name}: {str(e)}") from e
         inc_counter_metric(
             MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
             labels={"table": table_name},

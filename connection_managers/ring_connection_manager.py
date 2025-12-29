@@ -13,13 +13,13 @@ from db.cryptography.aes import decrypt
 from db.models import VendorStatus as DBVendorStatus
 from db.repositories.vendors_repository import VendorsRepository
 from utils.logging_config import get_logger
+from utils.metrics import MetricDataPointName
+from utils.metric_helpers import inc_counter_metric
 from watch_tower.exceptions import RingConnectionManagerError
 from watch_tower.registry.connection_manager_registry import (
     REGISTRY as connection_manager_registry,
     VendorStatus as RegistryVendorStatus,
 )
-from utils.metrics import MetricDataPointName
-from utils.metric_helpers import inc_counter_metric
 
 # Configure logger for this module
 LOGGER = get_logger(__name__)
@@ -96,13 +96,15 @@ class RingConnectionManager(ConnectionManagerBase):
                 if success:
                     inc_counter_metric(MetricDataPointName.RING_LOGIN_SUCCESS_COUNT)
                     LOGGER.info("Successfully authenticated with Ring")
-                    return
                 else:
                     inc_counter_metric(MetricDataPointName.RING_LOGIN_ERROR_COUNT)
                     if e is not None:
-                        raise RingConnectionManagerError(f"Failed to authenticate with Ring: all authentication methods failed") from e
-                    else:
-                        raise RingConnectionManagerError(f"Failed to authenticate with Ring: all authentication methods failed")
+                        raise RingConnectionManagerError(
+                            "Failed to authenticate with Ring: "
+                            "all authentication methods failed") from e
+                    raise RingConnectionManagerError(
+                        "Failed to authenticate with Ring: "
+                        "all authentication methods failed")
 
 
     async def logout(self) -> bool:
@@ -132,7 +134,7 @@ class RingConnectionManager(ConnectionManagerBase):
                 return False
             self._ring.update_data()
             return True
-        except Exception:
+        except (RingError, AuthenticationError):
             return False
 
     async def get_cameras(self) -> Optional[Sequence[RingDoorBell]]:
@@ -192,7 +194,6 @@ class RingConnectionManager(ConnectionManagerBase):
             inc_counter_metric(MetricDataPointName.RING_TOKEN_UPDATE_SUCCESS_COUNT)
             LOGGER.info(
                 "Token updated in database for vendor_id: %d", vendor_id)
-                
 
     @staticmethod
     def otp_callback() -> str:
@@ -229,10 +230,7 @@ class RingConnectionManager(ConnectionManagerBase):
                 if token:
                     # Create a lambda that captures vendor_id for the callback
                     def token_callback(token):
-                        try:
-                            return self.token_updated(token, vendor.vendor_id)
-                        except DatabaseTransactionError as e:
-                            raise
+                        return self.token_updated(token, vendor.vendor_id)
 
                     self._auth = Auth(
                         self._user_agent,

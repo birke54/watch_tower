@@ -12,7 +12,6 @@ from db.connection import get_database_connection
 from db.models import Vendors
 from db.repositories.vendors_repository import VendorsRepository
 from db.camera_state_db import init_camera_state_db
-from db.exceptions import DatabaseConnectionError, DatabaseTransactionError
 from utils.logging_config import get_logger
 from utils.error_handler import handle_async_errors
 from utils.performance_monitor import monitor_async_performance
@@ -48,7 +47,7 @@ async def bootstrap() -> None:
 
 async def add_cameras_to_registry(cameras: List[Tuple[PluginType, Any]]) -> None:
     """Add cameras to the camera registry."""
-    from cameras.ring_camera import RingCamera
+    from cameras.ring_camera import RingCamera  # pylint: disable=import-outside-toplevel
     registry = camera_registry  # Use the singleton instance
     LOGGER.info("Adding %d cameras to registry", len(cameras))
     for camera in cameras:
@@ -71,7 +70,7 @@ def retrieve_vendors() -> List[Vendors]:
 
 def register_connection_managers(vendors: List[Vendors]) -> List[Vendors]:
     """Register connection managers for each vendor."""
-    from connection_managers.connection_manager_factory import ConnectionManagerFactory
+    from connection_managers.connection_manager_factory import ConnectionManagerFactory  # pylint: disable=import-outside-toplevel
     for vendor in vendors:
         plugin_type = PluginType(vendor.plugin_type)
         connection_manager = ConnectionManagerFactory.create(plugin_type)
@@ -93,8 +92,6 @@ async def login_to_vendors() -> None:
             connection_manager_registry.update_status(plugin_type, VendorStatus.ACTIVE)
             LOGGER.info(
                 "Logged in to %s successfully", plugin_type)
-        except (DatabaseTransactionError, DatabaseConnectionError) as e:
-            raise
         except RingConnectionManagerError as e:
             LOGGER.error(
                 "Failed to login to: %s, error: %s", plugin_type, e)

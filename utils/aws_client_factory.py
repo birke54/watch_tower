@@ -12,7 +12,6 @@ from botocore.exceptions import ClientError
 
 from watch_tower.config import config
 from utils.logging_config import get_logger
-from utils.error_handler import handle_errors
 
 LOGGER = get_logger(__name__)
 

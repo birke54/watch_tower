@@ -200,7 +200,7 @@ class RekognitionService:  # pylint: disable=too-many-instance-attributes
                 # Extract bucket and key from S3 URL
                 parsed_url = urlparse(source_video_path)
                 hostname = parsed_url.hostname or ''
-                
+
                 # Check if it's virtual-hosted-style URL (bucket in hostname)
                 # Patterns: bucket.s3.region.amazonaws.com or bucket.s3.amazonaws.com
                 if '.s3.' in hostname or hostname.endswith('.s3.amazonaws.com'):

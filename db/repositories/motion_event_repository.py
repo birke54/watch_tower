@@ -122,7 +122,8 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
                     labels={"table": table_name},
                     increment=1,
                 )
-                raise DatabaseTransactionError(f"Failed to mark event {event_id} as processed in table {table_name}: {str(e)}") from e
+                raise DatabaseTransactionError(
+                    f"Failed to mark event {event_id} as processed in table {table_name}: {str(e)}") from e
             inc_counter_metric(
                 MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
                 labels={"table": table_name},
@@ -170,7 +171,8 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
                     labels={"table": table_name},
                     increment=1,
                 )
-                raise DatabaseTransactionError(f"Failed to update S3 URL for event {event_id} in table {table_name}: {str(e)}") from e
+                raise DatabaseTransactionError(
+                    f"Failed to update S3 URL for event {event_id} in table {table_name}: {str(e)}") from e
             inc_counter_metric(
                 MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
                 labels={"table": table_name},
