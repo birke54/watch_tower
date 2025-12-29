@@ -9,6 +9,11 @@ from ring_doorbell import RingDoorBell
 from cameras.ring_camera import RingCamera
 from connection_managers.plugin_type import PluginType
 from data_models.motion_event import MotionEvent
+try:
+    from ring_doorbell import RingError
+except ImportError:
+    # Fallback if RingError doesn't exist in the library
+    RingError = Exception
 
 
 @pytest.fixture
@@ -114,16 +119,17 @@ class TestRingCamera:
     ) -> None:
         """Test error handling in motion video retrieval."""
         # Setup
-        mock_device_object.history.side_effect = Exception("Test error")
+        mock_device_object.history.side_effect = RingError("Test error")
 
-        # Execute
-        result = await ring_camera.retrieve_motion_events(
-            datetime.now(timezone.utc),
-            datetime.now(timezone.utc) + timedelta(hours=1)
-        )
-
-        # Verify
-        assert result == []
+        # Execute & Verify
+        with pytest.raises(RingError) as exc_info:
+            await ring_camera.retrieve_motion_events(
+                datetime.now(timezone.utc),
+                datetime.now(timezone.utc) + timedelta(hours=1)
+            )
+        
+        # Verify the error message
+        assert "Test error" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_is_healthy_online(

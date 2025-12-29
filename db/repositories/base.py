@@ -5,6 +5,7 @@ from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from db.exceptions import DatabaseTransactionError
 from db.models import BASE
 from db.exceptions import DatabaseTransactionError
 from utils.logging_config import get_logger
@@ -76,7 +77,9 @@ class BaseRepository(Generic[ModelType]):
                 labels={"table": table_name},
                 increment=1,
             )
-            raise DatabaseTransactionError(f"Failed to create record in table {table_name}: {str(e)}") from e
+            raise DatabaseTransactionError(
+                f"Failed to create record in table {table_name}: {str(e)}"
+            ) from e
         inc_counter_metric(
             MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
             labels={"table": table_name},
@@ -97,7 +100,10 @@ class BaseRepository(Generic[ModelType]):
             )
             # Don't rollback or close - let the caller handle the session
             # The object exists in DB even if refresh failed
-            raise
+            raise DatabaseTransactionError(
+                f"Failed to refresh object after commit in table {table_name}: {str(e)}. "
+                "Data was committed successfully."
+            ) from e
         return db_obj
 
     def add_to_session(self, db: Session, obj_in: Dict[str, Any]) -> ModelType:

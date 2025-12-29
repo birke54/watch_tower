@@ -12,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 from data_models.motion_event import MotionEvent
 from watch_tower.core.events_loop import process_face_search_with_visitor_logs
 from db.models import BASE
+from db.exceptions import DatabaseTransactionError
 from db.repositories.motion_event_repository import MotionEventRepository
 from db.repositories.visitor_log_repository import VisitorLogRepository
 from db.exceptions import DatabaseTransactionError
