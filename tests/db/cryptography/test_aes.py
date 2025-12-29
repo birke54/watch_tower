@@ -41,9 +41,9 @@ def test_get_encryption_key_success() -> None:
     assert key == TEST_KEY.encode('utf-8')
 
 
-def test_get_encryption_key_failure_aws_credentials_error() -> None:
+def test_get_encryption_key_failure_secrets_manager_error() -> None:
     """Test key retrieval failure with SecretsManagerError"""
-    with patch('db.cryptography.aes.get_db_secret', side_effect=AWSCredentialsError("Secret error")):
+    with patch('db.cryptography.aes.get_db_secret', side_effect=SecretsManagerError("Secret error")):
         with pytest.raises(CryptographyError) as exc_info:
             get_encryption_key()
         assert "Failed to get encryption key" in str(exc_info.value)

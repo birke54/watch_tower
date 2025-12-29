@@ -7,10 +7,13 @@ specifically for database credentials and other sensitive configuration data.
 import json
 
 import boto3
-from botocore.exceptions import ClientError, NoCredentialsError as Botocore
+from botocore.exceptions import ClientError, NoCredentialsError
 
 from aws.exceptions import AWSCredentialsError, SecretsManagerError
 from watch_tower.config import config
+from utils.logging_config import get_logger
+
+LOGGER = get_logger(__name__)
 
 
 def get_db_secret(secret_name: str) -> dict:
@@ -42,7 +45,7 @@ def get_db_secret(secret_name: str) -> dict:
         # Get secret value
         response = client.get_secret_value(SecretId=secret_name)
         return json.loads(response['SecretString'])
-    except Botocore.NoCredentialsError as e:
+    except NoCredentialsError as e:
         LOGGER.error("No AWS credentials found while creating Secrets Manager client: %s", e)
         raise AWSCredentialsError(
             f"No AWS credentials found while creating Secrets Manager client: {e}")

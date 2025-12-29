@@ -28,7 +28,6 @@ ENGINE, SESSION_FACTORY = get_database_connection()
 @handle_async_errors(log_error=True, reraise=True)
 async def bootstrap() -> None:
     """Bootstrap the application."""
-    success = False
     try:
         # Initialize SQLite database for camera state
         init_camera_state_db()
@@ -38,15 +37,13 @@ async def bootstrap() -> None:
         await login_to_vendors()
         cameras = await retrieve_cameras()
         await add_cameras_to_registry(cameras)
-        #inc_counter_metric(MetricDataPointName.WATCH_TOWER_BOOTSTRAP_SUCCESS_COUNT)
-        success = True
-    finally:
-        if success:
-            LOGGER.info("Bootstrap successful")
-            inc_counter_metric(MetricDataPointName.WATCH_TOWER_BOOTSTRAP_SUCCESS_COUNT)
-        else:
-            LOGGER.error("Bootstrap failed")
-            inc_counter_metric(MetricDataPointName.WATCH_TOWER_BOOTSTRAP_ERROR_COUNT)
+        LOGGER.info("Bootstrap successful")
+        inc_counter_metric(MetricDataPointName.WATCH_TOWER_BOOTSTRAP_SUCCESS_COUNT)
+    except Exception:
+        # Log and record metrics for failure, then re-raise
+        LOGGER.error("Bootstrap failed")
+        inc_counter_metric(MetricDataPointName.WATCH_TOWER_BOOTSTRAP_ERROR_COUNT)
+        raise
 
 
 async def add_cameras_to_registry(cameras: List[Tuple[PluginType, Any]]) -> None:
