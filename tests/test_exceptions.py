@@ -9,7 +9,7 @@ from watch_tower.exceptions import (
     # AWS exceptions
     SecretsManagerError,
     ConfigError,
-    NoCredentialsError,
+    AWSCredentialsError,
     ClientError,
     S3ResourceNotFoundException,
     RekognitionResourceNotFoundException,
@@ -71,17 +71,10 @@ class TestAWSExceptions:
         assert str(error) == error_msg
         assert isinstance(error, Exception)
 
-    def test_no_credentials_error(self) -> None:
-        """Test NoCredentialsError exception."""
+    def test_aws_credentials_error(self) -> None:
+        """Test AWSCredentialsError exception."""
         error_msg = "No AWS credentials found"
-        error = NoCredentialsError(error_msg)
-        assert str(error) == error_msg
-        assert isinstance(error, Exception)
-
-    def test_client_error(self) -> None:
-        """Test ClientError exception."""
-        error_msg = "AWS client error"
-        error = ClientError(error_msg)
+        error = AWSCredentialsError(error_msg)
         assert str(error) == error_msg
         assert isinstance(error, Exception)
 
@@ -133,7 +126,7 @@ class TestExceptionInheritance:
         custom_exceptions = [
             SecretsManagerError,
             ConfigError,
-            NoCredentialsError,
+            AWSCredentialsError,
             ClientError,
             S3ResourceNotFoundException,
             RekognitionResourceNotFoundException,

@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 import boto3
 from botocore.exceptions import ClientError
 
-from aws.exceptions import ClientInitializationError, RekognitionError, RekognitionResourceNotFoundException
+from aws.exceptions import AWSClientInitializationError, RekognitionError, RekognitionResourceNotFoundException
 from aws.s3.s3_service import S3_SERVICE
 from watch_tower.config import config
 from utils.logging_config import get_logger
@@ -83,7 +83,7 @@ class RekognitionService:  # pylint: disable=too-many-instance-attributes
             return AWSClientFactory.create_rekognition_client()
         except Exception as e:
             LOGGER.error("Failed to initialize Rekognition client: %s", e)
-            raise ClientInitializationError(
+            raise AWSClientInitializationError(
                 f"Error initializing Rekognition client: {e}")
 
     def check_collection_exists(self, collection_id: str) -> None:

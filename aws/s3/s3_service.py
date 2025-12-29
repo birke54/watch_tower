@@ -10,7 +10,7 @@ from typing import List
 import boto3
 from botocore.exceptions import ClientError
 
-from aws.exceptions import ClientInitializationError, S3Error, S3ResourceNotFoundException
+from aws.exceptions import AWSCredentialsError, AWSClientInitializationError, S3Error, S3ResourceNotFoundException
 from watch_tower.config import config
 from utils.logging_config import get_logger
 from utils.aws_client_factory import AWSClientFactory
@@ -58,14 +58,19 @@ class S3Service:
             boto3.client: Initialized S3 client.
 
         Raises:
-            ClientInitializationError: If client initialization fails.
+            AWSCredentialsError: If AWS credentials are missing or invalid.
+            AWSClientInitializationError: If client initialization fails.
         """
         try:
             return AWSClientFactory.create_s3_client()
-        except Exception as e:
-            LOGGER.error("Failed to initialize S3 client: %s", e)
-            raise ClientInitializationError(
-                f"Error initializing S3 client: {e}")
+        except botocore.exceptions.NoCredentialsError as e:
+            LOGGER.error("No AWS credentials found while creating S3 client: %s", e)
+            raise AWSCredentialsError(
+                f"No AWS credentials found while creating S3 client: {e}")
+        except botocore.exceptions.ClientError as e:
+            LOGGER.error("Error creating S3 client: %s", e)
+            raise AWSClientInitializationError(
+                f"Error creating S3 client: {e}")
 
     def check_bucket_exists(self, bucket_name: str) -> bool:
         """

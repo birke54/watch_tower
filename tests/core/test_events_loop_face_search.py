@@ -13,6 +13,7 @@ from watch_tower.core.events_loop import process_face_search_with_visitor_logs
 from db.models import BASE
 from db.repositories.motion_event_repository import MotionEventRepository
 from db.repositories.visitor_log_repository import VisitorLogRepository
+from db.exceptions import DatabaseTransactionError
 from cameras.camera_base import PluginType
 from utils.metrics import MetricDataPointName as Metric
 from aws.exceptions import RekognitionError
@@ -108,7 +109,7 @@ async def test_face_search_rollback_on_db_error(session_factory, monkeypatch):
     # Force commit to fail
     monkeypatch.setattr(Session, "commit", Mock(side_effect=SQLAlchemyError("db failure")))
 
-    with pytest.raises(SQLAlchemyError):
+    with pytest.raises(DatabaseTransactionError):
         await process_face_search_with_visitor_logs(
             rekognition_service, motion_event, db_event, session_factory
         )

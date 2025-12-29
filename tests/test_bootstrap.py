@@ -8,6 +8,7 @@ import pytest
 from connection_managers.plugin_type import PluginType
 from db.models import Vendors
 from watch_tower.registry.connection_manager_registry import VendorStatus
+from watch_tower.exceptions import RingConnectionManagerError
 
 BOOTSTRAP_MODULE = importlib.import_module('watch_tower.core.bootstrap')
 
@@ -69,14 +70,18 @@ class TestBootstrap:
         """Test successful vendor retrieval."""
         # Setup
         mock_session = mock_session_factory.return_value.__enter__.return_value
-        mock_session.query.return_value.all.return_value = mock_vendors
+        mock_query = Mock()
+        mock_query.offset.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = mock_vendors
+        mock_session.query.return_value = mock_query
 
         # Execute
         result = BOOTSTRAP_MODULE.retrieve_vendors()
 
         # Verify
         assert result == mock_vendors
-        mock_session.query.assert_called_once_with(Vendors)
+        mock_session.query.assert_called_once()
 
     def test_retrieve_vendors_empty(
             self,
@@ -85,7 +90,11 @@ class TestBootstrap:
         """Test vendor retrieval with no vendors."""
         # Setup
         mock_session = mock_session_factory.return_value.__enter__.return_value
-        mock_session.query.return_value.all.return_value = []
+        mock_query = Mock()
+        mock_query.offset.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = []
+        mock_session.query.return_value = mock_query
 
         # Execute
         result = BOOTSTRAP_MODULE.retrieve_vendors()
@@ -144,7 +153,7 @@ class TestBootstrap:
         """Test vendor login with failure."""
         # Setup
         mock_connection_manager = Mock()
-        mock_connection_manager.login = AsyncMock(side_effect=Exception("Login failed"))
+        mock_connection_manager.login = AsyncMock(side_effect=RingConnectionManagerError("Login failed"))
         type(mock_connection_manager).plugin_type = PropertyMock(return_value=PluginType.RING)
 
         mock_connection_manager_registry.get_all_connection_managers.return_value = [

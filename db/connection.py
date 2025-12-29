@@ -5,7 +5,7 @@ from functools import lru_cache
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from aws.exceptions import NoCredentialsError, SecretsManagerError
+from aws.exceptions import AWSCredentialsError, SecretsManagerError
 from aws.secrets_manager.secrets_manager_service import get_db_secret
 from db.exceptions import DatabaseConnectionError
 from utils.logging_config import get_logger
@@ -52,11 +52,11 @@ def get_engine():
             connect_args={'connect_timeout': config.database.connect_timeout}
         )
 
-    except (NoCredentialsError, SecretsManagerError, KeyError, ValueError) as e:
+    except (AWSCredentialsError, SecretsManagerError, KeyError, ValueError) as e:
         # Convert AWS secrets manager errors to database connection errors
-        raise DatabaseConnectionError(f"Failed to create database engine: {str(e)}") from e
+        raise DatabaseConnectionError(f"Failed to create database engine: {e}") from e
     except Exception as e:
-        raise DatabaseConnectionError(f"Failed to create database engine: {str(e)}") from e
+        raise DatabaseConnectionError(f"Failed to create database engine: {e}") from e
 
 
 def get_session_factory():
@@ -80,7 +80,7 @@ def get_session_factory():
         raise
     except Exception as e:
         raise DatabaseConnectionError(
-            f"Failed to create session factory: {str(e)}"
+            f"Failed to create session factory: {e}"
         ) from e
 
 
@@ -103,5 +103,5 @@ def get_database_connection():
     except Exception as e:
         inc_counter_metric(MetricDataPointName.DATABASE_CONNECTION_FAILURE_COUNT)
         raise DatabaseConnectionError(
-            f"Failed to create database connection: {str(e)}"
+            f"Failed to create database connection: {e}"
         ) from e

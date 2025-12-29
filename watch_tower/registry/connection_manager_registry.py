@@ -49,7 +49,7 @@ class ConnectionManagerRegistry:
                 'expires_at': None
             }
         else:
-            LOGGER.error("Connection manager for %s already registered.", plugin_type)
+            LOGGER.warning("Connection manager for %s already registered. Ignoring duplicate registration.", plugin_type)
 
     def get_connection_manager(self, plugin_type: PluginType) -> ConnectionManagerBase:
         """

@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
-from aws.exceptions import NoCredentialsError, SecretsManagerError
+from aws.exceptions import AWSCredentialsError, SecretsManagerError
 from aws.secrets_manager.secrets_manager_service import get_db_secret
 from db.exceptions import CryptographyError, CryptographyInputError
 from watch_tower.config import config
@@ -48,8 +48,8 @@ def get_encryption_key() -> bytes:
         if not isinstance(key, str):
             raise TypeError(f"encryption_key must be a string, got {type(key).__name__}")
         return key.encode('utf-8')
-    except (NoCredentialsError, SecretsManagerError, KeyError, TypeError, AttributeError) as e:
-        raise CryptographyError(f"Failed to get encryption key: {str(e)}") from e
+    except (AWSCredentialsError, SecretsManagerError, KeyError, TypeError, AttributeError) as e:
+        raise CryptographyError(f"Failed to get encryption key: {e}") from e
 
 
 def derive_key(key: bytes, salt: bytes) -> bytes:
@@ -175,10 +175,10 @@ def encrypt(data: Union[str, bytes], key: bytes = None) -> str:
         # Handle encoding/type errors with proper exception chaining
         if isinstance(e, (ValueError, TypeError, UnicodeEncodeError)):
             LOGGER.error("Encryption failed due to encoding/type error: %s", str(e), exc_info=True)
-            raise CryptographyError(f"Encryption failed: {str(e)}") from e
+            raise CryptographyError(f"Encryption failed: {e}") from e
         # Catch any other unexpected errors (e.g., from base64.b64encode(), os.urandom(), or cryptography library internal errors)
         LOGGER.error("Unexpected error during encryption: %s", str(e), exc_info=True)
-        raise CryptographyError(f"Encryption failed: {str(e)}") from e
+        raise CryptographyError(f"Encryption failed: {e}") from e
 
 
 def decrypt(data: str, key: bytes = None) -> str:

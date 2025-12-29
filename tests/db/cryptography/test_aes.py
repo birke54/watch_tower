@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from aws.exceptions import NoCredentialsError, SecretsManagerError
+from aws.exceptions import AWSCredentialsError, SecretsManagerError
 from db.cryptography.aes import decrypt, encrypt, get_encryption_key
 from db.exceptions import CryptographyError, CryptographyInputError
 
@@ -41,18 +41,18 @@ def test_get_encryption_key_success() -> None:
     assert key == TEST_KEY.encode('utf-8')
 
 
-def test_get_encryption_key_failure_secrets_manager_error() -> None:
+def test_get_encryption_key_failure_aws_credentials_error() -> None:
     """Test key retrieval failure with SecretsManagerError"""
-    with patch('db.cryptography.aes.get_db_secret', side_effect=SecretsManagerError("Secret error")):
+    with patch('db.cryptography.aes.get_db_secret', side_effect=AWSCredentialsError("Secret error")):
         with pytest.raises(CryptographyError) as exc_info:
             get_encryption_key()
         assert "Failed to get encryption key" in str(exc_info.value)
         assert "Secret error" in str(exc_info.value)
 
 
-def test_get_encryption_key_failure_no_credentials() -> None:
-    """Test key retrieval failure with NoCredentialsError"""
-    with patch('db.cryptography.aes.get_db_secret', side_effect=NoCredentialsError("No credentials")):
+def test_get_encryption_key_failure_aws_credentials_error() -> None:
+    """Test key retrieval failure with AWSCredentialsError"""
+    with patch('db.cryptography.aes.get_db_secret', side_effect=AWSCredentialsError("No credentials")):
         with pytest.raises(CryptographyError) as exc_info:
             get_encryption_key()
         assert "Failed to get encryption key" in str(exc_info.value)

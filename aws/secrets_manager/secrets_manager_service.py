@@ -7,9 +7,9 @@ specifically for database credentials and other sensitive configuration data.
 import json
 
 import boto3
-from botocore.exceptions import ClientError, NoCredentialsError as BotocoreNoCredentialsError
+from botocore.exceptions import ClientError, NoCredentialsError as Botocore
 
-from aws.exceptions import NoCredentialsError, SecretsManagerError
+from aws.exceptions import AWSCredentialsError, SecretsManagerError
 from watch_tower.config import config
 
 
@@ -24,7 +24,7 @@ def get_db_secret(secret_name: str) -> dict:
         dict: Secret data
 
     Raises:
-        NoCredentialsError: If AWS credentials are missing or invalid
+        AWSCredentialsError: If AWS credentials are missing or invalid
         SecretsManagerError: If there are issues retrieving the secret from AWS Secrets Manager
     """
     config.validate_aws_only()
@@ -42,10 +42,10 @@ def get_db_secret(secret_name: str) -> dict:
         # Get secret value
         response = client.get_secret_value(SecretId=secret_name)
         return json.loads(response['SecretString'])
-    except BotocoreNoCredentialsError as e:
-        raise NoCredentialsError(
-            "AWS credentials not found. Please set up your AWS credentials."
-        ) from e
+    except Botocore.NoCredentialsError as e:
+        LOGGER.error("No AWS credentials found while creating Secrets Manager client: %s", e)
+        raise AWSCredentialsError(
+            f"No AWS credentials found while creating Secrets Manager client: {e}")
     except ClientError as e:
         error_code = e.response.get('Error', {}).get('Code', 'Unknown')
         error_message = e.response.get('Error', {}).get('Message', str(e))

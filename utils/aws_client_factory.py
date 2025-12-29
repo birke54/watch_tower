@@ -21,7 +21,6 @@ class AWSClientFactory:
     """Factory for creating AWS clients with consistent configuration."""
 
     @staticmethod
-    @handle_errors(ClientError, log_error=True, reraise=True)
     def create_client(
             service_name: str,
             region_name: Optional[str] = None,
