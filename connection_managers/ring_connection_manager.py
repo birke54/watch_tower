@@ -143,23 +143,17 @@ class RingConnectionManager(ConnectionManagerBase):
         if not self._is_authenticated:
             LOGGER.info("Not authenticated, cameras cannot be retrieved")
             return None
-
-        try:
-            if self._ring is None:
-                return None
-            self._ring.update_data()
-            cameras = self._ring.video_devices()
-            if cameras:
-                LOGGER.info(
-                    "Successfully retrieved %d cameras: %r",
-                    len(cameras), cameras)
-                return cameras
-            LOGGER.info("No cameras found in response")
-            return []
-        except Exception as e:
-            LOGGER.error("Error retrieving cameras: %s", e)
-            LOGGER.exception("Full traceback:")
+        if self._ring is None:
             return None
+        self._ring.update_data()
+        cameras = self._ring.video_devices()
+        if cameras:
+            LOGGER.info(
+                "Successfully retrieved %d cameras: %r",
+                len(cameras), cameras)
+            return cameras
+        LOGGER.info("No cameras found in response")
+        return []
 
     def token_updated(self, token: Dict[str, Any],
                       vendor_id: Optional[int] = None) -> None:
