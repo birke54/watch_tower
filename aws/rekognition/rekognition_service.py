@@ -99,7 +99,6 @@ class RekognitionService:  # pylint: disable=too-many-instance-attributes
         """
         try:
             self.client.describe_collection(CollectionId=collection_id)
-            LOGGER.info("Collection %d exists", collection_id)
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 raise RekognitionResourceNotFoundException(

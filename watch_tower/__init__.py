@@ -12,7 +12,7 @@ __author__ = "Watch Tower Team"
 # Core exports
 from .core.business_logic_manager import BUSINESS_LOGIC_MANAGER as business_logic_manager
 from .core.bootstrap import bootstrap
-from .core.management_api import create_management_app
+# Note: create_management_app is now in the api package at the project root
 
 # Registry exports
 from .registry.camera_registry import REGISTRY as camera_registry
@@ -32,7 +32,6 @@ __all__ = [
     # Core components
     "business_logic_manager",
     "bootstrap",
-    "create_management_app",
 
     # Registries
     "camera_registry",

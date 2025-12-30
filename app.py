@@ -13,7 +13,7 @@ import uvicorn
 from watch_tower.config import config
 from watch_tower.core.bootstrap import bootstrap
 from watch_tower.core.business_logic_manager import BUSINESS_LOGIC_MANAGER as business_logic_manager
-from watch_tower.core.management_api import create_management_app
+from api import create_management_app
 from utils.logging_config import setup_logging
 
 
