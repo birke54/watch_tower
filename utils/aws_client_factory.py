@@ -12,7 +12,6 @@ from botocore.exceptions import ClientError
 
 from watch_tower.config import config
 from utils.logging_config import get_logger
-from utils.error_handler import handle_errors
 
 LOGGER = get_logger(__name__)
 
@@ -21,7 +20,6 @@ class AWSClientFactory:
     """Factory for creating AWS clients with consistent configuration."""
 
     @staticmethod
-    @handle_errors(ClientError, log_error=True, reraise=True)
     def create_client(
             service_name: str,
             region_name: Optional[str] = None,

@@ -6,9 +6,11 @@ from typing import List, Tuple, Any
 
 from watch_tower.registry.camera_registry import REGISTRY as camera_registry
 from watch_tower.registry.connection_manager_registry import VendorStatus, REGISTRY as connection_manager_registry
+from watch_tower.exceptions import RingConnectionManagerError
 from connection_managers.plugin_type import PluginType
 from db.connection import get_database_connection
 from db.models import Vendors
+from db.repositories.vendors_repository import VendorsRepository
 from db.camera_state_db import init_camera_state_db
 from utils.logging_config import get_logger
 from utils.error_handler import handle_async_errors
@@ -34,16 +36,18 @@ async def bootstrap() -> None:
         await login_to_vendors()
         cameras = await retrieve_cameras()
         await add_cameras_to_registry(cameras)
-        
+        LOGGER.info("Bootstrap successful")
         inc_counter_metric(MetricDataPointName.WATCH_TOWER_BOOTSTRAP_SUCCESS_COUNT)
     except Exception:
+        # Log and record metrics for failure, then re-raise
+        LOGGER.error("Bootstrap failed")
         inc_counter_metric(MetricDataPointName.WATCH_TOWER_BOOTSTRAP_ERROR_COUNT)
         raise
 
 
 async def add_cameras_to_registry(cameras: List[Tuple[PluginType, Any]]) -> None:
     """Add cameras to the camera registry."""
-    from cameras.ring_camera import RingCamera
+    from cameras.ring_camera import RingCamera  # pylint: disable=import-outside-toplevel
     registry = camera_registry  # Use the singleton instance
     LOGGER.info("Adding %d cameras to registry", len(cameras))
     for camera in cameras:
@@ -58,7 +62,7 @@ async def add_cameras_to_registry(cameras: List[Tuple[PluginType, Any]]) -> None
 def retrieve_vendors() -> List[Vendors]:
     """Retrieve vendors from the database."""
     with SESSION_FACTORY() as session:
-        vendors = session.query(Vendors).all()
+        vendors = VendorsRepository().get_all(session)
         LOGGER.info("Retrieved %d vendors from the database", len(vendors))
         LOGGER.debug("Vendors: %s", vendors)
         return list(vendors)  # Convert to list to ensure List[Vendors] return type
@@ -66,7 +70,7 @@ def retrieve_vendors() -> List[Vendors]:
 
 def register_connection_managers(vendors: List[Vendors]) -> List[Vendors]:
     """Register connection managers for each vendor."""
-    from connection_managers.connection_manager_factory import ConnectionManagerFactory
+    from connection_managers.connection_manager_factory import ConnectionManagerFactory  # pylint: disable=import-outside-toplevel
     for vendor in vendors:
         plugin_type = PluginType(vendor.plugin_type)
         connection_manager = ConnectionManagerFactory.create(plugin_type)
@@ -78,20 +82,19 @@ def register_connection_managers(vendors: List[Vendors]) -> List[Vendors]:
 async def login_to_vendors() -> None:
     """Login to vendors."""
     for connection_manager in connection_manager_registry.get_all_connection_managers():
+        plugin_type = connection_manager['connection_manager'].plugin_type
         LOGGER.debug(
             "Attempting to login to connection manager: %s",
             connection_manager['connection_manager'].__class__.__name__
         )
         try:
             await connection_manager['connection_manager'].login()
-            plugin_type = connection_manager['connection_manager'].plugin_type
             connection_manager_registry.update_status(plugin_type, VendorStatus.ACTIVE)
             LOGGER.info(
-                "Logged in to %s successfully", connection_manager['connection_manager'].__class__.__name__)
-        except Exception as e:
+                "Logged in to %s successfully", plugin_type)
+        except RingConnectionManagerError as e:
             LOGGER.error(
-                "Failed to login to: %s, error: %s", connection_manager['connection_manager'].__class__.__name__, e)
-            plugin_type = connection_manager['connection_manager'].plugin_type
+                "Failed to login to: %s, error: %s", plugin_type, e)
 
 
 async def retrieve_cameras() -> List[Tuple[PluginType, Any]]:

@@ -1,13 +1,15 @@
 """Unit tests for AES cryptography module."""
+import base64
 import os
 from typing import Generator, List
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from aws.exceptions import NoCredentialsError, SecretsManagerError
+from aws.exceptions import AWSCredentialsError, SecretsManagerError
 from db.cryptography.aes import decrypt, encrypt, get_encryption_key
 from db.exceptions import CryptographyError, CryptographyInputError
+from utils.metrics import MetricDataPointName
 
 # Test data
 TEST_KEY = "test_encryption_key_123"
@@ -50,9 +52,9 @@ def test_get_encryption_key_failure_secrets_manager_error() -> None:
         assert "Secret error" in str(exc_info.value)
 
 
-def test_get_encryption_key_failure_no_credentials() -> None:
-    """Test key retrieval failure with NoCredentialsError"""
-    with patch('db.cryptography.aes.get_db_secret', side_effect=NoCredentialsError("No credentials")):
+def test_get_encryption_key_failure_aws_credentials_error() -> None:
+    """Test key retrieval failure with AWSCredentialsError"""
+    with patch('db.cryptography.aes.get_db_secret', side_effect=AWSCredentialsError("No credentials")):
         with pytest.raises(CryptographyError) as exc_info:
             get_encryption_key()
         assert "Failed to get encryption key" in str(exc_info.value)
@@ -141,27 +143,23 @@ def test_encrypt_failure_key_retrieval_error() -> None:
 
 def test_encrypt_metrics_success(monkeypatch) -> None:
     """Test that success metrics are incremented on successful encryption"""
-    from utils.metrics import MetricDataPointName
-    
     inc_mock = MagicMock()
     monkeypatch.setattr('db.cryptography.aes.inc_counter_metric', inc_mock)
-    
+
     encrypt(TEST_DATA)
-    
+
     # Check that success metric was called with the correct enum value
     inc_mock.assert_any_call(MetricDataPointName.AES_ENCRYPT_SUCCESS_COUNT)
 
 
 def test_encrypt_metrics_error(monkeypatch) -> None:
     """Test that error metrics are incremented on encryption failure"""
-    from utils.metrics import MetricDataPointName
-    
     inc_mock = MagicMock()
     monkeypatch.setattr('db.cryptography.aes.inc_counter_metric', inc_mock)
-    
+
     with pytest.raises(CryptographyInputError):
         encrypt("")
-    
+
     # Check that error metric was called with the correct enum value
     inc_mock.assert_any_call(MetricDataPointName.AES_ENCRYPT_ERROR_COUNT)
 
@@ -236,10 +234,9 @@ def test_decrypt_corrupted_data_wrong_block_size() -> None:
     """Test decryption failure with corrupted data (wrong block size)"""
     # Create invalid encrypted data that's not a multiple of 16 bytes
     # We'll create a valid base64 string but with wrong length after decoding
-    import base64
     # Create data that when decoded is not a multiple of 16
     invalid_data = base64.b64encode(b"short").decode('utf-8')
-    
+
     with pytest.raises(CryptographyError) as exc_info:
         decrypt(invalid_data)
     assert "not a multiple of block size" in str(exc_info.value)
@@ -250,7 +247,7 @@ def test_decrypt_wrong_key() -> None:
     # Encrypt with one key
     key1 = b"correct_key_12345678901234567890"
     encrypted = encrypt(TEST_DATA, key=key1)
-    
+
     # Try to decrypt with different key
     key2 = b"wrong_key_123456789012345678901"
     with pytest.raises(CryptographyError) as exc_info:
@@ -262,13 +259,12 @@ def test_decrypt_legacy_hex_format() -> None:
     """Test decryption with legacy hex-encoded format"""
     # Encrypt data normally
     encrypted = encrypt(TEST_DATA)
-    
+
     # Convert to hex format (legacy) - decode base64 first, then hex encode
-    import base64
     decoded = base64.b64decode(encrypted)
     # Create hex string with \x prefix format
     hex_encoded = '\\x' + '\\x'.join(f'{b:02x}' for b in decoded)
-    
+
     # Should be able to decrypt the hex-encoded format
     decrypted = decrypt(hex_encoded)
     assert decrypted == TEST_DATA
@@ -278,11 +274,11 @@ def test_decrypt_legacy_hex_base64_format() -> None:
     """Test decryption with legacy hex-encoded base64 format (ending with padding)"""
     # Encrypt data normally
     encrypted = encrypt(TEST_DATA)
-    
+
     # Convert to hex-encoded base64 format (legacy) - encode each char as hex
     # This format ends with '3d' or '3d3d' (base64 padding = or ==)
     hex_base64 = '\\x' + '\\x'.join(f'{ord(c):02x}' for c in encrypted)
-    
+
     # Should be able to decrypt the hex-encoded base64 format
     decrypted = decrypt(hex_base64)
     assert decrypted == TEST_DATA
@@ -299,28 +295,24 @@ def test_decrypt_key_retrieval_error() -> None:
 
 def test_decrypt_metrics_success(monkeypatch) -> None:
     """Test that success metrics are incremented on successful decryption"""
-    from utils.metrics import MetricDataPointName
-    
     inc_mock = MagicMock()
     monkeypatch.setattr('db.cryptography.aes.inc_counter_metric', inc_mock)
-    
+
     encrypted = encrypt(TEST_DATA)
     decrypt(encrypted)
-    
+
     # Check that success metric was called with the correct enum value
     inc_mock.assert_any_call(MetricDataPointName.AES_DECRYPT_SUCCESS_COUNT)
 
 
 def test_decrypt_metrics_error(monkeypatch) -> None:
     """Test that error metrics are incremented on decryption failure"""
-    from utils.metrics import MetricDataPointName
-    
     inc_mock = MagicMock()
     monkeypatch.setattr('db.cryptography.aes.inc_counter_metric', inc_mock)
-    
+
     with pytest.raises(CryptographyInputError):
         decrypt("")
-    
+
     # Check that error metric was called with the correct enum value
     inc_mock.assert_any_call(MetricDataPointName.AES_DECRYPT_ERROR_COUNT)
 

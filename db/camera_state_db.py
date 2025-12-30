@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 from typing import List, Dict, Any
 from utils.logging_config import get_logger
+from db.exceptions import DatabaseConnectionError
 
 LOGGER = get_logger(__name__)
 
@@ -36,9 +37,9 @@ def init_camera_state_db() -> None:
         conn.close()
         LOGGER.debug("Camera state database initialized successfully")
 
-    except Exception as e:
+    except sqlite3.Error as e:
         LOGGER.error("Failed to initialize camera state database: %s", e)
-        raise
+        raise DatabaseConnectionError(f"Failed to initialize camera state database: {str(e)}") from e
 
 
 def save_camera_states(camera_states: List[Dict[str, Any]]) -> None:

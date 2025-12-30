@@ -1,3 +1,4 @@
+"""Registry for managing connection managers across different plugin types."""
 from enum import Enum
 from typing import List, Dict, Optional, TypedDict, cast
 from datetime import datetime
@@ -7,12 +8,15 @@ from utils.logging_config import get_logger
 
 LOGGER = get_logger(__name__)
 
+
 class VendorStatus(Enum):
+    """Status enumeration for vendor connection managers."""
     ACTIVE = 1
     INACTIVE = 2
 
 
 class ConnectionManagerInfo(TypedDict):
+    """Typed dictionary for connection manager information."""
     connection_manager: ConnectionManagerBase
     status: VendorStatus
     token: Optional[str]
@@ -49,7 +53,9 @@ class ConnectionManagerRegistry:
                 'expires_at': None
             }
         else:
-            LOGGER.error("Connection manager for %s already registered.", plugin_type)
+            LOGGER.warning(
+                "Connection manager for %s already registered. "
+                "Ignoring duplicate registration.", plugin_type)
 
     def get_connection_manager(self, plugin_type: PluginType) -> ConnectionManagerBase:
         """

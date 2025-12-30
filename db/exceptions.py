@@ -27,3 +27,7 @@ class DatabaseMultipleEventsFoundError(WatchTowerError):
 
 class CryptographyInputError(CryptographyError):
     """Raised when an invalid input is provided to the encryption/decryption functions."""
+
+
+class DatabaseTransactionError(WatchTowerError):
+    """Raised when a database transaction fails."""

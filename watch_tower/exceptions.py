@@ -11,10 +11,11 @@ from aws.exceptions import (
     S3ResourceNotFoundException,
     SecretsManagerError,
     ConfigError,
-    NoCredentialsError,
+    AWSCredentialsError,
     ClientError,
     S3Error,
     RekognitionError,
+    AWSClientInitializationError,
 )
 
 # Database exceptions
@@ -56,10 +57,11 @@ __all__ = [
     'S3ResourceNotFoundException',
     'SecretsManagerError',
     'ConfigError',
-    'NoCredentialsError',
+    'AWSCredentialsError',
     'ClientError',
     'S3Error',
     'RekognitionError',
+    'AWSClientInitializationError',
 
     # Database exceptions
     'DatabaseConfigError',

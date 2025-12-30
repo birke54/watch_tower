@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from db.models import MotionEvent
 from db.repositories.base import BaseRepository
+from db.exceptions import DatabaseTransactionError
 from utils.logging_config import get_logger
 from utils.metric_helpers import inc_counter_metric
 from utils.metrics import MetricDataPointName
@@ -121,7 +122,8 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
                     labels={"table": table_name},
                     increment=1,
                 )
-                raise
+                raise DatabaseTransactionError(
+                    f"Failed to mark event {event_id} as processed in table {table_name}: {str(e)}") from e
             inc_counter_metric(
                 MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
                 labels={"table": table_name},
@@ -169,7 +171,8 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
                     labels={"table": table_name},
                     increment=1,
                 )
-                raise
+                raise DatabaseTransactionError(
+                    f"Failed to update S3 URL for event {event_id} in table {table_name}: {str(e)}") from e
             inc_counter_metric(
                 MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
                 labels={"table": table_name},

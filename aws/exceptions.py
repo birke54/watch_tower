@@ -21,10 +21,6 @@ class ConfigError(Exception):
     """Exception for AWS configuration errors"""
 
 
-class NoCredentialsError(WatchTowerError):
-    """Raised when AWS credentials are missing or invalid."""
-
-
 class ClientError(Exception):
     """Exception for AWS client errors"""
 
@@ -37,5 +33,10 @@ class RekognitionError(WatchTowerError):
     """Raised when there's an error with AWS Rekognition operations."""
 
 
-class ClientInitializationError(WatchTowerError):
-    """Raised when there's an error initializing an AWS client."""
+# AWS exceptions
+class AWSCredentialsError(WatchTowerError):
+    """Raised when AWS credentials are missing or invalid."""
+
+
+class AWSClientInitializationError(WatchTowerError):
+    """Raised when there's an error creating an AWS client."""

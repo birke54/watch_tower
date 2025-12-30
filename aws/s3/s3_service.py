@@ -8,9 +8,10 @@ import os
 from typing import List
 
 import boto3
+import botocore
 from botocore.exceptions import ClientError
 
-from aws.exceptions import ClientInitializationError, S3Error, S3ResourceNotFoundException
+from aws.exceptions import AWSCredentialsError, AWSClientInitializationError, S3Error, S3ResourceNotFoundException
 from watch_tower.config import config
 from utils.logging_config import get_logger
 from utils.aws_client_factory import AWSClientFactory
@@ -58,14 +59,19 @@ class S3Service:
             boto3.client: Initialized S3 client.
 
         Raises:
-            ClientInitializationError: If client initialization fails.
+            AWSCredentialsError: If AWS credentials are missing or invalid.
+            AWSClientInitializationError: If client initialization fails.
         """
         try:
             return AWSClientFactory.create_s3_client()
-        except Exception as e:
-            LOGGER.error("Failed to initialize S3 client: %s", e)
-            raise ClientInitializationError(
-                f"Error initializing S3 client: {e}")
+        except botocore.exceptions.NoCredentialsError as e:
+            LOGGER.error("No AWS credentials found while creating S3 client: %s", e)
+            raise AWSCredentialsError(
+                f"No AWS credentials found while creating S3 client: {e}")
+        except botocore.exceptions.ClientError as e:
+            LOGGER.error("Error creating S3 client: %s", e)
+            raise AWSClientInitializationError(
+                f"Error creating S3 client: {e}")
 
     def check_bucket_exists(self, bucket_name: str) -> bool:
         """
@@ -169,8 +175,12 @@ class S3Service:
                 bucket_name, object_key, local_path, e)
             raise
         except (S3ResourceNotFoundException, ClientError) as e:
-            LOGGER.warning("Bucket %s does not exist or error downloading file from s3://%s/%s: %s", bucket_name, bucket_name, object_key, e)
-            raise S3Error(f"Bucket {bucket_name} does not exist or error downloading file from s3://{bucket_name}/{object_key}: {e}") from e
+            LOGGER.warning(
+                "Bucket %s does not exist or error downloading file from s3://%s/%s: %s",
+                bucket_name, bucket_name, object_key, e)
+            raise S3Error(
+                f"Bucket {bucket_name} does not exist or error downloading file "
+                f"from s3://{bucket_name}/{object_key}: {e}") from e
         finally:
             if success:
                 inc_counter_metric(MetricDataPointName.AWS_S3_DOWNLOAD_FILE_SUCCESS_COUNT)
@@ -207,8 +217,12 @@ class S3Service:
             LOGGER.warning("Local file %s does not exist.", local_path)
             raise
         except (S3ResourceNotFoundException, ClientError) as e:
-            LOGGER.warning("Bucket %s does not exist or error uploading file %s to s3://%s/%s: %s", bucket_name, local_path, bucket_name, object_key, e)
-            raise S3Error(f"Bucket {bucket_name} does not exist or error uploading file {local_path} to s3://{bucket_name}/{object_key}: {e}") from e
+            LOGGER.warning(
+                "Bucket %s does not exist or error uploading file %s to s3://%s/%s: %s",
+                bucket_name, local_path, bucket_name, object_key, e)
+            raise S3Error(
+                f"Bucket {bucket_name} does not exist or error uploading file "
+                f"{local_path} to s3://{bucket_name}/{object_key}: {e}") from e
         finally:
             if success:
                 inc_counter_metric(MetricDataPointName.AWS_S3_UPLOAD_FILE_SUCCESS_COUNT)

@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from typing import Any, Dict, Optional, Sequence
 
-from ring_doorbell import Auth, Ring, Requires2FAError, RingDoorBell
+from ring_doorbell import Auth, Ring, Requires2FAError, RingDoorBell, AuthenticationError, RingError
 
 from connection_managers.connection_manager_base import ConnectionManagerBase
 from connection_managers.plugin_type import PluginType
@@ -13,13 +13,13 @@ from db.cryptography.aes import decrypt
 from db.models import VendorStatus as DBVendorStatus
 from db.repositories.vendors_repository import VendorsRepository
 from utils.logging_config import get_logger
+from utils.metrics import MetricDataPointName
+from utils.metric_helpers import inc_counter_metric
 from watch_tower.exceptions import RingConnectionManagerError
 from watch_tower.registry.connection_manager_registry import (
     REGISTRY as connection_manager_registry,
     VendorStatus as RegistryVendorStatus,
 )
-from utils.metrics import MetricDataPointName
-from utils.metric_helpers import inc_counter_metric
 
 # Configure logger for this module
 LOGGER = get_logger(__name__)
@@ -56,50 +56,56 @@ class RingConnectionManager(ConnectionManagerBase):
             return
 
         LOGGER.info("Attempting to login with database token")
-        try:
-            _, session_factory = get_database_connection()
-            with session_factory() as session:
-                vendor = self._vendor_repository.get_by_field(
-                    session, 'plugin_type', self._plugin_type)
-
+        _, session_factory = get_database_connection()
+        with session_factory() as session:
+            vendor = self._vendor_repository.get_by_field(
+                session, 'plugin_type', self._plugin_type)
+            success = False
+            e = None
+            try:
                 # Try authentication with existing token first
                 try:
                     if await self._authenticate_with_existing_token():
-                        inc_counter_metric(MetricDataPointName.RING_LOGIN_SUCCESS_COUNT)
                         LOGGER.info("Successfully authenticated with existing token")
-                        return
-                except Exception as e:
+                        success = True
+                except (AuthenticationError, RingError) as exc:
+                    e = exc
                     LOGGER.error(
                         "Failed to authenticate with existing token: %s\n "
-                        "Moving on to credential-based authentication", e)
+                        "Moving on to credential-based authentication", exc
+                    )
 
                 # Fall back to credential-based authentication
-                try:
-                    if await self._authenticate_with_credentials(vendor):
-                        # Update vendor status to active after successful auth
-                        self._vendor_repository.update_status(
-                            session, vendor.vendor_id, DBVendorStatus.ACTIVE)
-                        LOGGER.info(
-                            "Updated vendor status to active for %r",
-                            self._plugin_type)
-                        inc_counter_metric(MetricDataPointName.RING_LOGIN_SUCCESS_COUNT)
-                        LOGGER.info("Successfully authenticated with credentials")
-                        return
-                except Exception as e:
-                    LOGGER.error(
-                        "Failed to authenticate with credentials: %s", e)
+                if not success:
+                    try:
+                        if await self._authenticate_with_credentials(vendor):
+                            # Update vendor status to active after successful auth
+                            self._vendor_repository.update_status(
+                                session, vendor.vendor_id, DBVendorStatus.ACTIVE)
+                            LOGGER.info(
+                                "Updated vendor status to active for %r",
+                                self._plugin_type)
+                            LOGGER.info("Successfully authenticated with credentials")
+                            success = True
+                    except (AuthenticationError, RingError) as exc:
+                        e = exc
+                        LOGGER.error(
+                            "Failed to authenticate with credentials: %s", exc
+                        )
+            finally:
+                if success:
+                    inc_counter_metric(MetricDataPointName.RING_LOGIN_SUCCESS_COUNT)
+                    LOGGER.info("Successfully authenticated with Ring")
+                else:
+                    inc_counter_metric(MetricDataPointName.RING_LOGIN_ERROR_COUNT)
+                    if e is not None:
+                        raise RingConnectionManagerError(
+                            "Failed to authenticate with Ring: "
+                            "all authentication methods failed") from e
+                    raise RingConnectionManagerError(
+                        "Failed to authenticate with Ring: "
+                        "all authentication methods failed")
 
-            # If we reach here, both authentication methods failed
-            raise RingConnectionManagerError(
-                f"Failed to authenticate with Ring: all authentication methods failed"
-            )
-        except Exception as e:
-            # Handle errors during login
-            inc_counter_metric(MetricDataPointName.RING_LOGIN_ERROR_COUNT)
-            LOGGER.error("Error during login: %s", e)
-            raise RingConnectionManagerError(
-                f"Failed to authenticate with Ring: {e}"
-            )
 
     async def logout(self) -> bool:
         """
@@ -128,7 +134,7 @@ class RingConnectionManager(ConnectionManagerBase):
                 return False
             self._ring.update_data()
             return True
-        except Exception:
+        except (RingError, AuthenticationError):
             return False
 
     async def get_cameras(self) -> Optional[Sequence[RingDoorBell]]:
@@ -139,23 +145,17 @@ class RingConnectionManager(ConnectionManagerBase):
         if not self._is_authenticated:
             LOGGER.info("Not authenticated, cameras cannot be retrieved")
             return None
-
-        try:
-            if self._ring is None:
-                return None
-            self._ring.update_data()
-            cameras = self._ring.video_devices()
-            if cameras:
-                LOGGER.info(
-                    "Successfully retrieved %d cameras: %r",
-                    len(cameras), cameras)
-                return cameras
-            LOGGER.info("No cameras found in response")
-            return []
-        except Exception as e:
-            LOGGER.error("Error retrieving cameras: %s", e)
-            LOGGER.exception("Full traceback:")
+        if self._ring is None:
             return None
+        self._ring.update_data()
+        cameras = self._ring.video_devices()
+        if cameras:
+            LOGGER.info(
+                "Successfully retrieved %d cameras: %r",
+                len(cameras), cameras)
+            return cameras
+        LOGGER.info("No cameras found in response")
+        return []
 
     def token_updated(self, token: Dict[str, Any],
                       vendor_id: Optional[int] = None) -> None:
@@ -194,7 +194,6 @@ class RingConnectionManager(ConnectionManagerBase):
             inc_counter_metric(MetricDataPointName.RING_TOKEN_UPDATE_SUCCESS_COUNT)
             LOGGER.info(
                 "Token updated in database for vendor_id: %d", vendor_id)
-                
 
     @staticmethod
     def otp_callback() -> str:
@@ -295,8 +294,8 @@ class RingConnectionManager(ConnectionManagerBase):
                 auth.fetch_token(username, password, self.otp_callback())
             LOGGER.info("Successfully connected to Ring using database token")
             return auth
-        except Exception as e:
+        except (AuthenticationError, RingError) as e:
             LOGGER.error("Authentication failed: %s", e)
             raise RingConnectionManagerError(
-                f"Authentication failed: {str(e)}"
+                f"Authentication failed: {e}"
             ) from e
