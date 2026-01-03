@@ -1,4 +1,5 @@
 """Tests for the RekognitionService class."""
+# pylint: disable=redefined-outer-name
 from typing import Generator
 from unittest.mock import Mock, patch
 
@@ -6,8 +7,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 from aws.exceptions import RekognitionError, RekognitionResourceNotFoundException
-from aws.exceptions import RekognitionError, RekognitionResourceNotFoundException
-from aws.rekognition.rekognition_service import RekognitionService
+from aws.rekognition.rekognition_service import RekognitionService, RUNNING_FACE_SEARCH_JOBS
 
 # Test data
 TEST_COLLECTION_ID = "test-collection"
@@ -30,16 +30,16 @@ def mock_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def mock_config(monkeypatch: pytest.MonkeyPatch) -> Generator[Mock, None, None]:
+def mock_config(_monkeypatch: pytest.MonkeyPatch) -> Generator[Mock, None, None]:
     """Mock the configuration to use test values."""
-    with patch('aws.rekognition.rekognition_service.config') as mock_config:
-        mock_config.rekognition_collection_id = TEST_COLLECTION_ID
-        mock_config.rekognition_s3_known_faces_bucket = TEST_BUCKET_NAME
-        mock_config.sns_rekognition_video_analysis_topic_arn = 'test-topic-arn'
-        mock_config.rekognition_video_service_role_arn = 'test-role-arn'
-        mock_config.event_recordings_bucket = 'test-event-recordings-bucket'
-        mock_config.video.polling_interval = 10
-        yield mock_config
+    with patch('aws.rekognition.rekognition_service.config') as patched_config:
+        patched_config.rekognition_collection_id = TEST_COLLECTION_ID
+        patched_config.rekognition_s3_known_faces_bucket = TEST_BUCKET_NAME
+        patched_config.sns_rekognition_video_analysis_topic_arn = 'test-topic-arn'
+        patched_config.rekognition_video_service_role_arn = 'test-role-arn'
+        patched_config.event_recordings_bucket = 'test-event-recordings-bucket'
+        patched_config.video.polling_interval = 10
+        yield patched_config
 
 
 @pytest.fixture
@@ -59,7 +59,6 @@ def mock_s3_service() -> Generator[Mock, None, None]:
 @pytest.fixture
 def clean_running_jobs() -> Generator[None, None, None]:
     """Clean up RUNNING_FACE_SEARCH_JOBS before and after each test."""
-    from aws.rekognition.rekognition_service import RUNNING_FACE_SEARCH_JOBS
     # Clear before test
     RUNNING_FACE_SEARCH_JOBS.clear()
     yield
@@ -69,19 +68,19 @@ def clean_running_jobs() -> Generator[None, None, None]:
 
 @pytest.fixture
 def rekognition_service(
-    mock_env_vars: None,
-    mock_config: Mock,
-    mock_rekognition_client: Mock,
-    mock_s3_service: Mock,
-    clean_running_jobs: None
+        _mock_env_vars: None,
+        _mock_config: Mock,
+        _mock_rekognition_client: Mock,
+        _mock_s3_service: Mock,
+        _clean_running_jobs: None
 ) -> RekognitionService:
     """Create a RekognitionService instance with mocked dependencies."""
     return RekognitionService()
 
 
 def test_init_success(
-        mock_env_vars: None,
-        mock_config: Mock,
+        _mock_env_vars: None,
+        _mock_config: Mock,
         mock_rekognition_client: Mock
 ) -> None:
     """Test successful initialization of RekognitionService."""
@@ -98,12 +97,12 @@ def test_init_missing_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv('AWS_ACCESS_KEY_ID', raising=False)
     monkeypatch.delenv('AWS_SECRET_ACCESS_KEY', raising=False)
 
-    with patch('aws.rekognition.rekognition_service.config') as mock_config:
-        mock_config.validate_aws_only.side_effect = ValueError(
+    with patch('aws.rekognition.rekognition_service.config') as patched_config:
+        patched_config.validate_aws_only.side_effect = ValueError(
             "Missing required environment variables")
         RekognitionService()
         with pytest.raises(ValueError) as exc_info:
-            mock_config.validate_aws_only()
+            patched_config.validate_aws_only()
         assert "Missing required environment variables" in str(exc_info.value)
 
 
@@ -273,14 +272,13 @@ async def test_get_face_search_results_polling(
     assert any(match['face_id'] == 'face1' for match in matches)
     assert mock_rekognition_client.get_face_search.call_count == 2
 
+
 @pytest.mark.asyncio
 async def test_start_face_search_job_already_running(
         rekognition_service: RekognitionService,
         mock_rekognition_client: Mock
 ) -> None:
     """Test face search skips when job is already running."""
-    from aws.rekognition.rekognition_service import RUNNING_FACE_SEARCH_JOBS
-    
     # Add video to running jobs set
     RUNNING_FACE_SEARCH_JOBS.add(TEST_VIDEO_PATH)
 
@@ -297,9 +295,9 @@ async def test_start_face_search_job_already_running(
 
 @pytest.mark.asyncio
 async def test_start_face_search_s3_url_format(
-    rekognition_service: RekognitionService,
-    mock_rekognition_client: Mock,
-    mock_config: Mock
+        rekognition_service: RekognitionService,
+        mock_rekognition_client: Mock,
+        _mock_config: Mock
 ) -> None:
     """Test face search with s3:// URL format."""
     s3_url = "s3://my-bucket/path/to/video.mp4"
@@ -308,9 +306,9 @@ async def test_start_face_search_s3_url_format(
         'JobStatus': 'SUCCEEDED',
         'Persons': []
     }
-    
-    matches, was_skipped = await rekognition_service.start_face_search(s3_url)
-    
+
+    _, was_skipped = await rekognition_service.start_face_search(s3_url)
+
     assert was_skipped is False
     mock_rekognition_client.start_face_search.assert_called_once()
     call_args = mock_rekognition_client.start_face_search.call_args
@@ -320,9 +318,9 @@ async def test_start_face_search_s3_url_format(
 
 @pytest.mark.asyncio
 async def test_start_face_search_http_url_format(
-    rekognition_service: RekognitionService,
-    mock_rekognition_client: Mock,
-    mock_config: Mock
+        rekognition_service: RekognitionService,
+        mock_rekognition_client: Mock,
+        _mock_config: Mock
 ) -> None:
     """Test face search with http/https URL format (path-style: bucket in path)."""
     # Path-style URL: https://s3.region.amazonaws.com/bucket-name/key
@@ -333,7 +331,7 @@ async def test_start_face_search_http_url_format(
         'Persons': []
     }
 
-    matches, was_skipped = await rekognition_service.start_face_search(http_url)
+    _, was_skipped = await rekognition_service.start_face_search(http_url)
 
     assert was_skipped is False
     mock_rekognition_client.start_face_search.assert_called_once()
@@ -344,9 +342,9 @@ async def test_start_face_search_http_url_format(
 
 @pytest.mark.asyncio
 async def test_start_face_search_virtual_hosted_style_url_format(
-    rekognition_service: RekognitionService,
-    mock_rekognition_client: Mock,
-    mock_config: Mock
+        rekognition_service: RekognitionService,
+        mock_rekognition_client: Mock,
+        _mock_config: Mock
 ) -> None:
     """Test face search with virtual-hosted-style URL format (bucket in hostname)."""
     # Virtual-hosted-style URL: https://bucket.s3.region.amazonaws.com/key
@@ -357,7 +355,7 @@ async def test_start_face_search_virtual_hosted_style_url_format(
         'Persons': []
     }
 
-    matches, was_skipped = await rekognition_service.start_face_search(http_url)
+    _, was_skipped = await rekognition_service.start_face_search(http_url)
 
     assert was_skipped is False
     mock_rekognition_client.start_face_search.assert_called_once()
@@ -368,9 +366,9 @@ async def test_start_face_search_virtual_hosted_style_url_format(
 
 @pytest.mark.asyncio
 async def test_start_face_search_virtual_hosted_style_url_no_region(
-    rekognition_service: RekognitionService,
-    mock_rekognition_client: Mock,
-    mock_config: Mock
+        rekognition_service: RekognitionService,
+        mock_rekognition_client: Mock,
+        _mock_config: Mock
 ) -> None:
     """Test face search with virtual-hosted-style URL without region."""
     # Virtual-hosted-style URL without region: https://bucket.s3.amazonaws.com/key
@@ -381,7 +379,7 @@ async def test_start_face_search_virtual_hosted_style_url_no_region(
         'Persons': []
     }
 
-    matches, was_skipped = await rekognition_service.start_face_search(http_url)
+    _, was_skipped = await rekognition_service.start_face_search(http_url)
 
     assert was_skipped is False
     mock_rekognition_client.start_face_search.assert_called_once()
@@ -436,7 +434,6 @@ async def test_start_face_search_client_error_during_start(
 
     assert "Error starting face search" in str(exc_info.value)
     # Verify cleanup happens (job removed from set)
-    from aws.rekognition.rekognition_service import RUNNING_FACE_SEARCH_JOBS
     assert TEST_VIDEO_PATH not in RUNNING_FACE_SEARCH_JOBS
 
 
@@ -457,7 +454,6 @@ async def test_start_face_search_client_error_during_get_results(
 
     assert "Error getting face search results" in str(exc_info.value)
     # Verify cleanup happens (job removed from set)
-    from aws.rekognition.rekognition_service import RUNNING_FACE_SEARCH_JOBS
     assert TEST_VIDEO_PATH not in RUNNING_FACE_SEARCH_JOBS
 
 
@@ -539,8 +535,7 @@ async def test_get_face_search_results_persons_no_face_matches(
         'JobStatus': 'SUCCEEDED',
         'Persons': [
             {
-                'Timestamp': 1000
-                # No FaceMatches key
+                'Timestamp': 1000  # No FaceMatches key
             },
             {
                 'Timestamp': 2000,
