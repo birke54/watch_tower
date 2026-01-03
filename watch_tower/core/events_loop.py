@@ -11,6 +11,12 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any
 
 from sqlalchemy.exc import SQLAlchemyError
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception,
+)
 
 from aws.exceptions import RekognitionError
 from cameras.camera_base import CameraBase
@@ -23,10 +29,7 @@ from utils.error_handler import handle_async_errors
 from utils.metric_helpers import add_histogram_metric, inc_counter_metric
 from utils.metrics import MetricDataPointName as Metric
 from watch_tower.config import config, get_timezone
-from utils.error_handler import handle_async_errors
-from utils.metric_helpers import add_histogram_metric, inc_counter_metric
-from utils.metrics import MetricDataPointName as Metric
-from watch_tower.config import config, get_timezone
+from watch_tower.exceptions import RingConnectionManagerError
 from watch_tower.registry.camera_registry import CameraStatus, REGISTRY as camera_registry
 from watch_tower.registry.connection_manager_registry import VendorStatus, REGISTRY as connection_manager_registry
 
@@ -65,24 +68,79 @@ async def handle_camera_error(camera: CameraBase) -> None:
         LOGGER.exception("Full traceback:")
 
 
+def _is_retryable_error(exception: Exception) -> bool:
+    """Check if an exception is retryable.
+    
+    Args:
+        exception: The exception to check
+        
+    Returns:
+        True if the exception should be retried, False otherwise
+    """
+    # Retry on Ring API errors (but not authentication errors that need re-auth)
+    if isinstance(exception, RingConnectionManagerError):
+        return True
+    return False
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception(_is_retryable_error),
+    reraise=True
+)
+async def _retrieve_motion_events_with_retry(
+        camera: CameraBase,
+        from_time: datetime,
+        to_time: datetime
+) -> List[MotionEvent]:
+    """Retrieve motion events with retry logic.
+    
+    Args:
+        camera: The camera to retrieve events from
+        from_time: Start of the time range
+        to_time: End of the time range
+        
+    Returns:
+        List of motion events
+        
+    Raises:
+        Exception: If all retry attempts fail
+    """
+    return await camera.retrieve_motion_events(from_time, to_time)
+
+
 async def poll_for_events(
         camera: CameraBase,
         current_time: datetime,
         new_events: List[MotionEvent]
 ) -> None:
-    """Poll camera for new motion events and add them to the list."""
-    properties = await camera.get_properties()
-    camera_entry = camera_registry.cameras[(camera.plugin_type, properties["name"])]
-    time_since_last_polled = current_time - camera_entry.last_polled
-    if time_since_last_polled > timedelta(seconds=camera.motion_poll_interval):
-        try:
+    """Poll camera for new motion events and add them to the list.
+    
+    This function will retry up to 3 times with exponential backoff if the
+    event retrieval fails due to Ring API errors. If all retries are exhausted,
+    the camera error will be handled and the function will return without
+    raising an exception, allowing other cameras to continue processing.
+    """
+    try:
+        properties = await camera.get_properties()
+        camera_entry = camera_registry.cameras[(camera.plugin_type, properties["name"])]
+        time_since_last_polled = current_time - camera_entry.last_polled
+        if time_since_last_polled > timedelta(seconds=camera.motion_poll_interval):
             from_time = camera_entry.last_polled
-            new_events.extend(await camera.retrieve_motion_events(from_time, current_time))
+            events = await _retrieve_motion_events_with_retry(camera, from_time, current_time)
+            new_events.extend(events)
             camera_registry.update_last_polled(camera.plugin_type, properties["name"], current_time)
-        except Exception as e:
-            LOGGER.error("Error retrieving motion videos: %s", e)
-            LOGGER.exception("Full traceback:")
-            await handle_camera_error(camera)
+        else:
+            LOGGER.debug("No new motion events found for camera %s", camera.camera_name)
+    except RingConnectionManagerError as e:
+        # All retries exhausted - handle the camera error
+        LOGGER.error(
+            "Failed to retrieve motion events for camera %s after all retries: %s",
+            camera.camera_name, e
+        )
+        LOGGER.exception("Full traceback:")
+        await handle_camera_error(camera)
 
 
 def insert_events_into_db(events: List[MotionEvent]) -> None:
@@ -110,10 +168,9 @@ def insert_events_into_db(events: List[MotionEvent]) -> None:
                 continue
 
             # Check if an event with this Ring event ID and camera name already exists
-            existing_events = session.query(motion_event_repository.model).filter(
-                motion_event_repository.model.event_metadata.op('->>')('event_id') == str(ring_event_id),
-                motion_event_repository.model.camera_name == event.camera_name
-            ).all()
+            existing_events = motion_event_repository.get_by_ring_event_id_and_camera(
+                session, ring_event_id, event.camera_name
+            )
 
             if existing_events:
                 # Event already exists, skip insertion
@@ -181,54 +238,46 @@ def _handle_facial_recognition_task_completion(
 
 async def start_facial_recognition_tasks() -> None:
     """Start facial recognition tasks for unprocessed events"""
-    try:
-        from aws.rekognition.rekognition_service import RekognitionService
-        rekognition_service = RekognitionService()
-        _, session_factory = get_database_connection()
-        with session_factory() as session:
-            motion_event_repository = MotionEventRepository()
-            unprocessed_events = motion_event_repository.get_unprocessed_events(session)
+    from aws.rekognition.rekognition_service import RekognitionService
+    rekognition_service = RekognitionService()
+    _, session_factory = get_database_connection()
+    with session_factory() as session:
+        unprocessed_events = MotionEventRepository().get_unprocessed_events(session)
 
-            for db_event in unprocessed_events:
-                if db_event.s3_url in enqueued_facial_recognition_tasks:
-                    # Skip if a task is already running for this event
-                    continue
-                # Convert DB event to MotionEvent
-                motion_event = MotionEvent(
-                    event_id=str(db_event.id),
-                    camera_vendor=PluginType(db_event.event_metadata.get('camera_vendor')),
-                    camera_name=db_event.camera_name,
-                    timestamp=db_event.motion_detected,
-                    s3_url=db_event.s3_url if db_event.s3_url else None,
-                    event_metadata=db_event.event_metadata
+        for db_event in unprocessed_events:
+            if db_event.s3_url in enqueued_facial_recognition_tasks:
+                # Skip if a task is already running for this event
+                continue
+            # Convert DB event to MotionEvent
+            motion_event = MotionEvent(
+                event_id=str(db_event.id),
+                camera_vendor=PluginType(db_event.event_metadata.get('camera_vendor')),
+                camera_name=db_event.camera_name,
+                timestamp=db_event.motion_detected,
+                s3_url=db_event.s3_url if db_event.s3_url else None,
+                event_metadata=db_event.event_metadata
+            )
+
+            event_s3_url = motion_event.s3_url
+            event_db_event = db_event
+
+            # Create a task for this facial recognition with result processing
+            task = asyncio.create_task(
+                process_face_search_with_visitor_logs_with_semaphore(
+                    rekognition_service,
+                    motion_event,
+                    event_db_event,
+                    session_factory
                 )
+            )
+            enqueued_facial_recognition_tasks[event_s3_url] = task
+            task.add_done_callback(
+                lambda t, key=event_s3_url, event=event_db_event:
+                _handle_facial_recognition_task_completion(t, key, event)
+            )
 
-                event_s3_url = motion_event.s3_url
-                event_db_event = db_event
-
-                # Create a task for this facial recognition with result processing
-                task = asyncio.create_task(
-                    process_face_search_with_visitor_logs_with_semaphore(
-                        rekognition_service,
-                        motion_event,
-                        event_db_event,
-                        session_factory
-                    )
-                )
-                enqueued_facial_recognition_tasks[event_s3_url] = task
-                task.add_done_callback(
-                    lambda t, key=event_s3_url, event=event_db_event:
-                    _handle_facial_recognition_task_completion(t, key, event)
-                )
-
-                # Add a small delay between tasks to prevent overwhelming the system
-                await asyncio.sleep(0.1)
-    except DatabaseConnectionError as e:
-        LOGGER.error("Database connection error while starting facial recognition tasks: %s", e)
-        LOGGER.exception("Full traceback:")
-    except Exception as e:
-        LOGGER.error("Error starting facial recognition tasks: %s", e)
-        LOGGER.exception("Full traceback:")
+            # Add a small delay between tasks to prevent overwhelming the system
+            await asyncio.sleep(0.1)
 
 
 async def process_face_search_with_visitor_logs_with_semaphore(
@@ -420,46 +469,39 @@ async def create_visitor_logs_from_face_search(
 
 async def start_video_retrieval_tasks() -> None:
     """Start video retrieval tasks for unprocessed events"""
-    try:
-        _, session_factory = get_database_connection()
-        with session_factory() as session:
-            motion_event_repository = MotionEventRepository()
-            unprocessed_events = motion_event_repository.get_unuploaded_events(session)
+    _, session_factory = get_database_connection()
+    with session_factory() as session:
+        motion_event_repository = MotionEventRepository()
+        unprocessed_events = motion_event_repository.get_unuploaded_events(session)
 
-            for db_event in unprocessed_events:
-                if db_event.id in enqueued_upload_tasks:
-                    # Skip if a task is already running for this event
-                    continue
-                # Find the camera that created this event
-                camera_vendor = db_event.event_metadata.get('camera_vendor')
-                camera = camera_registry.get(
-                    PluginType(camera_vendor), db_event.camera_name)
-                if camera:
-                    # Convert DB event to MotionEvent
-                    motion_event = MotionEvent(
-                        event_id=str(db_event.id),
-                        camera_vendor=camera_vendor,
-                        camera_name=db_event.camera_name,
-                        timestamp=db_event.motion_detected,
-                        s3_url=db_event.s3_url if db_event.s3_url else None,
-                        event_metadata=db_event.event_metadata
-                    )
+        for db_event in unprocessed_events:
+            if db_event.id in enqueued_upload_tasks:
+                # Skip if a task is already running for this event
+                continue
+            # Find the camera that created this event
+            camera_vendor = db_event.event_metadata.get('camera_vendor')
+            camera = camera_registry.get(
+                PluginType(camera_vendor), db_event.camera_name)
+            if camera:
+                # Convert DB event to MotionEvent
+                motion_event = MotionEvent(
+                    event_id=str(db_event.id),
+                    camera_vendor=camera_vendor,
+                    camera_name=db_event.camera_name,
+                    timestamp=db_event.motion_detected,
+                    s3_url=db_event.s3_url if db_event.s3_url else None,
+                    event_metadata=db_event.event_metadata
+                )
 
-                    event_id = db_event.id
+                event_id = db_event.id
 
-                    # Create a task for this video retrieval
-                    task = asyncio.create_task(
-                        process_video_retrieval(
-                            motion_event, camera))
-                    enqueued_upload_tasks[event_id] = task
-                    task.add_done_callback(
-                        lambda t, key=event_id: _handle_video_retrieval_task_completion(t, key))
+                # Create a task for this video retrieval
+                task = asyncio.create_task(
+                    process_video_retrieval(
+                        motion_event, camera))
+                enqueued_upload_tasks[event_id] = task
+                task.add_done_callback(
+                    lambda t, key=event_id: _handle_video_retrieval_task_completion(t, key))
 
-                    # Add a small delay between tasks to prevent overwhelming the system
-                    await asyncio.sleep(0.1)
-    except DatabaseConnectionError as e:
-        LOGGER.error("Database connection error while starting video retrieval tasks: %s", e)
-        LOGGER.exception("Full traceback:")
-    except Exception as e:
-        LOGGER.error("Error starting video retrieval tasks: %s", e)
-        LOGGER.exception("Full traceback:")
+                # Add a small delay between tasks to prevent overwhelming the system
+                await asyncio.sleep(0.1)

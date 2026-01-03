@@ -5,6 +5,7 @@ This module provides the main application class and startup/shutdown logic.
 """
 
 import asyncio
+import logging
 import signal
 import sys
 
@@ -15,6 +16,8 @@ from watch_tower.core.bootstrap import bootstrap
 from watch_tower.core.business_logic_manager import BUSINESS_LOGIC_MANAGER as business_logic_manager
 from watch_tower.core.management_api import create_management_app
 from utils.logging_config import setup_logging
+
+LOGGER = logging.getLogger(__name__)
 
 
 def setup_signal_handlers(loop, business_logic_manager):

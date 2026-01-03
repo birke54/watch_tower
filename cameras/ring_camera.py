@@ -11,6 +11,7 @@ from typing import Any, Dict, List, cast
 
 import requests
 from ring_doorbell import RingDoorBell
+from ring_doorbell import RingError
 
 from aws.s3.s3_service import S3_SERVICE
 from cameras.camera_base import CameraBase
@@ -76,36 +77,31 @@ class RingCamera(CameraBase):
         Returns:
             List of motion events found within the time range
         """
-        try:
-            connection_manager = cast(
-                RingConnectionManager, connection_manager_registry.get_connection_manager(PluginType.RING))
-            connection_manager._ring.update_data()  # pylint: disable=protected-access
+        connection_manager = cast(
+            RingConnectionManager, connection_manager_registry.get_connection_manager(PluginType.RING))
 
-            # Get more events to ensure we don't miss any within our time window
-            events = self.device_object.history(limit=5)
-            LOGGER.debug("Events: %r", events)
-            LOGGER.debug("Retrieved %d events from Ring history", len(events))
-            LOGGER.debug(
-                "Looking for new %s events between %s and %s", self.device_object.name, from_time, to_time)
+        # Get more events to ensure we don't miss any within our time window
+        connection_manager._ring.update_data()
+        events = self.device_object.history(limit=5)
+        LOGGER.debug(
+            "Looking for new %s events between %s and %s", self.device_object.name, from_time, to_time)
+        LOGGER.debug("Events: %r", events)
+        LOGGER.debug("Retrieved %d events from Ring history", len(events))
 
-            matching_events = []
-            for event in events:
-                # Convert event timestamp to timezone-aware datetime if it isn't already
-                event_time = event.get("created_at")
-                if event_time is not None:
-                    event_time = event_time.astimezone(
-                        ZoneInfo("America/Los_Angeles"))
+        matching_events = []
+        for event in events:
+            # Convert event timestamp to timezone-aware datetime if it isn't already
+            event_time = event.get("created_at")
+            if event_time is not None:
+                event_time = event_time.astimezone(
+                    ZoneInfo("America/Los_Angeles"))
 
-                    if from_time <= event_time <= to_time:
-                        motion_event = MotionEvent.from_ring_event(event)
-                        matching_events.append(motion_event)
+                if from_time <= event_time <= to_time:
+                    motion_event = MotionEvent.from_ring_event(event)
+                    matching_events.append(motion_event)
 
-            LOGGER.debug("Found %d matching events", len(matching_events))
-            return matching_events
-        except Exception as e:
-            LOGGER.error("Error retrieving motion videos: %s", e)
-            LOGGER.exception("Full traceback:")
-            return []
+        LOGGER.debug("Found %d matching events", len(matching_events))
+        return matching_events
 
     async def retrieve_video_from_event_and_upload_to_s3(
             self, event: MotionEvent) -> None:

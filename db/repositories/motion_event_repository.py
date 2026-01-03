@@ -3,10 +3,11 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import and_
+from sqlalchemy import and_, cast, String
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from db.exceptions import DatabaseTransactionError
 from db.models import MotionEvent
 from db.repositories.base import BaseRepository
 from db.exceptions import DatabaseTransactionError
@@ -57,11 +58,55 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
             )
         ).all()
 
+    def get_by_ring_event_id_and_camera(
+            self,
+            db: Session,
+            ring_event_id: str,
+            camera_name: str
+    ) -> List[MotionEvent]:
+        """Get motion events by Ring event ID and camera name.
+        
+        Args:
+            db: Database session
+            ring_event_id: The Ring event ID stored in event_metadata
+            camera_name: The camera name
+            
+        Returns:
+            List of motion events matching the criteria
+        """
+        success = False
+        try:
+            events = db.query(self.model).filter(
+                and_(
+                    cast(self.model.event_metadata['event_id'], String) == str(ring_event_id),
+                    self.model.camera_name == camera_name
+                )
+            ).all()
+            success = True
+        except SQLAlchemyError as e:
+            LOGGER.error("Failed to query for events by ring event ID and camera: %s", e)
+            raise DatabaseTransactionError(
+                f"Failed to query for events by ring event ID and camera: {str(e)}") from e
+        finally:
+            if success:
+                inc_counter_metric(
+                    MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
+                    labels={"table": self.model.__table__.name},
+                    increment=1,
+                )
+            else:
+                inc_counter_metric(
+                    MetricDataPointName.DATABASE_TRANSACTION_FAILURE_COUNT,
+                    labels={"table": self.model.__table__.name},
+                    increment=1,
+                )
+        return events
+
     def get_unprocessed_events(self, db: Session) -> List[MotionEvent]:
         """Get all motion events that haven't been processed by facial recognition"""
         timezone_obj = get_timezone()
         now = datetime.now(timezone_obj)
-
+        success = False
         try:
             events = db.query(self.model).filter(
                 and_(
@@ -70,30 +115,54 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
                     self.model.s3_url.isnot(None)
                 )
             ).all()
-
-            return events
-
-        except Exception as e:
-            LOGGER.error("Error querying for unprocessed events: %s", e)
-            LOGGER.exception("Full traceback:")
-            raise
+            success = True
+        except SQLAlchemyError as e:
+            LOGGER.error("Failed to query for unprocessed events: %s", e)
+            raise DatabaseTransactionError(
+                f"Failed to query for unprocessed events: {str(e)}") from e
+        finally:
+            if success:
+                inc_counter_metric(
+                    MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
+                    labels={"table": self.model.__table__.name},
+                    increment=1,
+                )
+            else:
+                inc_counter_metric(
+                MetricDataPointName.DATABASE_TRANSACTION_FAILURE_COUNT,
+                labels={"table": self.model.__table__.name},
+                increment=1,
+            )
+        return events
 
     def get_unuploaded_events(self, db: Session) -> List[MotionEvent]:
         """Get all motion events that haven't been uploaded to S3 yet"""
         timezone_obj = get_timezone()
         now = datetime.now(timezone_obj)
-
+        success = False
         try:
             events = db.query(self.model).filter(
                 self.model.uploaded_to_s3 > now
             ).all()
-
-            return events
-
-        except Exception as e:
-            LOGGER.error("Error querying for unuploaded events: %s", e)
-            LOGGER.exception("Full traceback:")
-            raise
+            success = True
+        except SQLAlchemyError as e:
+            LOGGER.error("Failed to query for unuploaded events: %s", e)
+            raise DatabaseTransactionError(
+                f"Failed to query for unuploaded events: {str(e)}") from e
+        finally:
+            if success:
+                inc_counter_metric(
+                    MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
+                    labels={"table": self.model.__table__.name},
+                    increment=1,
+                )
+            else:
+                inc_counter_metric(
+                    MetricDataPointName.DATABASE_TRANSACTION_FAILURE_COUNT,
+                    labels={"table": self.model.__table__.name},
+                    increment=1,
+                )
+        return events
 
     def mark_as_processed(
             self,
@@ -104,10 +173,12 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
         """Mark a motion event as processed by facial recognition"""
         table_name = self.model.__table__.name
         event = self.get(db, event_id)
+        success = False
         if event:
             event.facial_recognition_processed = processed_time
             try:
                 db.commit()
+                success = True
             except SQLAlchemyError as e:
                 db.rollback()
                 LOGGER.error(
@@ -117,18 +188,21 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
                     str(e),
                     exc_info=True
                 )
-                inc_counter_metric(
-                    MetricDataPointName.DATABASE_TRANSACTION_FAILURE_COUNT,
-                    labels={"table": table_name},
-                    increment=1,
-                )
                 raise DatabaseTransactionError(
                     f"Failed to mark event {event_id} as processed in table {table_name}: {str(e)}") from e
-            inc_counter_metric(
-                MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
-                labels={"table": table_name},
-                increment=1,
-            )
+            finally:
+                if success:
+                    inc_counter_metric(
+                        MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
+                        labels={"table": table_name},
+                        increment=1,
+                    )
+                else:
+                    inc_counter_metric(
+                        MetricDataPointName.DATABASE_TRANSACTION_FAILURE_COUNT,
+                        labels={"table": table_name},
+                        increment=1,
+                    )
             try:
                 db.refresh(event)
             except SQLAlchemyError as e:
@@ -139,7 +213,8 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
                     str(e),
                     exc_info=True
                 )
-                raise
+                raise DatabaseTransactionError(
+                    f"Failed to refresh event after commit in table {table_name}: {str(e)}") from e
         return event
 
     def update_s3_url(
@@ -152,11 +227,13 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
         """Update the S3 URL and upload time for a motion event"""
         table_name = self.model.__table__.name
         event = self.get(db, event_id)
+        success = False
         if event:
             event.s3_url = s3_url
             event.uploaded_to_s3 = upload_time
             try:
                 db.commit()
+                success = True
             except SQLAlchemyError as e:
                 db.rollback()
                 LOGGER.error(
@@ -166,18 +243,21 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
                     str(e),
                     exc_info=True
                 )
-                inc_counter_metric(
-                    MetricDataPointName.DATABASE_TRANSACTION_FAILURE_COUNT,
-                    labels={"table": table_name},
-                    increment=1,
-                )
                 raise DatabaseTransactionError(
                     f"Failed to update S3 URL for event {event_id} in table {table_name}: {str(e)}") from e
-            inc_counter_metric(
-                MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
-                labels={"table": table_name},
-                increment=1,
-            )
+            finally:
+                if success:
+                    inc_counter_metric(
+                        MetricDataPointName.DATABASE_TRANSACTION_SUCCESS_COUNT,
+                        labels={"table": table_name},
+                        increment=1,
+                    )
+                else:
+                    inc_counter_metric(
+                        MetricDataPointName.DATABASE_TRANSACTION_FAILURE_COUNT,
+                        labels={"table": table_name},
+                        increment=1,
+                    )
             try:
                 db.refresh(event)
             except SQLAlchemyError as e:
@@ -188,5 +268,6 @@ class MotionEventRepository(BaseRepository[MotionEvent]):
                     str(e),
                     exc_info=True
                 )
-                raise
+                raise DatabaseTransactionError(
+                    f"Failed to refresh event after commit in table {table_name}: {str(e)}") from e
         return event

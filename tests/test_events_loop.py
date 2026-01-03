@@ -84,8 +84,10 @@ async def test_poll_for_events_error(
         mock_connection_manager_registry: Mock
 ) -> None:
     """Test error handling in event polling."""
-    # Set up the error condition
-    mock_camera.retrieve_motion_events.side_effect = Exception("Test error")
+    from watch_tower.exceptions import RingConnectionManagerError
+    
+    # Set up the error condition - use RingConnectionManagerError which is retryable
+    mock_camera.retrieve_motion_events.side_effect = RingConnectionManagerError("Test error")
     current_time = datetime.now(timezone.utc)
     new_events: List[Any] = []
 

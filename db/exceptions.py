@@ -13,6 +13,10 @@ class DatabaseConnectionError(Exception):
     """Exception for database connection errors"""
 
 
+class DatabaseTransactionError(Exception):
+    """Exception for database transaction errors"""
+
+
 class CryptographyError(WatchTowerError):
     """Raised when there's an encryption/decryption error."""
 
