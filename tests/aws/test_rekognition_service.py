@@ -30,7 +30,7 @@ def mock_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def mock_config(_monkeypatch: pytest.MonkeyPatch) -> Generator[Mock, None, None]:
+def mock_config() -> Generator[Mock, None, None]:
     """Mock the configuration to use test values."""
     with patch('aws.rekognition.rekognition_service.config') as patched_config:
         patched_config.rekognition_collection_id = TEST_COLLECTION_ID
@@ -68,19 +68,19 @@ def clean_running_jobs() -> Generator[None, None, None]:
 
 @pytest.fixture
 def rekognition_service(
-        _mock_env_vars: None,
-        _mock_config: Mock,
-        _mock_rekognition_client: Mock,
-        _mock_s3_service: Mock,
-        _clean_running_jobs: None
+        mock_env_vars: None,  # pylint: disable=unused-argument
+        mock_config: Mock,  # pylint: disable=unused-argument
+        mock_rekognition_client: Mock,  # pylint: disable=unused-argument
+        mock_s3_service: Mock,  # pylint: disable=unused-argument
+        clean_running_jobs: None  # pylint: disable=unused-argument
 ) -> RekognitionService:
     """Create a RekognitionService instance with mocked dependencies."""
     return RekognitionService()
 
 
 def test_init_success(
-        _mock_env_vars: None,
-        _mock_config: Mock,
+        mock_env_vars: None,  # pylint: disable=unused-argument
+        mock_config: Mock,  # pylint: disable=unused-argument
         mock_rekognition_client: Mock
 ) -> None:
     """Test successful initialization of RekognitionService."""
@@ -297,7 +297,7 @@ async def test_start_face_search_job_already_running(
 async def test_start_face_search_s3_url_format(
         rekognition_service: RekognitionService,
         mock_rekognition_client: Mock,
-        _mock_config: Mock
+        mock_config: Mock  # pylint: disable=unused-argument
 ) -> None:
     """Test face search with s3:// URL format."""
     s3_url = "s3://my-bucket/path/to/video.mp4"
@@ -320,7 +320,7 @@ async def test_start_face_search_s3_url_format(
 async def test_start_face_search_http_url_format(
         rekognition_service: RekognitionService,
         mock_rekognition_client: Mock,
-        _mock_config: Mock
+        mock_config: Mock  # pylint: disable=unused-argument
 ) -> None:
     """Test face search with http/https URL format (path-style: bucket in path)."""
     # Path-style URL: https://s3.region.amazonaws.com/bucket-name/key
@@ -344,7 +344,7 @@ async def test_start_face_search_http_url_format(
 async def test_start_face_search_virtual_hosted_style_url_format(
         rekognition_service: RekognitionService,
         mock_rekognition_client: Mock,
-        _mock_config: Mock
+        mock_config: Mock  # pylint: disable=unused-argument
 ) -> None:
     """Test face search with virtual-hosted-style URL format (bucket in hostname)."""
     # Virtual-hosted-style URL: https://bucket.s3.region.amazonaws.com/key
@@ -368,7 +368,7 @@ async def test_start_face_search_virtual_hosted_style_url_format(
 async def test_start_face_search_virtual_hosted_style_url_no_region(
         rekognition_service: RekognitionService,
         mock_rekognition_client: Mock,
-        _mock_config: Mock
+        mock_config: Mock  # pylint: disable=unused-argument
 ) -> None:
     """Test face search with virtual-hosted-style URL without region."""
     # Virtual-hosted-style URL without region: https://bucket.s3.amazonaws.com/key
